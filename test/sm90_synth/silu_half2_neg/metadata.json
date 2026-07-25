@@ -1,0 +1,8 @@
+{
+  "name": "silu_half2_neg",
+  "desc": "half-precision SiLu(d0)*d1 (cutlass LeftSiLUAndMul, ElementCompute=half). Regression for the half2 REGISTER-operand negation bug: -Rx.H0_H0 in HADD2.F32/HSETP2 was integer-negated (packed f16x2 word) instead of per-lane fneg, degenerating the sigmoid to a near-step function.",
+  "kernel_func": "silu_half2_neg",
+  "tags": ["sm90", "half2", "hadd2", "hsetp2", "negation", "silu", "sigmoid", "fast_exp", "regression"],
+  "feature": "half2_operand_negation",
+  "gpu_ref": "host_computed"
+}

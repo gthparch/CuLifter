@@ -1,0 +1,35 @@
+{
+  "name": "SH14_reduce_sum_16",
+  "tags": [
+    "shared",
+    "reduce_sum",
+    "16_threads",
+    "bar_sync",
+    "loop"
+  ],
+  "priority": 4,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 121,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "smem_sass": {
+    "STS": 5,
+    "LDS": 9,
+    "BAR.SYNC": 5,
+    "BAR": 5,
+    "ULEA": 1
+  },
+  "ref_output_bytes": 256
+}

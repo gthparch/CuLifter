@@ -1,0 +1,15 @@
+{
+  "name": "imma8816",
+  "desc": "IMMA.8816 int8->int32 tensor-core MMA (CUTLASS canonical int8 tensorop GEMM class, e.g. 08_turing_tensorop_gemm): one warp computes the m8n8k16 atom D = C + A(8x16,s8)*B(8x16,s8)^T via warp-true fragment gather; compared to a host integer-GEMM oracle (exact, no rounding).",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int8",
+    "warp",
+    "cutlass",
+    "m8n8k16"
+  ],
+  "feature": "imma_8816",
+  "gpu_ref": "pass"
+}

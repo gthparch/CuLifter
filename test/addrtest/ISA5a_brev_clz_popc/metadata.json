@@ -1,0 +1,10 @@
+{
+  "kernel": "ISA5a_brev_clz_popc",
+  "tags": [
+    "BREV",
+    "FLO",
+    "POPC"
+  ],
+  "description": "Bit reversal, count leading zeros, population count",
+  "sass_features": {}
+}

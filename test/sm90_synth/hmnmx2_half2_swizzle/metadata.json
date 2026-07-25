@@ -1,0 +1,8 @@
+{
+  "name": "hmnmx2_half2_swizzle",
+  "desc": "half2 __hmax2(x, __half2half2(s)) -> HMNMX2 Rd,Ra,Rb.H0_H0,!PT. Regression for the half2 .H0_H0 SWIZZLE being dropped on HMNMX2: lift_hmnmx2 fetched operands via the GENERIC _get_val + raw bitcast, so Rb.H0_H0 (broadcast low half) was used verbatim = {s, 0.0} (16-bit zext load) => wrong high lane max(x.hi, 0.0) instead of max(x.hi, s). Fix routes operands through _get_val_half2 (honors swizzle + per-lane neg/abs). This .H0_H0 pattern appears 32x in CB_hgemm + cutlass 13_fused_two_gemms/convs.",
+  "kernel_func": "hmnmx2_half2_swizzle",
+  "tags": ["sm90", "half2", "hmnmx2", "hmax2", "swizzle", "H0_H0", "regression"],
+  "feature": "half2_operand_swizzle",
+  "gpu_ref": "host_computed"
+}

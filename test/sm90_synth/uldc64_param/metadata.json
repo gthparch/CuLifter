@@ -1,0 +1,12 @@
+{
+  "name": "uldc64_param",
+  "desc": "ULDC.64: 64-bit uniform constant load (kernel parameter as pointer)",
+  "tags": [
+    "sm90",
+    "uldc64",
+    "bug063"
+  ],
+  "feature": "bug063",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

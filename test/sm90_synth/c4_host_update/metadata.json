@@ -1,0 +1,14 @@
+{
+  "name": "c4_host_update",
+  "desc": "c[0x4]: __device__ var updated via cudaMemcpyToSymbol before launch",
+  "tags": [
+    "sm90",
+    "c4",
+    "memcpy_to_symbol",
+    "runtime_update",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

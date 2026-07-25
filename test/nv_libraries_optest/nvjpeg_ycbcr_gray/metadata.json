@@ -1,0 +1,8 @@
+{
+  "name": "nvjpeg_ycbcr_gray",
+  "desc": "nvjpeg::ycbcr_to_format_kernel_roi<GRAY(6),false,RGB(3),LaunchParams<32,8>> from libnvjpeg sm_90. Grayscale specialization: loads only the Y plane and writes Y to all 3 output planes (R=G=B=Y). Pure data movement -> exact (tol=0). Same kernel template as nvjpeg_ycbcr_to_bgr_420, GRAY subsampling branch.",
+  "tags": ["sm90","nv_libraries","nvjpeg","color_conversion","data_movement","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_ZN6nvjpeg26ycbcr_to_format_kernel_roiIL25nvjpegChromaSubsampling_t6ELb0EL20nvjpegOutputFormat_t3ENS_26ConvertToFormatDispatchROI12LaunchParamsILi32ELi8EEEEEv13nvjpegImage_t8NppiSizeS6_S7_",
+  "source_cubin": "benchmark/nv_libraries/cubins/nvjpeg.cubin",
+  "ground_truth": "x86-lifted vs host reference (R=G=B=Y): 0/384, TEST PASSED"
+}

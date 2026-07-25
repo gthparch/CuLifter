@@ -1,0 +1,82 @@
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+		Function : _Z5saxpyiPKfPf
+	.headerflags	@"EF_CUDA_TEXMODE_UNIFIED EF_CUDA_64BIT_ADDRESS EF_CUDA_SM75 EF_CUDA_VIRTUAL_SM(EF_CUDA_SM75)"
+        /*0000*/                   MOV R1, c[0x0][0x28] ;                        /* 0x00000a0000017a02 */
+                                                                                 /* 0x000fe40000000f00 */
+        /*0010*/                   S2R R4, SR_TID.X ;                            /* 0x0000000000047919 */
+                                                                                 /* 0x000e240000002100 */
+        /*0020*/                   ISETP.GE.AND P0, PT, R4, c[0x0][0x160], PT ;  /* 0x0000580004007a0c */
+                                                                                 /* 0x001fd80003f06270 */
+        /*0030*/               @P0 EXIT ;                                        /* 0x000000000000094d */
+                                                                                 /* 0x000fea0003800000 */
+        /*0040*/                   MOV R5, 0x4 ;                                 /* 0x0000000400057802 */
+                                                                                 /* 0x000fca0000000f00 */
+        /*0050*/                   IMAD.WIDE R2, R4, R5, c[0x0][0x168] ;         /* 0x00005a0004027625 */
+                                                                                 /* 0x000fc800078e0205 */
+        /*0060*/                   IMAD.WIDE R4, R4, R5, c[0x0][0x170] ;         /* 0x00005c0004047625 */
+                                                                                 /* 0x000fc800078e0205 */
+        /*0070*/                   LDG.E.SYS R3, [R2] ;                          /* 0x0000000002037381 */
+                                                                                 /* 0x000ea800001ee900 */
+        /*0080*/                   LDG.E.SYS R0, [R4] ;                          /* 0x0000000004007381 */
+                                                                                 /* 0x000ea400001ee900 */
+        /*0090*/                   FADD R7, R0, R3 ;                             /* 0x0000000300077221 */
+                                                                                 /* 0x004fd00000000000 */
+        /*00a0*/                   STG.E.SYS [R4], R7 ;                          /* 0x0000000704007386 */
+                                                                                 /* 0x000fe2000010e900 */
+        /*00b0*/                   EXIT ;                                        /* 0x000000000000794d */
+                                                                                 /* 0x000fea0003800000 */
+        /*00c0*/                   BRA 0xc0;                                     /* 0xfffffff000007947 */
+                                                                                 /* 0x000fc0000383ffff */
+        /*00d0*/                   NOP;                                          /* 0x0000000000007918 */
+                                                                                 /* 0x000fc00000000000 */
+        /*00e0*/                   NOP;                                          /* 0x0000000000007918 */
+                                                                                 /* 0x000fc00000000000 */
+        /*00f0*/                   NOP;                                          /* 0x0000000000007918 */
+                                                                                 /* 0x000fc00000000000 */
+		..........
+
+
+
+Fatbin ptx code:
+================
+arch = sm_75
+code version = [8,5]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions = 
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+
+Fatbin ptx code:
+================
+arch = sm_75
+code version = [8,5]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions = 

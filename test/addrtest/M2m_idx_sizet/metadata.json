@@ -1,0 +1,52 @@
+{
+  "name": "M2m_idx_sizet",
+  "seed": "M2_ptr_array_float",
+  "knob": "index_type",
+  "tags": [
+    "ptr_indirect",
+    "64bit_index"
+  ],
+  "opt": "-O2",
+  "description": "size_t payload index adds carry chain",
+  "gen_kwargs": {
+    "idx_type": "size_t"
+  },
+  "build_status": "ok",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": true,
+    "n_ldg": 2,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 2,
+    "IADD3.X": 1,
+    "IADD3": 2,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 2
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    true,
+    true,
+    2,
+    1
+  ],
+  "dedup_status": "kept: new skeleton (True, True, False, False, False, True, False, True, True, 2, 1)"
+}

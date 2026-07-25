@@ -1,0 +1,15 @@
+{
+  "name": "B_lea_sx32",
+  "desc": "LEA.HI.SX32: sign-extended high LEA for 64-bit address (columnarSolver crash)",
+  "tags": [
+    "sm90",
+    "lea",
+    "sx32",
+    "sign_extend",
+    "address",
+    "crash_root"
+  ],
+  "feature": "crash_root_cause",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

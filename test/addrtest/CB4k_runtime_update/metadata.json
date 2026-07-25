@@ -1,0 +1,30 @@
+{
+  "name": "CB4k_runtime_update",
+  "tags": [
+    "cbank4",
+    "device_var",
+    "runtime_update",
+    "cudaMemcpyToSymbol",
+    "bug039"
+  ],
+  "priority": 16,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 2,
+    "n_stg": 1
+  },
+  "num_functions": 1,
+  "c4_loads": 1,
+  "ref_output_bytes": 1024
+}

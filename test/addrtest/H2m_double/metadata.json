@@ -1,0 +1,53 @@
+{
+  "name": "H2m_double",
+  "seed": "H2_big_mul_sizet",
+  "knob": "elem_type",
+  "tags": [
+    "64bit_index",
+    "carry_sensitive"
+  ],
+  "opt": "-O2",
+  "description": "Double element, wider stride",
+  "gen_kwargs": {
+    "idx_type": "size_t",
+    "elem": "double"
+  },
+  "build_status": "ok",
+  "sass_lines": 249,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": true,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 7,
+    "IADD3.X": 7,
+    "IADD3": 13,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 3
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    true,
+    true,
+    1,
+    1
+  ],
+  "dedup_status": "kept: new skeleton (True, True, False, False, False, True, False, True, True, 1, 1)"
+}

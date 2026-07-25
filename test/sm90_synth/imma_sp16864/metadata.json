@@ -1,0 +1,18 @@
+{
+  "name": "imma_sp16864",
+  "desc": "IMMA.SP.16864 int8 2:4-structured-sparse tensor-core MMA (CUTLASS sparse tensorop GEMM class, 15_ampere_sparse_tensorop_gemm). One warp computes the m16n8k64 sparse atom D = C + A_dense(16x64,s8)*B(8x64,s8)^T, where A is given COMPRESSED (16x32 kept) plus metadata E selecting which 2 of every 4 K-cols per group are non-zero (cutlass host_uncompress.h 2:4 rule). Warp-true fragment gather + per-lane metadata decode; compared to a host integer-GEMM oracle (exact, no rounding).",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int8",
+    "sparse",
+    "2to4",
+    "metadata",
+    "warp",
+    "cutlass",
+    "m16n8k64"
+  ],
+  "feature": "imma_sp16864",
+  "gpu_ref": "pass"
+}

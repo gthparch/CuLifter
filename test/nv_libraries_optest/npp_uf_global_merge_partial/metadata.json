@@ -1,0 +1,10 @@
+{
+  "name": "npp_uf_global_merge_partial",
+  "desc": "Real npp 8-way connected-components PARTIAL global-merge kernel labelMarkersUF8WayGlobalMergePartial<unsigned char>(unsigned char* image, size_t pitch, unsigned int* labels, NppiSize) from libnpp sm_90 npp_uf.cubin, lifted to x86 and run on CPU. 2D launch, block 16x16, grid ceil(w/16)xceil(h/16). Unions only the 2 BACKWARD ORTHOGONAL neighbours (4-connectivity): LEFT (p-1, guard col>=1) and UP (p-width, guard row>=1), each gated on image[p]==image[neighbour] (read-only u8 image), via the same atomic-min hooking merge (ATOMG.E.MIN.STRONG.GPU, BREAK on settle) as global_merge. Linear label index p=row*width+col. Image read-only; only labels[] written. Params: image@0x210, pitch@0x218, labels@0x220, width@0x228, height@0x22c.",
+  "tags": ["sm90","nv_libraries","npp","union_find","connected_components","4way","global_merge_partial","atomic_min","cpu_x86","order_dependent","racy"],
+  "kernel_func": "_Z36labelMarkersUF8WayGlobalMergePartialIhEvPT_mPj8NppiSize",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_uf.cubin",
+  "native_arch": "sm90",
+  "status": "BLOCKED (order-dependent / racy)",
+  "ground_truth": "GENUINELY NON-DETERMINISTIC under the CPU wrapper's concurrent threads: the non-atomic root-find traversal races with peer atomicMin updates, and the narrow 2-edge (4-connectivity) hooking does not mask it. Measured on a 40x40 random 3-value image, the full-labels hash VARIES run-to-run (seed 8: 2 distinct hashes / 16 runs; seed 6: 3 distinct hashes / 12 runs). A racy kernel has no order-independent final state, so per the harness rule it is NOT verifiable for an exact label reference -> BLOCKED. The order-INDEPENDENT SOUNDNESS invariant still holds on every run (0 cross-component merges; chain-roots stay within the pixel's true 4-connected component) and the driver actively probes+reports the race. On the real GPU this pass runs after local_merge_block (intra-tile labels rooted) inside the host's iterate-to-fixed-point loop, where the race does not affect the converged result."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "B_r2ur",
+  "desc": "R2UR: regular register to uniform register transfer (columnarSolver crash)",
+  "tags": [
+    "sm90",
+    "r2ur",
+    "uniform_reg",
+    "crash_root"
+  ],
+  "feature": "crash_root_cause",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

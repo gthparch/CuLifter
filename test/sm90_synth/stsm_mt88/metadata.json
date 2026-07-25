@@ -1,0 +1,7 @@
+{
+  "name": "stsm_mt88",
+  "desc": "STSM.16.MT88.4: warp-collective stmatrix.x4.trans store + ldmatrix.trans round-trip",
+  "tags": ["sm90", "stsm", "matrix_io"],
+  "feature": "W1-M1",
+  "gpu_ref": "analytic"
+}

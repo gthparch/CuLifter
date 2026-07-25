@@ -1,0 +1,9 @@
+{
+  "name": "npp_compress_pass1",
+  "desc": "Real closed-source NPP connected-component label-compaction kernel CompressMarkerLabelsPass1<uint,uint>(uint* pSrc, size_t nSrcStep, uint* pDst, size_t nDstStep, NppiSize oSize, int nMaxLabel, uint8_t* pBuffer), extracted from benchmark/nv_libraries/cubins/npp_compress.cubin (sm_90), lifted to x86 by SLifter and executed on CPU. Decoded from full SASS (predicated @P0 EXIT bounds guards included): 2D launch, col=blockIdx.x*blockDim.x+threadIdx.x, row=blockIdx.y*blockDim.y+threadIdx.y; if (col>=oSize.width || row>=oSize.height) return; pitch=nSrcStep/4; label=pSrc[row*pitch+col]; if (label==0 || label>=nMaxLabel) return; ((uint*)pBuffer)[label+1]=1 (STG [c0x240 + label*4 + 0x4]). Mark-which-labels-used scatter; every active thread writes the same value 1 (idempotent), so output is an order-independent pure function of inputs. Params (SM90 const bank): pSrc@0x210, nSrcStep@0x218, oSize.width@0x230, oSize.height@0x234, nMaxLabel@0x238, pBuffer@0x240. Discriminating input: distinct per-pixel labels with some 0 (skipped), some >=nMaxLabel (skipped), rest marked.",
+  "tags": ["sm90","nv_libraries","npp","library_kernel","connected_components","label_compaction","scatter","const_bank_params","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z25CompressMarkerLabelsPass1IjjEvPT_mPT0_m8NppiSizeiPh",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_compress.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host scatter reference: 0/512 mismatches, TEST PASSED"
+}

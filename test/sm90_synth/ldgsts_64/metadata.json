@@ -1,0 +1,8 @@
+{
+  "name": "ldgsts_64",
+  "desc": "LDGSTS 64-bit async copy: global -> shared (8 bytes per thread)",
+  "tags": ["sm90", "ldgsts", "async_copy"],
+  "feature": "W1-A1",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

@@ -1,0 +1,14 @@
+{
+  "name": "mix_size_large_4096",
+  "desc": "Large buffer: N=4096 elements (multi-block grid)",
+  "tags": [
+    "sm90",
+    "size",
+    "large",
+    "multi_block",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 16384
+}

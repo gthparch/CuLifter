@@ -1,0 +1,14 @@
+{
+  "name": "shared_scatter_barrier",
+  "desc": "Shared memory scatter with multiple barriers (split/radix pattern)",
+  "tags": [
+    "sm90",
+    "shared_mem",
+    "scatter",
+    "syncthreads",
+    "bug063"
+  ],
+  "feature": "bug063",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

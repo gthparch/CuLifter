@@ -1,0 +1,18 @@
+{
+  "kernel_id": "N2",
+  "slug": "stencil_5pt_float",
+  "dir_name": "N2_stencil_5pt_float",
+  "kernel_name": "addr_N2_stencil_5pt_float",
+  "family": "signed_disp",
+  "tags": [
+    "signed_disp",
+    "affine_linear"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "1D 5-point stencil"
+}

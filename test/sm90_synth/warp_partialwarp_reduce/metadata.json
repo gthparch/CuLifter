@@ -1,0 +1,25 @@
+{
+  "name": "mb_partialwarp",
+  "kernel_func": "mb_partialwarp",
+  "tags": [
+    "shfl",
+    "shfl_down",
+    "block_reduce",
+    "partial_warp_collective",
+    "barrier_reconvergence",
+    "warp_membership",
+    "softmax_sum",
+    "cudnn_adv_so193"
+  ],
+  "description": "Minimal reproduction of the generic warp-reduction mass-drop under asymmetric (partial-warp) collectives followed by a block barrier and a SECOND full-warp reduce. warp0 lanes 0..7 run an extra 8-lane partial collective, __syncthreads(), then a full-warp SHFL.DOWN reduce with non-uniform values. A divergence-history membership model splits warp0 into {0..7}/{8..31} after the barrier and drops mass (so.193 cuDNN computeSoftmaxProbability<256,float> lost ~1.5% of its softmax sum exactly this way). The barrier is a full reconvergence point: the post-barrier full-warp reduce must see all 32 lanes. Fixed by warp_hist_resync_after_barrier (kernel_wrapper_75.h): a block barrier resynchronizes the per-lane divergence history to a warp-uniform epoch.",
+  "arch": "sm_90a",
+  "block": [256, 1, 1],
+  "grid": [1, 1, 1],
+  "arg_base": "0x210",
+  "has_host_cpu": true,
+  "build_note": "host pins args via ArgAt{0x210..} so default ARG_BASE is irrelevant.",
+  "shfl_ops": {
+    "SHFL.DOWN": 22
+  },
+  "result_x86": "TEST PASSED (blocksum2 bit-exact post-fix; DIVERGED pre-fix)"
+}

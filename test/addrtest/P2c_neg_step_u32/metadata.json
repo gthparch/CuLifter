@@ -1,0 +1,23 @@
+{
+  "name": "P2c_neg_step_u32",
+  "tags": [
+    "signed_disp",
+    "predicated"
+  ],
+  "has_host_cpu": true,
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "gpu_ref": "pass"
+}

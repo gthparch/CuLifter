@@ -1,0 +1,8 @@
+{
+  "name": "div64_runtime_gather",
+  "desc": "MINIMAL repro of an IntDivRecognize 64-bit-divide gap (reduced from 42_ampere_tensorop_group_conv im2col npq-decompose). A 64-bit (long) flat tid divided+mod'd by a RUNTIME int divisor, feeding a gather, makes ptxas emit TWO magic-divide chains (64-bit-helper CALL + 32-bit inline fast path) for each of q and r. IntDivRecognize rewrites the UREM64 helper leaves and SOME 32-bit fast-path leaves but LEAVES at least one fast-path leaf as a faithful rcp_f32 software-reciprocal chain -> WRONG quotient on x86 (t=9 D=18: q=3 not 0). VALUE-DIVERGES (quotient bad 191/200). Expected to FAIL until the gap is fixed.",
+  "kernel_func": "kern_div64_runtime_gather",
+  "tags": ["sm90", "intdiv", "div64", "magic_divide", "runtime_divisor", "bug", "xfail", "regression"],
+  "feature": "intdiv_div64_gap",
+  "gpu_ref": "host_computed"
+}

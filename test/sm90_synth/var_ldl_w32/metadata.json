@@ -1,0 +1,13 @@
+{
+  "name": "var_ldl_w32",
+  "desc": "LDL/STL width=32: local memory single float load/store",
+  "tags": [
+    "sm90",
+    "var",
+    "ldl",
+    "w32"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 512
+}

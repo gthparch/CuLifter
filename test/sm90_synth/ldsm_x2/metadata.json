@@ -1,0 +1,11 @@
+{
+  "name": "ldsm_x2",
+  "desc": "LDSM.16.M88.2: ldmatrix.x2, aligned rows, exact layout compare",
+  "tags": [
+    "sm90",
+    "ldsm",
+    "matrix_io"
+  ],
+  "feature": "W1-M1",
+  "gpu_ref": "analytic"
+}

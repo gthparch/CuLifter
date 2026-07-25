@@ -1,0 +1,7 @@
+{
+  "name": "hmma16816f16",
+  "desc": "HMMA.16816.F16 (f16-accum tensor-core MMA, CB_hgemm class): warp-true wrapper decomposition; one warp computes D = A(16x16)*B(16x8) + C vs an f32-accum host replica with f16 rounding tolerance",
+  "tags": ["sm90", "hmma", "mma", "f16", "warp", "cublas"],
+  "feature": "hmma_16816_f16",
+  "gpu_ref": "pass"
+}

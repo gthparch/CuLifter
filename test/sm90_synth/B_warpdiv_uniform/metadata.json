@@ -1,0 +1,12 @@
+{
+  "name": "B_warpdiv_uniform",
+  "desc": "Uniform-promoted Barrett divide chain (F2I->R2UR, UIMAD.WIDE.U32 pair-HI quotient) must be recognized by IntDivRecognize (so.69 x/warpSize family, 30 corpus sites)",
+  "tags": [
+    "sm90",
+    "intdiv",
+    "uniform_reg",
+    "barrett",
+    "value_root"
+  ],
+  "feature": "value_root_cause"
+}

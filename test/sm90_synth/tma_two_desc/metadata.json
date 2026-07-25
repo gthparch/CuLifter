@@ -1,0 +1,9 @@
+{
+  "name": "tma_two_desc",
+  "desc": "Two array accesses (a+b) - tests multi-pointer descriptor patterns",
+  "tags": ["tma", "descriptor", "multi"],
+  "priority": "synth",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024,
+  "note": "Synthetic SM90 kernel testing multiple pointer parameters with shared TMA descriptor."
+}

@@ -1,0 +1,14 @@
+{
+  "name": "c4_multi_var",
+  "desc": "c[0x4]: 3 __device__ vars at different offsets (int, float, double)",
+  "tags": [
+    "sm90",
+    "c4",
+    "multi_var",
+    "mixed_type",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

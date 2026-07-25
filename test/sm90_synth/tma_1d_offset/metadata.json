@@ -1,0 +1,9 @@
+{
+  "name": "tma_1d_offset",
+  "desc": "1D array access with offset - tests descriptor LDG/STG",
+  "tags": ["tma", "descriptor", "offset"],
+  "priority": "synth",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024,
+  "note": "Synthetic SM90 kernel testing TMA descriptor-based memory access with varying offsets."
+}

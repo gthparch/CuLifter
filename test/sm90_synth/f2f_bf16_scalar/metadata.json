@@ -1,0 +1,7 @@
+{
+  "name": "f2f_bf16_scalar",
+  "desc": "Scalar F2F.BF16.F32 (non-PACK) + F2FP.PACK_AB.RZ + SHF widening: real bf16 bits",
+  "tags": ["sm90", "f2f", "bf16"],
+  "feature": "W1-C1",
+  "gpu_ref": "analytic"
+}

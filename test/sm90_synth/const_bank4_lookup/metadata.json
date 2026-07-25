@@ -1,0 +1,13 @@
+{
+  "name": "const_bank4_lookup",
+  "desc": "c[0x4]: __constant__ float array lookup",
+  "tags": [
+    "sm90",
+    "c4",
+    "constant",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

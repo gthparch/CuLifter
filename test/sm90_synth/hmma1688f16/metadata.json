@@ -1,0 +1,7 @@
+{
+  "name": "hmma1688f16",
+  "desc": "HMMA.1688.F16 (f16-accum m16n8k8 tensor-core MMA, cutlass ex13 fused gemm/conv class): warp-true wrapper decomposition; one warp computes D = A(16x8 f16)*B(8x8 f16) + C(f16) vs an f32 host replica (final f16 round) with random signed inputs",
+  "tags": ["sm90", "hmma", "mma", "f16", "warp", "cutlass"],
+  "feature": "hmma_1688_f16",
+  "gpu_ref": "unverified"
+}

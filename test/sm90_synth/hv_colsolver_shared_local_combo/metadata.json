@@ -1,0 +1,15 @@
+{
+  "name": "hv_colsolver_shared_local_combo",
+  "desc": "columnarSolver: shared reduction + local array + barrier combo",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "columnarSolver",
+    "shared",
+    "local",
+    "barrier"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4
+}

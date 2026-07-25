@@ -1,0 +1,14 @@
+{
+  "name": "f2ip_conv",
+  "desc": "F2IP.S8.F32 float->int8 pack-pair convert (sm90). ptxas's fused lowering of the CUTLASS NumericArrayConverter<int8_t,float> epilogue (cvt.rni.s32.f32 + cvt.pack.sat.s8.s32.b32) that quantizes fp32 accumulators to packed int8 before the global store — the 13_fused_two_gemms_s8 examples emit 176 of these after the IMMA.16832 mainloop. Kernel packs 4 floats per word (byte j = sat_s8(round_nearest_even(in[i*4+j]))) via two F2IP calls; host oracle is bit-exact.",
+  "tags": [
+    "sm90",
+    "f2ip",
+    "convert",
+    "int8",
+    "quantize",
+    "cutlass"
+  ],
+  "feature": "f2ip",
+  "gpu_ref": "pass"
+}

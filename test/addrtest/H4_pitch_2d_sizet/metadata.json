@@ -1,0 +1,17 @@
+{
+  "kernel_id": "H4",
+  "slug": "pitch_2d_sizet",
+  "dir_name": "H4_pitch_2d_sizet",
+  "kernel_name": "addr_H4_pitch_2d_sizet",
+  "family": "64bit_carry",
+  "tags": [
+    "64bit_index"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "size_t",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "2D pitch copy with size_t index"
+}

@@ -1,0 +1,17 @@
+{
+  "kernel_id": "M1",
+  "slug": "select_two_float",
+  "dir_name": "M1_select_two_float",
+  "kernel_name": "addr_M1_select_two_float",
+  "family": "base_select",
+  "tags": [
+    "base_select"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Conditional base selection"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "var_dtype_int",
+  "desc": "Data type=int: saxpy-like with int operands",
+  "tags": [
+    "sm90",
+    "var",
+    "dtype",
+    "int"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

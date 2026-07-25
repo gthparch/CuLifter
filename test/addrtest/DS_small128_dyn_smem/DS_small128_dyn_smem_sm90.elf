@@ -1,0 +1,296 @@
+
+64-bit ELF: type=ET_EXEC, ABI=8, sm=90, toolkit=13.2, flags=0x6005a04
+Sections:
+Index Offset   Size ES Align                      Type    Flags Link     Info Name
+    1     40    17a  0  1                       STRTAB        0    0        0 .shstrtab
+    2    1ee    1de  0  1                       STRTAB        0    0        0 .strtab
+    3    3d0    108 18  8                       SYMTAB        0    2        b .symtab
+    4    4d8     68  0  1                     PROGBITS        0    0        0 .debug_frame
+    5    540     a4  0  4                         NOTE  2000000    0        0 .note.nv.tkinfo
+    6    5e4     20  0  4                         NOTE  1000040    5        8 .note.nv.cuinfo
+    7    604     24  0  4                    CUDA_INFO        0    3        0 .nv.info
+    8    628     1c  0  4             CUDA_COMPAT_INFO        0    0        0 .nv.compat
+    9    644     74  0  4                    CUDA_INFO       40    3        d .nv.info.DS_small128_dyn_smem
+    a    6b8     20  8  4               CUDA_CALLGRAPH        0    3        0 .nv.callgraph
+    b    6d8      0 18  8                         RELA       40    3        d .rela.text.DS_small128_dyn_smem
+    c    6d8     18 18  8                         RELA       40    3        4 .rela.debug_frame
+    d    700    280  0 80                     PROGBITS        6    3        9 .text.DS_small128_dyn_smem
+    e    980    400  0 10                       NOBITS       43    0        d .nv.shared.DS_small128_dyn_smem
+    f    980      0  0  1                       NOBITS        3    0        0 .nv.shared.reserved.0
+   10    980    224  0  4                     PROGBITS       42    0        d .nv.constant0.DS_small128_dyn_smem
+
+.section .strtab
+
+.section .shstrtab
+
+.section .symtab
+ index           value           size      info    other  shndx    name  
+   0               0               0        0        0      0     (null)
+ 0x1               0               0      0x3        0    0x5     .note.nv.tkinfo
+ 0x2               0               0      0x3        0    0x6     .note.nv.cuinfo
+ 0x3               0               0      0x3        0    0xd     .text.DS_small128_dyn_smem
+ 0x4               0             0x4     0x21        0      0     .nv.reservedSmem.offset0
+ 0x5               0               0     0x20     0xa0    0xf     __nv_reservedSMEM_offset_0_alias
+ 0x6               0               0        0      0x1      0     (null)
+ 0x7               0               0      0x3        0    0x4     .debug_frame
+ 0x8               0               0      0x3        0    0xa     .nv.callgraph
+ 0x9               0           0x280     0x12     0x10    0xd     DS_small128_dyn_smem
+ 0xa               0               0      0x3        0   0x10     .nv.constant0.DS_small128_dyn_smem
+
+
+.nv.shared.DS_small128_dyn_smem
+   No data to be dumped. 
+
+
+.nv.shared.reserved.0
+   No data to be dumped. 
+
+
+.nv.constant0.DS_small128_dyn_smem
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 
+
+
+.section .note.nv.tkinfo
+Entry: 1
+  Owner                  Data size        Description
+  NVIDIA Corp            140              NVIDIA CUDA Toolkit Information
+	Note Version: 2
+	Tool Name: ptxas
+	Tool Version: Cuda compilation tools, release 13.2, V13.2.51
+	Tool Branch: Build cuda_13.2.r13.2/compiler.37434383_0
+	Tool Command Line Arguments: -arch sm_90 -m 64 
+
+
+.section .note.nv.cuinfo
+Entry: 1
+  Owner                  Data size        Description
+  NVIDIA Corp            8                NVIDIA CUDA Information
+	Note Version: 2
+	CUDA Virtual SM: sm_90
+	CUDA Tool Kit Version: 13.2
+
+
+.nv.info
+	<0x1>
+	Attribute:	EIATTR_REGCOUNT
+	Format:	EIFMT_SVAL
+	Value:	function: DS_small128_dyn_smem(0x9)	register count: 8
+	<0x2>
+	Attribute:	EIATTR_FRAME_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: DS_small128_dyn_smem(0x9)	frame size: 0x0
+	<0x3>
+	Attribute:	EIATTR_MIN_STACK_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: DS_small128_dyn_smem(0x9)	min stack size: 0x0
+
+
+.nv.compat
+	<0x1>
+	Attribute:	EICOMPAT_ATTR_CUDA_ACCELERATOR_TARGET
+	Format:	EIFMT_BVAL
+	Value:	0x0
+	<0x2>
+	Attribute:	EICOMPAT_ATTR_ISA_CLASS
+	Format:	EIFMT_BVAL
+	Value:	0x1
+	<0x3>
+	Attribute:	EICOMPAT_ATTR_MERCURY_ISA_MAJOR_MINOR_VERSION
+	Format:	EIFMT_HVAL
+	Value:	1.1
+	<0x4>
+	Attribute:	EICOMPAT_ATTR_INST_TENSORMAP_V1
+	Format:	EIFMT_BVAL
+	Value:	0x0
+	<0x5>
+	Attribute:	EICOMPAT_ATTR_CAN_FASTPATH_FINALIZE
+	Format:	EIFMT_SVAL
+	Value:	0x0 0x0 
+
+
+.nv.info.DS_small128_dyn_smem
+	<0x1>
+	Attribute:	EIATTR_LANGUAGE
+	Format:	EIFMT_SVAL
+	Value:	Language:	 PTX
+
+	<0x2>
+	Attribute:	EIATTR_CUDA_API_VERSION
+	Format:	EIFMT_SVAL
+	Value:	0x84 
+	<0x3>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x2	Offset  : 0x10	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x4>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x1	Offset  : 0x8	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x5>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x0	Offset  : 0x0	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x6>
+	Attribute:	EIATTR_SPARSE_MMA_MASK
+	Format:	EIFMT_HVAL
+	Value:	0x0
+	<0x7>
+	Attribute:	EIATTR_MAXREG_COUNT
+	Format:	EIFMT_HVAL
+	Value:	0xff
+	<0x8>
+	Attribute:	EIATTR_NUM_BARRIERS
+	Format:	EIFMT_BVAL
+	Value:	0x1
+	<0x9>
+	Attribute:	EIATTR_MERCURY_ISA_VERSION
+	Format:	EIFMT_HVAL
+	Value:	1.1
+	<0x10>
+	Attribute:	EIATTR_EXIT_INSTR_OFFSETS
+	Format:	EIFMT_SVAL
+	Value:	0x110 0x170 
+	<0x11>
+	Attribute:	EIATTR_CBANK_PARAM_SIZE
+	Format:	EIFMT_HVAL
+	Value:	0x14
+	<0x12>
+	Attribute:	EIATTR_PARAM_CBANK
+	Format:	EIFMT_SVAL
+	Value:	0xa 0x140210 
+	<0x13>
+	Attribute:	EIATTR_SW_WAR
+	Format:	EIFMT_SVAL
+	Value:	0x8 
+
+
+.nv.callgraph
+ <0,-1>
+ <0,-2>
+ <0,-3>
+ <0,-4>
+
+
+.text.DS_small128_dyn_smem
+lmem=0	smem=1024
+0xff017b82 0x00000a00 0x00000800 0x000fe200
+0x00057919 0x00000000 0x00002500 0x000e2200
+0x00047ab9 0x00000000 0x00000800 0x000fe200
+0x00067ab9 0x00008200 0x00000a00 0x000fe200
+0x00007919 0x00000000 0x00002100 0x000e2400
+0x05057c24 0x00000004 0x0f8e0200 0x001fe200
+0x00047ab9 0x00008800 0x00000800 0x000fc800
+0x05007c0c 0x00000004 0x0bf06270 0x000fda00
+0xff028b82 0x00008400 0x00000a00 0x000e2400
+0x05028825 0x00000004 0x078e0202 0x001fcc00
+0x02038981 0x00000006 0x0c1e1900 0x000ea200
+0x000579c3 0x00000000 0x00008800 0x000e2200
+0x00047882 0x00000400 0x00000000 0x000fe400
+0x05047291 0x00000004 0x0f8ec03f 0x001fcc00
+0x00007c11 0x00000004 0x0f8e10ff 0x000fca00
+0x00008388 0x00000003 0x00000800 0x0041e200
+0x00007b1d 0x00000000 0x00010000 0x000fec00
+0x0000094d 0x00000000 0x03800000 0x000fea00
+0x00007984 0x00000000 0x00000800 0x001e2200
+0xff027b82 0x00008600 0x00000a00 0x000e6400
+0x05027825 0x00000004 0x078e0202 0x002fc800
+0x00057221 0x00000000 0x00000000 0x001fca00
+0x02007986 0x00000005 0x0c101906 0x000fe200
+0x0000794d 0x00000000 0x03800000 0x000fea00
+0x00fc7947 0xfffffffc 0x0383ffff 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+
+
+.section .rela.text.DS_small128_dyn_smem	RELA
+
+.section .debug_frame
+decodeDebugFrame, frameBuf 0xffffffff, total_length 104
+CIE length 36, cie_id -1
+version 3
+augmentation slen 1
+augmentation 
+code_align_factor slen 1
+data_align_factor slen 1
+ Debug Frame Common Information Entry
+  length:                 36
+  CIE_id :                -1
+  version:                3
+  augmentation:           
+  code align factor:      4
+  data align factor:      -4
+  return address register 0xffffffff
+  initial instructions: 19 bytes, ptr = 0x8080810c, frameBuf = 0xffffffff
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_same_value R255
+  DW_CFA_same_value R1
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+ Debug Frame Description Entry
+  length:                 44
+  CIE_pointer:            0
+  initial_location:       0x0
+  address_range:          0x280
+  function:               DS_small128_dyn_smem
+  instructions: 20 bytes
+  DW_CFA_advance_loc4 delta 72
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_advance_loc4 delta 20
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+
+.section .rela.debug_frame	RELA
+0x44    DS_small128_dyn_smem    R_CUDA_64    0x0

@@ -1,0 +1,9 @@
+{
+  "name": "nvjpeg_ycbcr_to_bgr_420",
+  "desc": "Dominant nvjpeg decode kernel ycbcr_to_format_kernel_roi<420,false,BGR(4),LaunchParams<32,8>> from libnvjpeg sm_90 nvjpeg.cubin (GPU-time share 0.285 in the nvJPEG-Decoder workload). Planar YCbCr 4:2:0 -> planar BGR. Per pixel: chroma sampled at (r>>1,c>>1); B=fma(Cb-128,1.772,Y), G=fma(Cr-128,-0.714136,fma(Cb-128,-0.344136,Y)), R=fma(Cr-128,1.402,Y); each clamped min(max(v,0),255) then truncated. The host reference is BIT-EXACT: fmaf matches FFMA single-rounding and truncf matches F2I.U32.TRUNC. Proves the lifter preserves fused-multiply-add float semantics + clamp/convert. const-bank: in.ch0/1/2@0x210/18/20 pitch@0x230/38/40, inSize@0x250, out.ch0/1/2@0x258/60/68 pitch@0x278/80/88, roi@0x298 (set 0 => out coords==in coords).",
+  "tags": ["sm90","nv_libraries","nvjpeg","color_conversion","ffma_fusion","planar","execution_correctness","cpu_x86","bit_exact","hot_kernel"],
+  "kernel_func": "_ZN6nvjpeg26ycbcr_to_format_kernel_roiIL25nvjpegChromaSubsampling_t2ELb0EL20nvjpegOutputFormat_t4ENS_26ConvertToFormatDispatchROI12LaunchParamsILi32ELi8EEEEEv13nvjpegImage_t8NppiSizeS6_S7_",
+  "source_cubin": "benchmark/nv_libraries/cubins/nvjpeg.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent bit-exact host reference (fmaf/truncf): 0/128 mismatches, TEST PASSED"
+}

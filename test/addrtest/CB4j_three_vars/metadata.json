@@ -1,0 +1,30 @@
+{
+  "name": "CB4j_three_vars",
+  "tags": [
+    "cbank4",
+    "device_var",
+    "three_vars",
+    "int_float_double",
+    "bug039"
+  ],
+  "priority": 16,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": false,
+    "n_ldg": 4,
+    "n_stg": 1
+  },
+  "num_functions": 1,
+  "c4_loads": 3,
+  "ref_output_bytes": 1024
+}

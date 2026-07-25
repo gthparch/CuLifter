@@ -1,0 +1,17 @@
+{
+  "name": "dmma_syrk",
+  "desc": "DMMA.8x8x4 f64 SYRK (CUTLASS 31_basic_syrk op class): one warp computes the symmetric rank-k update D=alpha*A*Aᵀ+beta*C on the lower triangle (i>=j) via the warp-true m8n8k4 atom with B:=A; strict upper triangle is left canary (triangular write-set audit). Compared to a host f64 fma-chain replica.",
+  "tags": [
+    "sm90",
+    "dmma",
+    "mma",
+    "f64",
+    "warp",
+    "cutlass",
+    "m8n8k4",
+    "syrk",
+    "triangular"
+  ],
+  "feature": "dmma_884",
+  "gpu_ref": "pass"
+}

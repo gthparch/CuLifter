@@ -1,0 +1,13 @@
+{
+  "name": "mix_size_tiny_32",
+  "desc": "Tiny buffer: N=32 elements (single warp, minimal grid)",
+  "tags": [
+    "sm90",
+    "size",
+    "tiny",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 128
+}

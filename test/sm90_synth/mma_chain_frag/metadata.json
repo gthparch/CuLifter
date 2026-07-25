@@ -1,0 +1,9 @@
+{
+  "name": "mma_chain_frag",
+  "desc": "CHAINED 2-MMA (single warp) isolating the 41_fmha forward chain link: MMA1 P=X*Y (HMMA.1688.F32) -> in-fragment nonlinear (relu(0.5x+0.25), softmax-role making P NON-UNIFORM) -> F2FP P f32->f16 -> STS to smem -> LDSM.16.MT88 (TRANSPOSED reload) as MMA2 B-operand -> MMA2 O=V*Pt (HMMA.1688.F32). Built during mma_frag_probe to decide whether the 41_fmha residual ({29,30,34,40,56}) is a lifter chained-fragment bug or f16-P oracle-precision. Single-MMA fixtures already bit-exact; this tests the CHAINED frag->reg->frag path under non-uniform data via the exact F2FP+STS+LDSM.MT88 round-trip 41 uses.",
+  "tags": ["sm90","hmma","hmma1688","ldsm","mt88","f2fp","tensor_core","chained_mma","smem","f32","fmha_chain"],
+  "feature": "chained-mma-fragment-roundtrip",
+  "kernel_func": "kern_mma_chain_frag",
+  "gpu_ref": "none (no GPU on build host; f64 CPU oracle replays full chain incl f16-P rounding in host_cpu.cpp)",
+  "sass_features": {"HMMA.1688.F32": 2, "F2FP.F16.F32.PACK_AB": 2, "STS": 2, "BAR.SYNC": 1, "LDSM.16.MT88": 1}
+}

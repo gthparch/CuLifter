@@ -1,0 +1,34 @@
+{
+  "name": "TC1_ldsm_hmma",
+  "tags": [
+    "ldsm",
+    "hmma",
+    "tensor_core",
+    "shared_matrix",
+    "16x16x16"
+  ],
+  "priority": 14,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 169,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 2,
+    "n_stg": 4
+  },
+  "advanced_ops": {
+    "LDSM": 2,
+    "HMMA": 2,
+    "BAR.SYNC": 1,
+    "STS": 2
+  },
+  "ref_output_bytes": 1024
+}

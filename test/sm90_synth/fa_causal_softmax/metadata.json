@@ -1,0 +1,7 @@
+{
+  "name": "fa_causal_softmax",
+  "desc": "Single-warp CAUSAL FlashAttention forward microbench. Online-softmax core (running max/denominator, rescale across KV tiles) plus the causal mask (query row i attends only to key positions j<=i, applied as a predicated score->-inf override). SQ=32, D=16, seqlen_k=64 -> one partially-masked KV tile + one fully-masked tile (tests that an all-masked tile leaves the running max/denom unchanged). Toggle-free; only verified ops (FFMA, MUFU.EX2, FMNMX, ISETP/select, STS+BAR.SYNC). Verified vs a CPU causal-attention oracle.",
+  "tags": ["sm90", "flash_attention", "causal", "online_softmax", "smem", "f32"],
+  "feature": "fa-causal-softmax-1warp",
+  "gpu_ref": "none (CPU causal-attention oracle in host_cpu.cpp)"
+}

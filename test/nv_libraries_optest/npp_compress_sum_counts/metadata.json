@@ -1,0 +1,9 @@
+{
+  "name": "npp_compress_sum_counts",
+  "desc": "Real closed-source NPP connected-component label-compaction kernel CompressMarkerLabelsSumLocalBlockCountsUF<uint>(uint a, uint b, uint c, uint8_t* pBuffer), extracted from benchmark/nv_libraries/cubins/npp_compress.cubin (sm_90), lifted to x86 and run on CPU. Decoded from full SASS (carry-in step + unrolled main loop + remainder, verified instr-by-instr): single surviving lane (tid.x==tid.y==ctaid.x==ctaid.y==0). lo=(a*c)*8192; hi=min(lo+8192,b); if (lo>=hi) return. View pBuffer as uint* with two regions offset by base=2*b+2: IN[idx]=pBuffer[idx+2*b+2], OUT[idx]=pBuffer[idx+c*8192+2*b+2]. Computes an EXCLUSIVE prefix sum of IN into OUT: if (lo==0) OUT[0]=0 else OUT[lo]=OUT[lo-1] (carry-in from previous block); for j in [lo==0?1:lo, hi]: OUT[j]=OUT[j-1]+IN[j-1] (LDG OUT[j-1], LDG IN[j-1], IMAD.IADD, STG OUT[j]) -> OUT[j]=sum_{k<j}IN[k]. Sums per-block local counts into running offsets; deterministic serial scan by one lane. Params: a@0x210, b@0x214, c@0x218, pBuffer@0x220. Discriminating input: single block (a=0->lo=0, b=200->hi=200, c=1 so OUT disjoint from IN) with an irregular IN[] giving a strictly-increasing varying-step prefix sum (OUT=0,1,4,10,12,13,16,22,24,...; OUT[200]=784); a degenerate kernel (copy/constant/off-by-one) fails.",
+  "tags": ["sm90","nv_libraries","npp","library_kernel","connected_components","label_compaction","prefix_sum","scan","const_bank_params","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z41CompressMarkerLabelsSumLocalBlockCountsUFjjjPh",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_compress.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host exclusive-prefix-sum reference: 0/8858 mismatches, TEST PASSED"
+}

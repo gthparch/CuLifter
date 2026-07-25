@@ -1,0 +1,14 @@
+{
+  "name": "shared_reduce_sync",
+  "desc": "Shared memory reduction with __syncthreads (columnarSolver pattern)",
+  "tags": [
+    "sm90",
+    "shared_mem",
+    "reduction",
+    "syncthreads",
+    "bug063"
+  ],
+  "feature": "bug063",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 16
+}

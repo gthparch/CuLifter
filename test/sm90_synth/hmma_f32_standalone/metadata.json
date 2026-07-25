@@ -1,0 +1,8 @@
+{
+  "name": "hmma_f32_standalone",
+  "desc": "HMMA.16816.F32: single mma.sync.m16n8k16 with A=1.0, B=2.0, C=0",
+  "tags": ["sm90", "hmma", "tensor_core", "f32"],
+  "feature": "W2-M2",
+  "gpu_ref": "pending",
+  "ref_output_bytes": 512
+}

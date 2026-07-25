@@ -1,0 +1,13 @@
+{
+  "name": "idp_s8",
+  "desc": "IDP.4A.S8.S8: 4-element signed int8 dot product with accumulate",
+  "tags": [
+    "sm90",
+    "idp",
+    "int8",
+    "dot_product"
+  ],
+  "feature": "phase2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

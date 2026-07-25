@@ -1,0 +1,51 @@
+{
+  "name": "M2m_8ptrs",
+  "seed": "M2_ptr_array_float",
+  "knob": "num_ptrs",
+  "tags": [
+    "ptr_indirect"
+  ],
+  "opt": "-O2",
+  "description": "8 pointers in array",
+  "gen_kwargs": {
+    "nptrs": "8"
+  },
+  "build_status": "ok",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": false,
+    "n_ldg": 2,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 3,
+    "IADD3.X": 0,
+    "IADD3": 0,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 0
+  },
+  "skeleton_key": [
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    2,
+    1
+  ],
+  "dedup_status": "dropped"
+}

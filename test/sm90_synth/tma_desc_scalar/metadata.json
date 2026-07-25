@@ -1,0 +1,9 @@
+{
+  "name": "tma_desc_scalar",
+  "desc": "Descriptor load + scalar multiply-add - tests mixed descriptor/scalar",
+  "tags": ["tma", "descriptor", "scalar"],
+  "priority": "synth",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024,
+  "note": "Synthetic SM90 kernel testing TMA descriptor load combined with scalar operations."
+}

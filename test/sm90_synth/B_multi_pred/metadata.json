@@ -1,0 +1,15 @@
+{
+  "name": "B_multi_pred",
+  "desc": "@P3/@P4/@P5 higher predicate registers (split, tensorT crash)",
+  "tags": [
+    "sm90",
+    "predicate",
+    "p3",
+    "p4",
+    "p5",
+    "crash_root"
+  ],
+  "feature": "crash_root_cause",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,15 @@
+{
+  "name": "hv_colsolver_local_spill",
+  "desc": "columnarSolver: large local array forcing register spills (LDL/STL pattern)",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "columnarSolver",
+    "local",
+    "spill",
+    "LDL"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 512
+}

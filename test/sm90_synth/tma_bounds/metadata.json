@@ -1,0 +1,9 @@
+{
+  "name": "tma_bounds",
+  "desc": "Boundary-checked stencil access - tests descriptor addressing with guards",
+  "tags": ["tma", "descriptor", "bounds"],
+  "priority": "synth",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024,
+  "note": "Synthetic SM90 kernel testing descriptor addressing near array boundaries."
+}

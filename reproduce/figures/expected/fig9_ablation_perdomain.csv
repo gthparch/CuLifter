@@ -1,0 +1,12 @@
+domain,total_kernels,successful_lift,execution_correct_pass,lift_rate_pct,correct_rate_pct
+Linear Algebra,12,12,12,100.0,100.0
+ML/DNN,34,34,34,100.0,100.0
+Simulation,29,29,29,100.0,100.0
+Graph,6,6,6,100.0,100.0
+Image/Vision,18,18,18,100.0,100.0
+Crypto,6,6,6,100.0,100.0
+Science,52,52,52,100.0,100.0
+Sort/Search,12,12,12,100.0,100.0
+Stencil/PDE,5,5,5,100.0,100.0
+Infrastructure,54,54,54,100.0,100.0
+Other,1,1,1,100.0,100.0

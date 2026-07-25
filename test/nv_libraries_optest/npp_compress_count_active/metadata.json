@@ -1,0 +1,9 @@
+{
+  "name": "npp_compress_count_active",
+  "desc": "Real closed-source NPP connected-component label-compaction kernel CompressMarkerLabelsCountBlockLocalActiveIndexesUF<uint>(uint nTotal, uint8_t* pBuffer), extracted from benchmark/nv_libraries/cubins/npp_compress.cubin (sm_90), lifted to x86 and run on CPU. Decoded from full SASS (unrolled-by-4 loop + remainder loop + final store, predicated stores included): only thread (tid.x==tid.y==ctaid.y==0) survives -> one lane per block-x; block b=blockIdx.x owns [lo,hi) with lo=b*8192, hi=min(lo+8192,nTotal). View pBuffer as uint*: per-block running active count over the mark region pBuffer[idx+1]: cnt=0; for idx in [lo,hi): v=pBuffer[idx+1]; if (v!=0){++cnt; pBuffer[idx+nTotal+2]=cnt;} else pBuffer[idx+nTotal+2]=0; then pBuffer[2*nTotal+b+2]=cnt (block total). READ (pBuffer+4)+idx*4; per-element WRITE pBuffer+idx*4+(nTotal+1)*4+4; block-total WRITE (pBuffer+4)+(2*nTotal+1+b)*4. Each block writes a disjoint output region -> deterministic, order-independent. Params: nTotal@0x210, pBuffer@0x218. Discriminating input: sparse ~50%-active mark array spanning 2 blocks (nTotal=10000) so a degenerate kernel (write idx / constant / wrong region) fails; both blocks' totals (4103+900) verified.",
+  "tags": ["sm90","nv_libraries","npp","library_kernel","connected_components","label_compaction","block_local_prefix_count","scan","const_bank_params","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z50CompressMarkerLabelsCountBlockLocalActiveIndexesUFjPh",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_compress.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host block-local-count reference: 0/30064 mismatches, TEST PASSED"
+}

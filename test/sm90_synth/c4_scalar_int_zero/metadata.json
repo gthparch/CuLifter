@@ -1,0 +1,14 @@
+{
+  "name": "c4_scalar_int_zero",
+  "desc": "c[0x4]: single __device__ int, zero-initialized (simplest case)",
+  "tags": [
+    "sm90",
+    "c4",
+    "scalar",
+    "zero_init",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

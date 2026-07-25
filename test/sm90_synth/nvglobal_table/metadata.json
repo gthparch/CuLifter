@@ -1,0 +1,12 @@
+{
+  "name": "nvglobal_table",
+  "desc": ".nv.global(.init) device globals reached via R_CUDA_ABS32_LO/HI_32 UMOV immediate relocs",
+  "tags": [
+    "sm90",
+    "nv_global",
+    "reloc",
+    "umov"
+  ],
+  "feature": "nv_global_data",
+  "gpu_ref": "exact_table"
+}

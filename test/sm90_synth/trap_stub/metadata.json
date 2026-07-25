@@ -1,0 +1,14 @@
+{
+  "name": "trap_stub",
+  "desc": "BPT.TRAP: arch-guard stub kernel (printf+__trap, CUTLASS sm_90-vs-sm_90a shape) must be filtered from the drivable set; cold-trap kernel must lift and run",
+  "tags": [
+    "sm90",
+    "bpt",
+    "trap",
+    "arch_guard",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "not_run",
+  "ref_output_bytes": 1024
+}

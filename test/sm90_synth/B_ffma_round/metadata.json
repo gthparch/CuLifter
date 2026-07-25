@@ -1,0 +1,16 @@
+{
+  "name": "B_ffma_round",
+  "desc": "FFMA rounding modes: .RM/.RP/.RZ (pns, nbnxm crash)",
+  "tags": [
+    "sm90",
+    "ffma",
+    "rounding",
+    "rm",
+    "rp",
+    "rz",
+    "crash_root"
+  ],
+  "feature": "crash_root_cause",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

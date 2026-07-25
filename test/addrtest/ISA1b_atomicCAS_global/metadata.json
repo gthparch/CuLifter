@@ -1,0 +1,9 @@
+{
+  "kernel": "ISA1b_atomicCAS_global",
+  "tags": [
+    "ATOMG",
+    "CAS"
+  ],
+  "description": "Global atomicCAS \u2014 conditional swap pattern",
+  "sass_features": {}
+}

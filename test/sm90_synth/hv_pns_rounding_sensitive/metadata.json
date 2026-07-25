@@ -1,0 +1,14 @@
+{
+  "name": "hv_pns_rounding_sensitive",
+  "desc": "pns: rounding-mode-sensitive computation (FFMA.RM/RP/RZ matters)",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "pns",
+    "rounding",
+    "ffma"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

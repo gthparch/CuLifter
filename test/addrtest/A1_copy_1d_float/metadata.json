@@ -1,0 +1,17 @@
+{
+  "kernel_id": "A1",
+  "slug": "copy_1d_float",
+  "dir_name": "A1_copy_1d_float",
+  "kernel_name": "addr_A1_copy_1d_float",
+  "family": "affine",
+  "tags": [
+    "affine_linear"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Simple 1D copy baseline"
+}

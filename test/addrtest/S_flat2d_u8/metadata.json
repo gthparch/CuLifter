@@ -1,0 +1,27 @@
+{
+  "name": "S_flat2d_u8",
+  "pure_descriptor": true,
+  "has_host_cpu": true,
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": false,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "disp_positive": 0,
+  "disp_negative": 0,
+  "ldg_types": [
+    ".U8"
+  ],
+  "stg_types": [
+    ".U8"
+  ]
+}

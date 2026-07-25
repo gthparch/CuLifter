@@ -1,0 +1,12 @@
+{
+  "name": "nvglobal_curand",
+  "desc": "curand XORWOW skip-ahead: .nv.global.init offset matrices via ABS32 relocs, host-curand bit-exact ref",
+  "tags": [
+    "sm90",
+    "nv_global",
+    "curand",
+    "xorwow"
+  ],
+  "feature": "nv_global_data",
+  "gpu_ref": "host_curand_exact"
+}

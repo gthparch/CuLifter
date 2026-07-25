@@ -1,0 +1,7 @@
+{
+  "name": "hmma1688tf32",
+  "desc": "HMMA.1688.F32.TF32 (tf32-input f32-accum m16n8k8 tensor-core MMA, the standard Ampere f32 tensor path: cutlass ex14/27/28/29/33/59 + cublas134): warp-true wrapper decomposition; one warp computes D = A(16x8 tf32)*B(8x8 tf32) + C(f32) vs an f32 host replica with random signed inputs",
+  "tags": ["sm90", "hmma", "mma", "tf32", "warp", "cutlass", "cublas"],
+  "feature": "hmma_1688_f32_tf32",
+  "gpu_ref": "unverified"
+}

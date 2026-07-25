@@ -1,0 +1,14 @@
+{
+  "name": "const_bank4_int_array",
+  "desc": "c[0x4]: __constant__ int array (different type than float)",
+  "tags": [
+    "sm90",
+    "c4",
+    "constant",
+    "int",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

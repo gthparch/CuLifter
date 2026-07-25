@@ -1,0 +1,13 @@
+{
+  "name": "var_local_1024B",
+  "desc": "Local memory size=1024B (256 floats) \u2014 spill pressure",
+  "tags": [
+    "sm90",
+    "var",
+    "local",
+    "size1024"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 256
+}

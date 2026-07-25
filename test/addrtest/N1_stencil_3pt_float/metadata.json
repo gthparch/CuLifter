@@ -1,0 +1,18 @@
+{
+  "kernel_id": "N1",
+  "slug": "stencil_3pt_float",
+  "dir_name": "N1_stencil_3pt_float",
+  "kernel_name": "addr_N1_stencil_3pt_float",
+  "family": "signed_disp",
+  "tags": [
+    "signed_disp",
+    "affine_linear"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "1D 3-point stencil"
+}

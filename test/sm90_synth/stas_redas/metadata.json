@@ -1,0 +1,8 @@
+{
+  "name": "stas_redas",
+  "desc": "SYNCS variants: EXCH + ARRIVE + PHASECHK + CCTL.IV (mbarrier with invalidation)",
+  "tags": ["sm90", "syncs", "mbarrier", "pipeline_sync", "cctl"],
+  "feature": "W2-A2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

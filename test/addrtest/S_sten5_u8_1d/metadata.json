@@ -1,0 +1,28 @@
+{
+  "name": "S_sten5_u8_1d",
+  "pure_descriptor": false,
+  "has_host_cpu": true,
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": false,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": true,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 5,
+    "n_stg": 1
+  },
+  "disp_positive": 2,
+  "disp_negative": 2,
+  "ldg_types": [
+    ".U8"
+  ],
+  "stg_types": [
+    ".U8"
+  ],
+  "filtered": "not pure descriptor"
+}

@@ -1,0 +1,45 @@
+{
+  "name": "A6_vector_copy",
+  "tags": [
+    "affine_linear",
+    "vector_wide"
+  ],
+  "priority": 3,
+  "description": "float4 wide vector copy (128-bit)",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 2,
+    "IADD3.X": 0,
+    "IADD3": 0,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 0
+  },
+  "skeleton_key": [
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    1,
+    1
+  ]
+}

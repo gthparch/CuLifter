@@ -1,0 +1,16 @@
+{
+  "name": "mix_c4_struct_shared_f64",
+  "desc": "c[0x4] + struct args + shared memory + double precision (full combo)",
+  "tags": [
+    "sm90",
+    "c4",
+    "struct",
+    "shared",
+    "double",
+    "full_combo",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

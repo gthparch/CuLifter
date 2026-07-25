@@ -1,0 +1,14 @@
+{
+  "name": "hv_tensorT_many_params",
+  "desc": "tensorT: shared double[] + 13 pointer/int/float params (real signature)",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "tensorT",
+    "many_params",
+    "double"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2304
+}

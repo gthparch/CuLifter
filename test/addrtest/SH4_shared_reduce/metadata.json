@@ -1,0 +1,35 @@
+{
+  "name": "SH4_shared_reduce",
+  "tags": [
+    "shared",
+    "sts",
+    "lds",
+    "bar_sync",
+    "reduction",
+    "loop"
+  ],
+  "priority": 4,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 121,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "smem_sass": {
+    "STS": 2,
+    "LDS": 3,
+    "BAR.SYNC": 2,
+    "BAR": 2
+  },
+  "ref_output_bytes": 16
+}

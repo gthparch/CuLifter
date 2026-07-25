@@ -1,0 +1,18 @@
+{
+  "name": "imma_sp_s4",
+  "desc": "IMMA.SP.16864 INT4 m16n8k128 2:4-structured-sparse tensor-core MMA (CUTLASS sparse tensorop GEMM class, 15_ampere_sparse_tensorop_gemm, integer_subbyte<4>). One warp computes the int4 sparse atom D = C + A_dense(16x128,s4)*B(8x128,s4)^T, where A is given COMPRESSED (16x64 kept int4, kept in PAIRS) plus per-lane metadata E selecting which 2 of every 4 dense PAIRS per nibble-group are non-zero (cutlass host_uncompress.h int4 rule: step=8,a=4,b=8,ElementsPerE=2). The int4 m16n8k128 SASS is BYTE-IDENTICAL to the int8 m16n8k64 atom (IMMA.SP.16864.S8.S8); the int4 dtype/shape are recovered from the kernel-symbol metadata (integer_subbyteILi4 + ILi16ELi8ELi128EE) and the lifter routes the sparse atom to imma_sp_s4_warp (NOT the int8 wrapper). Compared to a host integer-GEMM oracle (exact, no rounding).",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int4",
+    "sparse",
+    "2to4",
+    "metadata",
+    "warp",
+    "cutlass",
+    "m16n8k128"
+  ],
+  "feature": "imma_sp_s4",
+  "gpu_ref": "pass"
+}

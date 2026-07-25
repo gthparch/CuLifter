@@ -1,0 +1,52 @@
+{
+  "name": "H4m_double",
+  "seed": "H4_pitch_2d_sizet",
+  "knob": "elem_type",
+  "tags": [
+    "64bit_index"
+  ],
+  "opt": "-O2",
+  "description": "Double element",
+  "gen_kwargs": {
+    "idx_type": "size_t",
+    "elem": "double"
+  },
+  "build_status": "ok",
+  "sass_lines": 105,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": true,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 1,
+    "IADD3.X": 2,
+    "IADD3": 2,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 3
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    true,
+    true,
+    1,
+    1
+  ],
+  "dedup_status": "kept: neighbor of H2_big_mul_sizet (diff=1)"
+}

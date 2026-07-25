@@ -1,0 +1,37 @@
+{
+  "name": "B25c_prmt_pack_bytes",
+  "tags": [
+    "bug025",
+    "prmt",
+    "pack_bytes",
+    "shift_or"
+  ],
+  "priority": 5,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 105,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 4,
+    "n_stg": 1
+  },
+  "bug_sass": {
+    "LOP3": 2,
+    "VIADD": 3,
+    "ISETP": 5,
+    "BRA": 1,
+    "LDG": 4,
+    "STG": 1,
+    "SHF": 1,
+    "IMAD": 6
+  },
+  "ref_output_bytes": 4096
+}

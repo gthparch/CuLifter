@@ -1,0 +1,52 @@
+{
+  "name": "H2m_O0",
+  "seed": "H2_big_mul_sizet",
+  "knob": "opt_level",
+  "tags": [
+    "64bit_index",
+    "carry_sensitive"
+  ],
+  "opt": "-O0",
+  "description": "No optimization",
+  "gen_kwargs": {
+    "idx_type": "size_t"
+  },
+  "build_status": "ok",
+  "sass_lines": 249,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 7,
+    "IADD3.X": 7,
+    "IADD3": 13,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 3
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    true,
+    1,
+    1
+  ],
+  "dedup_status": "dropped"
+}

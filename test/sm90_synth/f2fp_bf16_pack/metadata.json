@@ -1,0 +1,7 @@
+{
+  "name": "f2fp_bf16_pack",
+  "kernel_func": "kern_f2fp_bf16_pack",
+  "description": "F2FP.BF16.F32.PACK_AB (PTX cvt.rn.bf16x2.f32): two f32 -> packed bf16x2 with RN-even, vs the exact host conversion. Regression for the bug that emitted f16 bit patterns as bf16 (2^112 scale error).",
+  "grid": [1, 1, 1],
+  "block": [64, 1, 1]
+}

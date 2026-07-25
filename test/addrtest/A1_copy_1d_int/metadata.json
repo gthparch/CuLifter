@@ -1,0 +1,17 @@
+{
+  "kernel_id": "A1",
+  "slug": "copy_1d_int",
+  "dir_name": "A1_copy_1d_int",
+  "kernel_name": "addr_A1_copy_1d_int",
+  "family": "affine",
+  "tags": [
+    "affine_linear"
+  ],
+  "knobs": {
+    "elem_type": "int",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Simple 1D copy int"
+}

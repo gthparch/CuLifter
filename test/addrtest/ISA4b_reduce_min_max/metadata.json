@@ -1,0 +1,8 @@
+{
+  "kernel": "ISA4b_reduce_min_max",
+  "tags": [
+    "REDUX"
+  ],
+  "description": "Warp reduction \u2014 __reduce_min_sync and __reduce_max_sync",
+  "sass_features": {}
+}

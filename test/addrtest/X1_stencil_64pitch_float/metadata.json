@@ -1,0 +1,18 @@
+{
+  "kernel_id": "X1",
+  "slug": "stencil_64pitch_float",
+  "dir_name": "X1_stencil_64pitch_float",
+  "kernel_name": "addr_X1_stencil_64pitch_float",
+  "family": "combo",
+  "tags": [
+    "signed_disp",
+    "64bit_index"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "2D stencil + size_t pitch"
+}

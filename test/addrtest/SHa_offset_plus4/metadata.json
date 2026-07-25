@@ -1,0 +1,33 @@
+{
+  "name": "SHa_offset_plus4",
+  "tags": [
+    "shared",
+    "offset_read",
+    "bar_sync"
+  ],
+  "priority": 4,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "smem_sass": {
+    "STS": 1,
+    "LDS": 1,
+    "BAR.SYNC": 1,
+    "BAR": 1,
+    "ULEA": 1
+  },
+  "ref_output_bytes": 4096
+}

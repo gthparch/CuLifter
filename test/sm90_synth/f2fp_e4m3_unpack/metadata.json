@@ -1,0 +1,7 @@
+{
+  "name": "f2fp_e4m3_unpack",
+  "kernel_func": "kern_f2fp_e4m3_unpack",
+  "description": "F2FP.F16.E4M3.UNPACK_B (PTX cvt.rn.f16x2.e4m3x2): fp8x2->f16x2 over all 256 e4m3 byte values, low-half and .H1 high-half forms. Host computes the exact conversion (e4m3 is a subset of f16) - semantics-defined, no GPU ref needed.",
+  "grid": [1, 1, 1],
+  "block": [64, 1, 1]
+}

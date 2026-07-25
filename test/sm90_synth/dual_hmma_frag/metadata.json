@@ -1,0 +1,7 @@
+{
+  "name": "dual_hmma_frag",
+  "desc": "TWO HMMA.1688.F32.TF32 into ONE warp fragment, A loaded directly (no smem/LDSM). Isolates dual-accumulate carry of the SYMM Mma1+Mma2 pattern. D=A1*B+A2*B+C vs f64.",
+  "tags": ["sm90","hmma","mma","tf32","warp","dual_mma"],
+  "feature": "dual_hmma_fragment_carry",
+  "gpu_ref": "unverified"
+}

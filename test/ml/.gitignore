@@ -1,0 +1,7 @@
+*_sm*.sass
+*_sm*.elf
+*_sm*.ptx
+*_sm*.ll
+*_sm*.o
+*_sm*.out
+*.cubin

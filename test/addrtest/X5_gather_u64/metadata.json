@@ -1,0 +1,45 @@
+{
+  "name": "X5_gather_u64",
+  "tags": [
+    "64bit_index",
+    "ptr_indirect"
+  ],
+  "priority": 3,
+  "description": "Gather with 64-bit loaded index",
+  "sass_lines": 265,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": true,
+    "n_ldg": 2,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 7,
+    "IADD3.X": 5,
+    "IADD3": 12,
+    "LEA.HI.X": 2,
+    "LEA.HI": 0,
+    "LEA": 1,
+    "SHF": 3
+  },
+  "skeleton_key": [
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    2,
+    1
+  ]
+}

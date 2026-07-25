@@ -1,0 +1,15 @@
+{
+  "name": "c4_large_twiddle",
+  "desc": "c[0x4]: large __device__ array (256 floats, FFT twiddle pattern)",
+  "tags": [
+    "sm90",
+    "c4",
+    "large_array",
+    "twiddle",
+    "fft",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

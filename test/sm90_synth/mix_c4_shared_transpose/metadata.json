@@ -1,0 +1,14 @@
+{
+  "name": "mix_c4_shared_transpose",
+  "desc": "c[0x4] offset + shared memory 2D transpose",
+  "tags": [
+    "sm90",
+    "c4",
+    "shared",
+    "transpose",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4096
+}

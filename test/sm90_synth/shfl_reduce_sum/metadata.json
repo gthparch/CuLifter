@@ -1,0 +1,8 @@
+{
+  "name": "shfl_reduce_sum",
+  "desc": "SHFL.DOWN warp reduction: sum 32 consecutive floats via shuffle-down",
+  "tags": ["sm90", "shfl", "warp_reduce", "shfl_down"],
+  "feature": "W3-S1",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 32
+}

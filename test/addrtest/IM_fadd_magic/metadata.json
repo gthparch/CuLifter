@@ -1,0 +1,28 @@
+{
+  "name": "IM_fadd_magic",
+  "tags": [
+    "imm",
+    "float",
+    "magic_round",
+    "exp_approx"
+  ],
+  "priority": 13,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "mov_hex_immediates": [],
+  "ref_output_bytes": 1024
+}

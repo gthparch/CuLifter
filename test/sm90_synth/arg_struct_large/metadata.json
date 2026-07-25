@@ -1,0 +1,13 @@
+{
+  "name": "arg_struct_large",
+  "desc": "Struct with 8 fields \u2014 tests wide struct expansion",
+  "tags": [
+    "sm90",
+    "arg_mismatch",
+    "struct",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

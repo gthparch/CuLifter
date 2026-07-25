@@ -1,0 +1,8 @@
+{
+  "kernel": "ISA3a_match_any",
+  "tags": [
+    "MATCH"
+  ],
+  "description": "Warp match_any \u2014 count threads with same value",
+  "sass_features": {}
+}

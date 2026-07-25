@@ -1,0 +1,14 @@
+{
+  "name": "var_lea_s1_u",
+  "desc": "LEA variant: stride=1, unsigned index",
+  "tags": [
+    "sm90",
+    "var",
+    "lea",
+    "scale1",
+    "unsigned"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

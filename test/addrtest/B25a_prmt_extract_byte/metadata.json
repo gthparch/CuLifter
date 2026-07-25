@@ -1,0 +1,36 @@
+{
+  "name": "B25a_prmt_extract_byte",
+  "tags": [
+    "bug025",
+    "prmt",
+    "byte_extract",
+    "shift_mask"
+  ],
+  "priority": 5,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": true,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "bug_sass": {
+    "LOP3": 3,
+    "ISETP": 1,
+    "BRA": 1,
+    "LDG": 1,
+    "STG": 1,
+    "SHF": 2,
+    "IMAD": 3
+  },
+  "ref_output_bytes": 4096
+}

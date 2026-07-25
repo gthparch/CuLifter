@@ -1,0 +1,18 @@
+{
+  "kernel_id": "X2",
+  "slug": "ptr_stencil_float",
+  "dir_name": "X2_ptr_stencil_float",
+  "kernel_name": "addr_X2_ptr_stencil_float",
+  "family": "combo",
+  "tags": [
+    "ptr_indirect",
+    "signed_disp"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Pointer array + stencil"
+}

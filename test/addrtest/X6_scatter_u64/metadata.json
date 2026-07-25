@@ -1,0 +1,45 @@
+{
+  "name": "X6_scatter_u64",
+  "tags": [
+    "64bit_index",
+    "ptr_indirect"
+  ],
+  "priority": 3,
+  "description": "Scatter with 64-bit loaded index",
+  "sass_lines": 249,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": true,
+    "n_ldg": 2,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 8,
+    "IADD3.X": 5,
+    "IADD3": 14,
+    "LEA.HI.X": 1,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 2
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    2,
+    1
+  ]
+}

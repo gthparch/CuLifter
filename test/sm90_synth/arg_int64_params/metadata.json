@@ -1,0 +1,14 @@
+{
+  "name": "arg_int64_params",
+  "desc": "Arg: 64-bit integer params (size_t, long long) test ULDC.64",
+  "tags": [
+    "sm90",
+    "arg",
+    "int64",
+    "uldc64",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

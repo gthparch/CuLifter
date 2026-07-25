@@ -1,0 +1,14 @@
+{
+  "name": "mix_args_mixed_types",
+  "desc": "Mixed arg types: int, float, double, long long, ptr (alignment stress)",
+  "tags": [
+    "sm90",
+    "arg",
+    "mixed_types",
+    "alignment",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

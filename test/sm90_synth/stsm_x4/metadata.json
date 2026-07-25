@@ -1,0 +1,7 @@
+{
+  "name": "stsm_x4",
+  "desc": "STSM.16.M88.4: warp-collective stmatrix.x4 store + ldmatrix round-trip",
+  "tags": ["sm90", "stsm", "matrix_io"],
+  "feature": "W1-M1",
+  "gpu_ref": "analytic"
+}

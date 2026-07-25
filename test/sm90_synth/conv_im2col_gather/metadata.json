@@ -1,0 +1,8 @@
+{
+  "name": "conv_im2col_gather",
+  "desc": "42_ampere_tensorop_group_conv im2col ACTIVATION GATHER (analytic activation iterator, GroupMode kSingleGroup): per-(npq_row,crs_step) gather mirroring Conv2dFpropActivationTileAccessIteratorAnalytic at()/valid()/advance() + TensorNHWC offset + channel-group split. npq decompose (n=tid64/CRS etc) -> the 64-bit-dividend magic divide that IntDivRecognize leaves a fast-path leaf unrecognized -> WRONG quotient -> wrong gather. VALUE-DIVERGES on x86 (2013/2268). Ground truth (literal kernel.cu host-exec) == oracle. Expected to FAIL until the IntDivRecognize 64-bit-divide gap is fixed.",
+  "kernel_func": "kern_im2col_gather",
+  "tags": ["sm90", "cutlass", "conv", "im2col", "group_conv", "intdiv", "gather", "addressing", "bug", "xfail"],
+  "feature": "conv_im2col_gather",
+  "gpu_ref": "host_computed"
+}

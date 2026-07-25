@@ -1,0 +1,13 @@
+{
+  "name": "var_dtype_double",
+  "desc": "Data type=double: saxpy-like with double operands",
+  "tags": [
+    "sm90",
+    "var",
+    "dtype",
+    "double"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

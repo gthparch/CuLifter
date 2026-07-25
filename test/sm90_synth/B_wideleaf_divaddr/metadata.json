@@ -1,0 +1,13 @@
+{
+  "name": "B_wideleaf_divaddr",
+  "desc": "45_dual_gemm grid-strided WIDE-leaf divide: the corrected magic-rcp quotient feeds an IMAD.WIDE.U32 address (coord0*stride+base). The chain walk descends PAST the true IMAD.HI quotient leaf into that non-zero-addend/live-LO address WIDE and skipped it (addend_zero=False lo_dead=False reg_dividend=True) => divide UNrecognized => off-by-one quotient => wrong/duplicate write addresses. IntDivRecognize must stop at the IMAD.HI quotient leaf (do not hop the +1 quotient-correction PHI).",
+  "tags": [
+    "sm90",
+    "intdiv",
+    "wide_leaf",
+    "magic_divide",
+    "dual_gemm",
+    "value_root"
+  ],
+  "feature": "value_root_cause"
+}

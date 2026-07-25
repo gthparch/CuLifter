@@ -1,0 +1,7 @@
+{
+  "name": "shflsubst",
+  "desc": "Warp-synchronous forward substitution (cuBLAS trsm_l_mul32 idiom): divergent per-row solve + SHFL.IDX broadcast, unrolled. Guards history-matched warp grouping against clang call-site duplication (collective site ids).",
+  "tags": ["sm90", "shfl", "warp", "trsm", "cublas"],
+  "feature": "shfl_collective_site",
+  "gpu_ref": "unverified"
+}

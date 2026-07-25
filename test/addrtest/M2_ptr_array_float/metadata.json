@@ -1,0 +1,17 @@
+{
+  "kernel_id": "M2",
+  "slug": "ptr_array_float",
+  "dir_name": "M2_ptr_array_float",
+  "kernel_name": "addr_M2_ptr_array_float",
+  "family": "ptr_indirect",
+  "tags": [
+    "ptr_indirect"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Pointer array indirection"
+}

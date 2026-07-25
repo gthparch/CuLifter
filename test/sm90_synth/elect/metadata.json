@@ -1,0 +1,12 @@
+{
+  "name": "elect",
+  "desc": "ELECT: Thread elect instruction (one thread per warp elected)",
+  "tags": [
+    "sm90",
+    "elect",
+    "warp"
+  ],
+  "feature": "phase2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

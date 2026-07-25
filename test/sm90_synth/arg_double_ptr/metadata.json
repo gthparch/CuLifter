@@ -1,0 +1,15 @@
+{
+  "name": "arg_double_ptr",
+  "desc": "Arg: double-precision pointers (tests 64-bit alignment in const_mem)",
+  "tags": [
+    "sm90",
+    "arg",
+    "double",
+    "f64",
+    "alignment",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

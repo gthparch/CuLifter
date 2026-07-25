@@ -1,0 +1,14 @@
+{
+  "name": "B_ldg64_const",
+  "desc": "LDG.E.64.CONSTANT: 64-bit constant global load (nbnxm pattern)",
+  "tags": [
+    "sm90",
+    "untested",
+    "ldg64",
+    "constant",
+    "nbnxm"
+  ],
+  "feature": "untested_pattern",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

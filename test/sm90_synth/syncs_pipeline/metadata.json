@@ -1,0 +1,8 @@
+{
+  "name": "syncs_pipeline",
+  "desc": "SYNCS multi-stage pipeline: two mbarriers with interleaved arrive/wait",
+  "tags": ["sm90", "syncs", "mbarrier", "pipeline_sync", "multi_stage"],
+  "feature": "W2-A2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

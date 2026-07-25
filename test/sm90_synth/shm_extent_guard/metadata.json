@@ -1,0 +1,13 @@
+{
+  "name": "shm_extent_guard",
+  "desc": "dynamic-shared cache extents: 192/224KB compute exactly; 256KB (beyond sm_90 carveout) must yield the SKIP_SHMEM guard verdict",
+  "tags": [
+    "sm90",
+    "shared_mem",
+    "sts",
+    "lds",
+    "guard"
+  ],
+  "feature": "shm_guard",
+  "gpu_ref": "untested_no_gpu_host"
+}

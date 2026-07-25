@@ -1,0 +1,26 @@
+{
+  "name": "BF_small64_copy",
+  "tags": [
+    "bufsize",
+    "small",
+    "N64"
+  ],
+  "priority": 12,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "ref_output_bytes": 256
+}

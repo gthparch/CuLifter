@@ -1,0 +1,24 @@
+{
+  "name": "D2_idx_ll",
+  "tags": [
+    "signed_disp",
+    "2d_grid",
+    "64bit_index"
+  ],
+  "description": "2D stencil with long long index",
+  "sass_lines": 121,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 3,
+    "n_stg": 1
+  },
+  "has_host_cpu": true
+}

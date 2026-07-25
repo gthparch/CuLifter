@@ -1,0 +1,9 @@
+{
+  "name": "npp_update_vertical",
+  "desc": "Real npp PBA distance-transform kernel kernelUpdateVertical(short2* color, short2* margin, short2* output, int size, int bandSize) from libnpp sm_90 npp.cubin, lifted to x86 and run on CPU. Phase-1 'update vertical': per band, each column picks for each row the nearest-by-row site among (its flooded pixel color[row][col], the band top margin[col], the band bottom margin[col]) by abs(.y-row), then the band tile is TRANSPOSED through __shared__ short2 block[64][64] and written x/y-swapped: output[col][row]=(P.y,P.x). Uses shared memory + __syncthreads (BAR.SYNC), so verification exercises the wrapper's intra-CTA CONCURRENT-thread + barrier model: thread i's STS are read back by thread t after the barrier (a genuine cross-thread transpose, not trivially order-independent). Params: color@0x210, margin@0x218, output@0x220, size@0x228, bandSize@0x22c; blockDim.x==bandSize so n_step=1. 2D launch.",
+  "tags": ["sm90","nv_libraries","npp","pba","distance_transform","short2","shared_memory","syncthreads","transpose","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z20kernelUpdateVerticalP6short2S0_S0_ii",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host transpose/nearest-by-row reference: 0/256 mismatches, TEST PASSED"
+}

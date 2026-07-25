@@ -1,0 +1,8 @@
+{
+  "name": "hmma16816bf16_mainloop",
+  "desc": "BF16 GEMM MAINLOOP: m16n8k(16*KT) HMMA.16816.F32.BF16 with the f32 accumulator FED BACK over KT=5 DISTINCT k-tiles (the cutlass MmaWithReductionMultistage inner-loop shape used by 23_ampere). Exercises the warp-true hmma16816_bf16_warp path + the bf16-input lane decode (i32 -> <2 x bfloat> bitcast) + f32 accumulator feedback across tiles, beyond the single-tile hmma16816bf16 atom fixture. host_cpu.cpp launches a full warp (32 lanes) and compares the 16x8 f32 output bit-exactly vs an f64 oracle of the bf16-quantized A.B summed over tiles.",
+  "kernel_func": "kern_bf16_mainloop",
+  "tags": ["sm90", "bf16", "hmma", "hmma16816", "mainloop", "accumulator", "regression"],
+  "feature": "bf16_mainloop",
+  "gpu_ref": "host_computed"
+}

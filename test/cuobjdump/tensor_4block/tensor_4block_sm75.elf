@@ -1,0 +1,222 @@
+
+64bit elf: type=2, abi=7, sm=75, toolkit=121, flags = 0x4b054b
+Sections:
+Index Offset   Size ES Align        Type        Flags Link     Info Name
+    1     40     c8  0  1            STRTAB       0    0        0 .shstrtab
+    2    108     db  0  1            STRTAB       0    0        0 .strtab
+    3    1e8     78 18  8            SYMTAB       0    2        4 .symtab
+    4    260     70  0  1          PROGBITS       0    0        0 .debug_frame
+    5    2d0     30  0  4         CUDA_INFO       0    5        0 .nv.info
+    6    300     60  0  4         CUDA_INFO       0    5        9 .nv.info.wmma_4block
+    7    360     10 10  8               REL       0    5        4 .rel.debug_frame
+    8    370    178  0  4          PROGBITS       2    0        9 .nv.constant0.wmma_4block
+    9    500    380  0 80          PROGBITS       6    5 1a000004 .text.wmma_4block
+
+.section .strtab
+
+.section .shstrtab
+
+.section .symtab
+ index           value           size      info    other  shndx    name  
+   0               0               0        0        0      0     (null)
+ 0x1               0               0      0x3        0    0x9     .text.wmma_4block
+ 0x2               0               0      0x3        0    0x8     .nv.constant0.wmma_4block
+ 0x3               0               0      0x3        0    0x4     .debug_frame
+ 0x4               0           0x380     0x12     0x10    0x9     wmma_4block
+
+
+.nv.constant0.wmma_4block
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 
+
+
+.nv.info
+	<0x1>
+	Attribute:	EIATTR_REGCOUNT
+	Format:	EIFMT_SVAL
+	Value:	function: wmma_4block(0x4)	register count: 26
+	<0x2>
+	Attribute:	EIATTR_MAX_STACK_SIZE
+	Format:	EIFMT_SVAL
+	Value:	0x4 0x0 
+	<0x3>
+	Attribute:	EIATTR_MIN_STACK_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: wmma_4block(0x4)	min stack size: 0x0
+	<0x4>
+	Attribute:	EIATTR_FRAME_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: wmma_4block(0x4)	frame size: 0x0
+
+
+.nv.info.wmma_4block
+	<0x1>
+	Attribute:	EIATTR_SW_WAR
+	Format:	EIFMT_SVAL
+	Value:	0x1 
+	<0x2>
+	Attribute:	EIATTR_CUDA_API_VERSION
+	Format:	EIFMT_SVAL
+	Value:	0x79 
+	<0x3>
+	Attribute:	EIATTR_PARAM_CBANK
+	Format:	EIFMT_SVAL
+	Value:	0x2 0x180160 
+	<0x4>
+	Attribute:	EIATTR_CBANK_PARAM_SIZE
+	Format:	EIFMT_HVAL
+	Value:	0x18
+	<0x5>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x2	Offset  : 0x10	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x6>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x1	Offset  : 0x8	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x7>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x0	Offset  : 0x0	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x8>
+	Attribute:	EIATTR_WMMA_USED
+	Format:	EIFMT_NVAL
+	<0x9>
+	Attribute:	EIATTR_MAXREG_COUNT
+	Format:	EIFMT_HVAL
+	Value:	0xff
+	<0x10>
+	Attribute:	EIATTR_EXIT_INSTR_OFFSETS
+	Format:	EIFMT_SVAL
+	Value:	0x340 
+
+
+.text.wmma_4block
+bar = 0	reg = 26	lmem=0	smem=0
+0xff017624 0x00000a00 0x078e00ff 0x000fc400
+0x000579c3 0x00000000 0x00002500 0x000e2200
+0xff037224 0x000000ff 0x078e00ff 0x000fe200
+0x00097882 0x00000002 0x00000000 0x000fe400
+0x00057919 0x00000000 0x00000000 0x000e6200
+0x05067291 0x00000005 0x0f8f083f 0x001fc800
+0x06047892 0x0ffffffe 0x0f8ec03f 0x000fe200
+0x05027812 0x00000003 0x078ec0ff 0x002fe200
+0x3f067899 0x00000001 0x08011406 0x000fe200
+0xff057819 0x00000002 0x00011605 0x000fe200
+0x04047290 0x00000005 0x0fffe13f 0x000fc800
+0x04087899 0x00000004 0x0800063f 0x000fe200
+0x050e7825 0x00000010 0x078e0002 0x000fe400
+0x00047ab9 0x00005a00 0x00000a00 0x000fe400
+0x080472a5 0x00000009 0x0f8e0204 0x000fcc00
+0x0e067c11 0x00000004 0x0f8010ff 0x000fc800
+0x0e077c11 0x00000005 0x080f140f 0x000fe200
+0x06077899 0x00000008 0x0800063f 0x000fe400
+0x00047ab9 0x00005800 0x00000a00 0x000fca00
+0x06007381 0x00000000 0x001ee900 0x000ea800
+0x060b7381 0x00001000 0x001ee900 0x000ee200
+0x070472a5 0x00000009 0x0f8e0204 0x000fe200
+0x05027825 0x00000008 0x078e0002 0x000fe400
+0x060a7381 0x00020000 0x001ee900 0x000f2600
+0x02047c11 0x00000004 0x0f8010ff 0x040fe200
+0x060c7381 0x00021000 0x001ee900 0x000f2600
+0x02057c11 0x00000005 0x080f1403 0x000fd000
+0x04027381 0x00000000 0x001ee900 0x000f2800
+0x04037381 0x00010000 0x001ee900 0x000f2800
+0x04087381 0x00001000 0x001ee900 0x000f2800
+0x04097381 0x00011000 0x001ee900 0x000f2200
+0x06067899 0x00000009 0x0800063f 0x000fc800
+0x3f047899 0x0000001f 0x08011406 0x000fe400
+0x08057290 0x00000006 0x0ff1e03f 0x000fc600
+0x00067ab9 0x00005c00 0x00000a00 0x000fe400
+0x08087291 0x00000004 0x080f0e3f 0x000fe400
+0x05047291 0x00000006 0x0f80103f 0x000fc800
+0x05057291 0x00000007 0x080f1408 0x000fe200
+0x0000723a 0x00000000 0x00000000 0x004e2800
+0x0b0b723a 0x00000000 0x00000000 0x008e6800
+0x0a0a723a 0x00000000 0x00000000 0x010ea800
+0x0c0c723a 0x00000000 0x00000000 0x000ee200
+0x0210723c 0x00000000 0x000010ff 0x001f7000
+0x0214723c 0x0000000b 0x000010ff 0x002b6a00
+0x0e027c11 0x00000004 0x0f8018ff 0x020fc600
+0x0810723c 0x0000000a 0x00001010 0x004f6200
+0x0e037c11 0x00000005 0x080f1c0f 0x000fce00
+0x0814723c 0x0000000c 0x00001014 0x008f6c00
+0x02007386 0x00000010 0x0010eb00 0x020fe800
+0x02007386 0x00040012 0x0010eb00 0x000fe800
+0x02007386 0x00002014 0x0010eb00 0x000fe800
+0x02007386 0x00042016 0x0010eb00 0x000fe200
+0x0000794d 0x00000000 0x03800000 0x000fea00
+0x00007947 0xfffffff0 0x0383ffff 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+
+
+.section .debug_frame
+decodeDebugFrame, frameBuf 0xffffffff, total_length 112
+CIE length 36, cie_id -1
+version 3
+augmentation slen 1
+augmentation 
+code_align_factor slen 1
+data_align_factor slen 1
+ Debug Frame Common Information Entry
+  length:                 36
+  CIE_id :                -1
+  version:                3
+  augmentation:           
+  code align factor:      4
+  data align factor:      -4
+  return address register 0xffffffff
+  initial instructions: 19 bytes, ptr = 0x8080810c, frameBuf = 0xffffffff
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_same_value R255
+  DW_CFA_same_value R1
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+ Debug Frame Description Entry
+  length:                 52
+  CIE_pointer:            0
+  initial_location:       0x0
+  address_range:          0x380
+  function:               wmma_4block
+  instructions: 28 bytes
+  DW_CFA_advance_loc4 delta 4
+  DW_CFA_advance_loc4 delta 208
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_advance_loc4 delta 1073741820
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+
+.section .rel.debug_frame	REL
+0x44    wmma_4block    R_CUDA_64

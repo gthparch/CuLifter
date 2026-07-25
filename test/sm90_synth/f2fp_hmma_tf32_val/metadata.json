@@ -1,0 +1,10 @@
+{
+  "name": "f2fp_hmma_tf32_val",
+  "kernel_func": "kern_f2fp_hmma_tf32_val",
+  "desc": "VALUE-verifying F2FP.TF32.F32.PACK_B -> HMMA.1688.F32.TF32 COMPOSITION (the gap f2fp_tf32_packb [convert-only] + hmma_ldsm_tf32_val [HMMA fed pre-tf32 bits] each miss). A single warp converts raw f32 A/B operands via cvt.rn.tf32.f32 (HW RN-even) then runs one m16n8k8 f32.tf32.tf32 MMA. Inputs have mantissa bit12 forced set so RN-even != truncation; the host oracle is RN-even and the comparison is BIT-EXACT and asserts divergence from a truncation oracle, so a truncating lift FAILS. Guards the F2FP.TF32 RN-even fix (4146a738) through the HMMA path together with the x86 hmma1688_tf32_warp wrapper mask.",
+  "tags": ["sm90","f2fp","tf32","hmma","warp","value"],
+  "feature": "f2fp_tf32_to_hmma_rneven_composition",
+  "grid": [1, 1, 1],
+  "block": [32, 1, 1],
+  "gpu_ref": "unverified"
+}

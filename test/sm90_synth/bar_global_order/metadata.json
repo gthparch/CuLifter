@@ -1,0 +1,22 @@
+{
+  "name": "bar_global_order",
+  "kernel_func": "bar_global_order",
+  "tags": [
+    "syncthreads",
+    "bar_sync",
+    "block_barrier",
+    "global_store_ordering",
+    "happens_before",
+    "store_race",
+    "cudnn_adv_so193",
+    "ctc_alphas"
+  ],
+  "description": "Minimal reproduction of the generic block-barrier GLOBAL-store ordering bug. A PHASE-1 (init) writer thread and a PHASE-2 (recursion) writer thread, in DIFFERENT CTA threads, write the SAME global cell out[1] either side of __syncthreads(). On real GPU the BAR.SYNC establishes happens-before so the post-barrier phase-2 write (901.0) wins deterministically; out[1]==901.0 every run. The x86 wrapper runs CTA threads as concurrent std::threads, so if the block barrier does not order phase-separated global stores across it, the phase-1 INIT value (101.0) can win and out[1] is non-deterministic. This is the block-barrier+global-store analog of the warp-membership mass-drop fixed by warp_gather_fix; it is the exact mechanism behind cuDNN compute_alphas_and_betas<float>'s racing alphas[1] cell (alpha[s1][t0] init vs alpha[s0][t1] recursion alias the same flat global index).",
+  "arch": "sm_90a",
+  "block": [2, 1, 1],
+  "grid": [1, 1, 1],
+  "arg_base": "0x210",
+  "has_host_cpu": true,
+  "build_note": "host pins args via ArgAt{0x210..} so default ARG_BASE is irrelevant. Runs the kernel many times to expose the store race.",
+  "result_x86": "TEST PASSED (out[1]==901.0 every run post-fix; non-deterministic / 101.0 wins pre-fix)"
+}

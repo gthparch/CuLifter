@@ -1,0 +1,464 @@
+	.target	sm_90
+
+	.elftype	@"ET_EXEC"
+
+
+//--------------------- .debug_frame              --------------------------
+	.section	.debug_frame,"",@progbits
+.debug_frame:
+        /*0000*/ 	.byte	0xff, 0xff, 0xff, 0xff, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+        /*0010*/ 	.byte	0xff, 0xff, 0xff, 0xff, 0x03, 0x00, 0x04, 0x7c, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x0c, 0x81, 0x80
+        /*0020*/ 	.byte	0x80, 0x28, 0x00, 0x08, 0xff, 0x81, 0x80, 0x28, 0x08, 0x81, 0x80, 0x80, 0x28, 0x00, 0x00, 0x00
+        /*0030*/ 	.byte	0xff, 0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        /*0040*/ 	.byte	0x00, 0x00, 0x00, 0x00
+        /*0044*/ 	.dword	H3_idx64_multi
+        /*004c*/ 	.byte	0x60, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x48, 0x00, 0x00, 0x00, 0x0c, 0x81, 0x80
+        /*005c*/ 	.byte	0x80, 0x28, 0x00, 0x04, 0x8c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+        /*006c*/ 	.byte	0x3c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+        /*007c*/ 	.byte	0x03, 0x00, 0x04, 0x7c, 0x80, 0x82, 0x80, 0x28, 0x0c, 0x81, 0x80, 0x80, 0x28, 0x00, 0x08, 0xff
+        /*008c*/ 	.byte	0x81, 0x80, 0x28, 0x08, 0x81, 0x80, 0x80, 0x28, 0x08, 0x82, 0x80, 0x80, 0x28, 0x16, 0x80, 0x82
+        /*009c*/ 	.byte	0x80, 0x28, 0x10, 0x03
+        /*00a0*/ 	.dword	H3_idx64_multi
+        /*00a8*/ 	.byte	0x92, 0x82, 0x80, 0x80, 0x28, 0x00, 0x22, 0x00, 0xff, 0xff, 0xff, 0xff, 0x1c, 0x00, 0x00, 0x00
+        /*00b8*/ 	.byte	0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        /*00c4*/ 	.dword	(H3_idx64_multi + $__internal_0_$__cuda_sm20_rem_u64@srel)
+        /*00cc*/ 	.byte	0xa0, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+
+//--------------------- .note.nv.tkinfo           --------------------------
+	.section	.note.nv.tkinfo,"",@"SHT_NOTE"
+	.sectionflags	@"SHF_NOTE_NV_TKINFO"
+	.tkinfo
+        /*0018*/ 	.word	0x00000002
+        /*0030*/ 	.string	""
+        /*0030*/ 	.string	"ptxas"
+        /*0030*/ 	.string	"Cuda compilation tools, release 13.2, V13.2.51"
+        /*0030*/ 	.string	"Build cuda_13.2.r13.2/compiler.37434383_0"
+        /*0030*/ 	.string	"-arch sm_90 -m 64 "
+
+
+
+//--------------------- .note.nv.cuinfo           --------------------------
+	.section	.note.nv.cuinfo,"",@"SHT_NOTE"
+	.sectionflags	@"SHF_NOTE_NV_CUINFO"
+        /*0018*/ 	.short	0x0002
+        /*001a*/ 	.short	0x005a
+        /*001c*/ 	.short	0x0084
+	.zero		2
+
+
+//--------------------- .nv.info                  --------------------------
+	.section	.nv.info,"",@"SHT_CUDA_INFO"
+	.align	4
+
+
+	//----- nvinfo : EIATTR_REGCOUNT
+	.align		4
+        /*0000*/ 	.byte	0x04, 0x2f
+        /*0002*/ 	.short	(.L_1 - .L_0)
+	.align		4
+.L_0:
+        /*0004*/ 	.word	index@(H3_idx64_multi)
+        /*0008*/ 	.word	0x00000010
+
+
+	//----- nvinfo : EIATTR_FRAME_SIZE
+	.align		4
+.L_1:
+        /*000c*/ 	.byte	0x04, 0x11
+        /*000e*/ 	.short	(.L_3 - .L_2)
+	.align		4
+.L_2:
+        /*0010*/ 	.word	index@($__internal_0_$__cuda_sm20_rem_u64)
+        /*0014*/ 	.word	0x00000000
+
+
+	//----- nvinfo : EIATTR_FRAME_SIZE
+	.align		4
+.L_3:
+        /*0018*/ 	.byte	0x04, 0x11
+        /*001a*/ 	.short	(.L_5 - .L_4)
+	.align		4
+.L_4:
+        /*001c*/ 	.word	index@(H3_idx64_multi)
+        /*0020*/ 	.word	0x00000000
+
+
+	//----- nvinfo : EIATTR_MIN_STACK_SIZE
+	.align		4
+.L_5:
+        /*0024*/ 	.byte	0x04, 0x12
+        /*0026*/ 	.short	(.L_7 - .L_6)
+	.align		4
+.L_6:
+        /*0028*/ 	.word	index@(H3_idx64_multi)
+        /*002c*/ 	.word	0x00000000
+.L_7:
+
+
+//--------------------- .nv.compat                --------------------------
+	.section	.nv.compat,"",@"SHT_CUDA_COMPAT_INFO"
+	.align	4
+        /*0000*/ 	.byte	0x02, 0x09, 0x00, 0x00, 0x02, 0x02, 0x01, 0x00, 0x03, 0x07, 0x01, 0x01, 0x02, 0x03, 0x00, 0x00
+        /*0010*/ 	.byte	0x04, 0x0b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+
+//--------------------- .nv.info.H3_idx64_multi   --------------------------
+	.section	.nv.info.H3_idx64_multi,"",@"SHT_CUDA_INFO"
+	.sectionflags	@""
+	.align	4
+
+
+	//----- nvinfo : EIATTR_LANGUAGE
+	.align		4
+        /*0000*/ 	.byte	0x04, 0x66
+        /*0002*/ 	.short	(.L_9 - .L_8)
+
+
+	//   ....[0]....
+.L_8:
+        /*0004*/ 	.word	0x00000003
+
+
+	//----- nvinfo : EIATTR_CUDA_API_VERSION
+	.align		4
+.L_9:
+        /*0008*/ 	.byte	0x04, 0x37
+        /*000a*/ 	.short	(.L_11 - .L_10)
+.L_10:
+        /*000c*/ 	.word	0x00000084
+
+
+	//----- nvinfo : EIATTR_KPARAM_INFO
+	.align		4
+.L_11:
+        /*0010*/ 	.byte	0x04, 0x17
+        /*0012*/ 	.short	(.L_13 - .L_12)
+.L_12:
+        /*0014*/ 	.word	0x00000000
+        /*0018*/ 	.short	0x0005
+        /*001a*/ 	.short	0x0028
+        /*001c*/ 	.byte	0x00, 0xf0, 0x11, 0x00
+
+
+	//----- nvinfo : EIATTR_KPARAM_INFO
+	.align		4
+.L_13:
+        /*0020*/ 	.byte	0x04, 0x17
+        /*0022*/ 	.short	(.L_15 - .L_14)
+.L_14:
+        /*0024*/ 	.word	0x00000000
+        /*0028*/ 	.short	0x0004
+        /*002a*/ 	.short	0x0020
+        /*002c*/ 	.byte	0x00, 0xf0, 0x21, 0x00
+
+
+	//----- nvinfo : EIATTR_KPARAM_INFO
+	.align		4
+.L_15:
+        /*0030*/ 	.byte	0x04, 0x17
+        /*0032*/ 	.short	(.L_17 - .L_16)
+.L_16:
+        /*0034*/ 	.word	0x00000000
+        /*0038*/ 	.short	0x0003
+        /*003a*/ 	.short	0x0018
+        /*003c*/ 	.byte	0x00, 0xf0, 0x21, 0x00
+
+
+	//----- nvinfo : EIATTR_KPARAM_INFO
+	.align		4
+.L_17:
+        /*0040*/ 	.byte	0x04, 0x17
+        /*0042*/ 	.short	(.L_19 - .L_18)
+.L_18:
+        /*0044*/ 	.word	0x00000000
+        /*0048*/ 	.short	0x0002
+        /*004a*/ 	.short	0x0010
+        /*004c*/ 	.byte	0x00, 0xf0, 0x21, 0x00
+
+
+	//----- nvinfo : EIATTR_KPARAM_INFO
+	.align		4
+.L_19:
+        /*0050*/ 	.byte	0x04, 0x17
+        /*0052*/ 	.short	(.L_21 - .L_20)
+.L_20:
+        /*0054*/ 	.word	0x00000000
+        /*0058*/ 	.short	0x0001
+        /*005a*/ 	.short	0x0008
+        /*005c*/ 	.byte	0x00, 0xf0, 0x21, 0x00
+
+
+	//----- nvinfo : EIATTR_KPARAM_INFO
+	.align		4
+.L_21:
+        /*0060*/ 	.byte	0x04, 0x17
+        /*0062*/ 	.short	(.L_23 - .L_22)
+.L_22:
+        /*0064*/ 	.word	0x00000000
+        /*0068*/ 	.short	0x0000
+        /*006a*/ 	.short	0x0000
+        /*006c*/ 	.byte	0x00, 0xf0, 0x21, 0x00
+
+
+	//----- nvinfo : EIATTR_SPARSE_MMA_MASK
+	.align		4
+.L_23:
+        /*0070*/ 	.byte	0x03, 0x50
+        /*0072*/ 	.short	0x0000
+
+
+	//----- nvinfo : EIATTR_MAXREG_COUNT
+	.align		4
+        /*0074*/ 	.byte	0x03, 0x1b
+        /*0076*/ 	.short	0x00ff
+
+
+	//----- nvinfo : EIATTR_MERCURY_ISA_VERSION
+	.align		4
+        /*0078*/ 	.byte	0x03, 0x5f
+        /*007a*/ 	.short	0x0101
+
+
+	//----- nvinfo : EIATTR_EXIT_INSTR_OFFSETS
+	.align		4
+        /*007c*/ 	.byte	0x04, 0x1c
+        /*007e*/ 	.short	(.L_25 - .L_24)
+
+
+	//   ....[0]....
+.L_24:
+        /*0080*/ 	.word	0x00000290
+
+
+	//   ....[1]....
+        /*0084*/ 	.word	0x00000350
+
+
+	//----- nvinfo : EIATTR_CRS_STACK_SIZE
+	.align		4
+.L_25:
+        /*0088*/ 	.byte	0x04, 0x1e
+        /*008a*/ 	.short	(.L_27 - .L_26)
+.L_26:
+        /*008c*/ 	.word	0x00000000
+
+
+	//----- nvinfo : EIATTR_CBANK_PARAM_SIZE
+	.align		4
+.L_27:
+        /*0090*/ 	.byte	0x03, 0x19
+        /*0092*/ 	.short	0x002c
+
+
+	//----- nvinfo : EIATTR_PARAM_CBANK
+	.align		4
+        /*0094*/ 	.byte	0x04, 0x0a
+        /*0096*/ 	.short	(.L_29 - .L_28)
+	.align		4
+.L_28:
+        /*0098*/ 	.word	index@(.nv.constant0.H3_idx64_multi)
+        /*009c*/ 	.short	0x0210
+        /*009e*/ 	.short	0x002c
+
+
+	//----- nvinfo : EIATTR_SW_WAR
+	.align		4
+.L_29:
+        /*00a0*/ 	.byte	0x04, 0x36
+        /*00a2*/ 	.short	(.L_31 - .L_30)
+.L_30:
+        /*00a4*/ 	.word	0x00000008
+.L_31:
+
+
+//--------------------- .nv.callgraph             --------------------------
+	.section	.nv.callgraph,"",@"SHT_CUDA_CALLGRAPH"
+	.align	4
+	.sectionentsize	8
+	.align		4
+        /*0000*/ 	.word	0x00000000
+	.align		4
+        /*0004*/ 	.word	0xffffffff
+	.align		4
+        /*0008*/ 	.word	0x00000000
+	.align		4
+        /*000c*/ 	.word	0xfffffffe
+	.align		4
+        /*0010*/ 	.word	0x00000000
+	.align		4
+        /*0014*/ 	.word	0xfffffffd
+	.align		4
+        /*0018*/ 	.word	0x00000000
+	.align		4
+        /*001c*/ 	.word	0xfffffffc
+
+
+//--------------------- .text.H3_idx64_multi      --------------------------
+	.section	.text.H3_idx64_multi,"ax",@progbits
+	.align	128
+        .global         H3_idx64_multi
+        .type           H3_idx64_multi,@function
+        .size           H3_idx64_multi,(.L_x_4 - H3_idx64_multi)
+        .other          H3_idx64_multi,@"STO_CUDA_ENTRY STV_DEFAULT"
+H3_idx64_multi:
+.text.H3_idx64_multi:
+        /*0000*/                   LDC R1, c[0x0][0x28] ;
+        /*0010*/                   S2R R5, SR_TID.X ;
+        /*0020*/                   S2UR UR4, SR_CTAID.X ;
+        /*0030*/                   ULDC.64 UR6, c[0x0][0x220] ;
+        /*0040*/                   ULDC UR8, c[0x0][0x238] ;
+        /*0050*/                   BSSY B0, `(.L_x_0) ;
+        /*0060*/                   USHF.R.S32.HI UR5, URZ, 0x1f, UR8 ;
+        /*0070*/                   LDC.64 R6, c[0x0][0x228] ;
+        /*0080*/                   IMAD.WIDE.U32 R2, R5, UR6, RZ ;
+        /*0090*/                   IMAD R3, R5, UR7, R3 ;
+        /*00a0*/                   ULDC.64 UR6, c[0x0][0x230] ;
+        /*00b0*/                   IMAD.WIDE.U32 R2, R6, UR4, R2 ;
+        /*00c0*/                   IMAD R3, R7, UR4, R3 ;
+        /*00d0*/                   IADD3 R0, P0, R2, UR6, RZ ;
+        /*00e0*/                   IADD3.X R3, R3, UR7, RZ, P0, !PT ;
+        /*00f0*/                   LOP3.LUT R2, R3, UR5, RZ, 0xfc, !PT ;
+        /*0100*/                   ISETP.NE.U32.AND P0, PT, R2, RZ, PT ;
+        /*0110*/              @!P0 BRA `(.L_x_1) ;
+        /*0120*/                   MOV R2, 0x140 ;
+        /*0130*/                   CALL.REL.NOINC `($__internal_0_$__cuda_sm20_rem_u64) ;
+        /*0140*/                   BRA `(.L_x_2) ;
+.L_x_1:
+        /*0150*/                   I2F.U32.RP R4, UR8 ;
+        /*0160*/                   ISETP.NE.U32.AND P1, PT, RZ, UR8, PT ;
+        /*0170*/                   MUFU.RCP R4, R4 ;
+        /*0180*/                   VIADD R2, R4, 0xffffffe ;
+        /*0190*/                   F2I.FTZ.U32.TRUNC.NTZ R3, R2 ;
+        /*01a0*/                   HFMA2.MMA R2, -RZ, RZ, 0, 0 ;
+        /*01b0*/                   IMAD.MOV R5, RZ, RZ, -R3 ;
+        /*01c0*/                   IMAD R5, R5, UR8, RZ ;
+        /*01d0*/                   IMAD.HI.U32 R3, R3, R5, R2 ;
+        /*01e0*/                   IMAD.HI.U32 R3, R3, R0, RZ ;
+        /*01f0*/                   IMAD.MOV R3, RZ, RZ, -R3 ;
+        /*0200*/                   IMAD R0, R3, UR8, R0 ;
+        /*0210*/                   ISETP.GE.U32.AND P0, PT, R0, UR8, PT ;
+        /*0220*/               @P0 VIADD R0, R0, -UR8 ;
+        /*0230*/                   ISETP.GE.U32.AND P0, PT, R0, UR8, PT ;
+        /*0240*/               @P0 IADD3 R0, R0, -UR8, RZ ;
+        /*0250*/              @!P1 LOP3.LUT R0, RZ, UR8, RZ, 0x33, !PT ;
+.L_x_2:
+        /*0260*/                   BSYNC B0 ;
+.L_x_0:
+        /*0270*/                   ULDC UR4, c[0x0][0x238] ;
+        /*0280*/                   ISETP.GE.AND P0, PT, R0, UR4, PT ;
+        /*0290*/               @P0 EXIT ;
+        /*02a0*/                   SHF.R.S64 R4, RZ, 0x1e, R0.reuse ;
+        /*02b0*/                   ULDC.64 UR4, c[0x0][0x210] ;
+        /*02c0*/                   SHF.R.S32.HI R0, RZ, 0x1e, R0 ;
+        /*02d0*/                   ULDC.64 UR6, c[0x0][0x218] ;
+        /*02e0*/                   IADD3 R2, P0, R4, UR4, RZ ;
+        /*02f0*/                   IADD3.X R3, R0, UR5, RZ, P0, !PT ;
+        /*0300*/                   ULDC.64 UR4, c[0x0][0x208] ;
+        /*0310*/                   LDG.E R3, desc[UR4][R2.64] ;
+        /*0320*/                   IADD3 R4, P0, R4, UR6, RZ ;
+        /*0330*/                   IADD3.X R5, R0, UR7, RZ, P0, !PT ;
+        /*0340*/                   STG.E desc[UR4][R4.64], R3 ;
+        /*0350*/                   EXIT ;
+        .type           $__internal_0_$__cuda_sm20_rem_u64,@function
+        .size           $__internal_0_$__cuda_sm20_rem_u64,(.L_x_4 - $__internal_0_$__cuda_sm20_rem_u64)
+$__internal_0_$__cuda_sm20_rem_u64:
+        /*0360*/                   ULDC UR4, c[0x0][0x238] ;
+        /*0370*/                   I2F.U64.RP R8, UR4 ;
+        /*0380*/                   MUFU.RCP R8, R8 ;
+        /*0390*/                   VIADD R4, R8, 0x1ffffffe ;
+        /*03a0*/                   F2I.U64.TRUNC R4, R4 ;
+        /*03b0*/                   IMAD.WIDE.U32 R6, R4, UR4, RZ ;
+        /*03c0*/                   IMAD R7, R4, UR5, R7 ;
+        /*03d0*/                   IADD3 R9, P0, RZ, -R6, RZ ;
+        /*03e0*/                   IMAD R7, R5, UR4, R7 ;
+        /*03f0*/                   IMAD.HI.U32 R6, R4, R9, RZ ;
+        /*0400*/                   IADD3.X R11, RZ, ~R7, RZ, P0, !PT ;
+        /*0410*/                   IMAD.MOV.U32 R7, RZ, RZ, R4 ;
+        /*0420*/                   IMAD.WIDE.U32 R6, P0, R4, R11, R6 ;
+        /*0430*/                   IMAD R13, R5.reuse, R11, RZ ;
+        /*0440*/                   IMAD.HI.U32 R6, P1, R5, R9, R6 ;
+        /*0450*/                   IMAD.HI.U32 R11, R5, R11, RZ ;
+        /*0460*/                   IADD3 R7, P2, R13, R6, RZ ;
+        /*0470*/                   IADD3.X R6, R11, R5, RZ, P0, !PT ;
+        /*0480*/                   IMAD.WIDE.U32 R4, R7, UR4, RZ ;
+        /*0490*/                   IADD3.X R9, RZ, RZ, R6, P2, P1 ;
+        /*04a0*/                   IMAD R6, R7, UR5, R5 ;
+        /*04b0*/                   IADD3 R5, P0, RZ, -R4, RZ ;
+        /*04c0*/                   IMAD R4, R9, UR4, R6 ;
+        /*04d0*/                   IMAD.HI.U32 R6, R7, R5, RZ ;
+        /*04e0*/                   IMAD.X R4, RZ, RZ, ~R4, P0 ;
+        /*04f0*/                   IMAD.WIDE.U32 R6, P0, R7, R4, R6 ;
+        /*0500*/                   IMAD R8, R9.reuse, R4, RZ ;
+        /*0510*/                   IMAD.HI.U32 R7, P1, R9, R5, R6 ;
+        /*0520*/                   IMAD.HI.U32 R4, R9, R4, RZ ;
+        /*0530*/                   IADD3 R7, P2, R8, R7, RZ ;
+        /*0540*/                   IMAD.MOV.U32 R5, RZ, RZ, RZ ;
+        /*0550*/                   IADD3.X R9, R4, R9, RZ, P0, !PT ;
+        /*0560*/                   IMAD.HI.U32 R4, R7, R0, RZ ;
+        /*0570*/                   IADD3.X R9, RZ, RZ, R9, P2, P1 ;
+        /*0580*/                   IMAD.WIDE.U32 R4, R7, R3, R4 ;
+        /*0590*/                   IMAD R7, R9.reuse, R3, RZ ;
+        /*05a0*/                   IMAD.HI.U32 R4, P0, R9, R0, R4 ;
+        /*05b0*/                   IMAD.HI.U32 R6, R9, R3, RZ ;
+        /*05c0*/                   IADD3 R7, P1, R7, R4, RZ ;
+        /*05d0*/                   IADD3.X R6, R6, RZ, RZ, P0, !PT ;
+        /*05e0*/                   IMAD.WIDE.U32 R4, R7, UR4, RZ ;
+        /*05f0*/                   IMAD.X R6, RZ, RZ, R6, P1 ;
+        /*0600*/                   IADD3 R0, P1, -R4, R0, RZ ;
+        /*0610*/                   IMAD R7, R7, UR5, R5 ;
+        /*0620*/                   ISETP.GE.U32.AND P0, PT, R0, UR4, PT ;
+        /*0630*/                   IMAD R6, R6, UR4, R7 ;
+        /*0640*/                   IADD3.X R5, ~R6, R3, RZ, P1, !PT ;
+        /*0650*/                   IADD3 R3, P1, R0, -UR4, RZ ;
+        /*0660*/                   ISETP.GE.U32.AND.EX P0, PT, R5.reuse, UR5, PT, P0 ;
+        /*0670*/                   IADD3.X R4, R5, ~UR5, RZ, P1, !PT ;
+        /*0680*/                   SEL R3, R3, R0, P0 ;
+        /*0690*/                   SEL R4, R4, R5, P0 ;
+        /*06a0*/                   ISETP.GE.U32.AND P0, PT, R3.reuse, UR4, PT ;
+        /*06b0*/                   VIADD R0, R3, -UR4 ;
+        /*06c0*/                   ISETP.NE.U32.AND P1, PT, RZ, UR4, PT ;
+        /*06d0*/                   ISETP.GE.U32.AND.EX P0, PT, R4, UR5, PT, P0 ;
+        /*06e0*/                   ISETP.NE.AND.EX P1, PT, RZ, UR5, PT, P1 ;
+        /*06f0*/                   SEL R0, R0, R3, P0 ;
+        /*0700*/                   MOV R3, 0x0 ;
+        /*0710*/                   SEL R0, R0, 0xffffffff, P1 ;
+        /*0720*/                   RET.REL.NODEC R2 `(H3_idx64_multi) ;
+.L_x_3:
+        /*0730*/                   BRA `(.L_x_3);
+        /*0740*/                   NOP;
+        /*0750*/                   NOP;
+        /*0760*/                   NOP;
+        /*0770*/                   NOP;
+        /*0780*/                   NOP;
+        /*0790*/                   NOP;
+        /*07a0*/                   NOP;
+        /*07b0*/                   NOP;
+        /*07c0*/                   NOP;
+        /*07d0*/                   NOP;
+        /*07e0*/                   NOP;
+        /*07f0*/                   NOP;
+.L_x_4:
+
+
+//--------------------- .nv.shared.reserved.0     --------------------------
+	.section	.nv.shared.reserved.0,"aw",@nobits
+	.weak		__nv_reservedSMEM_offset_0_alias
+	.size		__nv_reservedSMEM_offset_0_alias, 0, 0
+	.other		__nv_reservedSMEM_offset_0_alias,@"STO_CUDA_RESERVED_SHARED STV_DEFAULT"
+__nv_reservedSMEM_offset_0_alias:
+	.zero		0
+
+
+//--------------------- .nv.constant0.H3_idx64_multi --------------------------
+	.section	.nv.constant0.H3_idx64_multi,"a",@progbits
+	.sectionflags	@""
+	.align	4
+.nv.constant0.H3_idx64_multi:
+	.zero		572
+
+
+//--------------------- SYMBOLS --------------------------
+
+	.type		.nv.reservedSmem.offset0,@object
+	.size		.nv.reservedSmem.offset0,0x4

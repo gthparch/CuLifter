@@ -1,0 +1,9 @@
+{
+  "name": "npp_uf_update",
+  "desc": "Real npp connected-components kernel labelMarkersUFUpdate(unsigned int* labels, unsigned int n, NppiSize) from libnpp sm_90 npp_uf.cubin, lifted to x86 and run on CPU. Union-find path-flatten: each node follows labels[x] until a self-pointing root, then writes labels[gid]=root. The final state is ORDER-INDEPENDENT (compressing a node to its root never changes any root), so the wrapper's sequential-CTA execution matches a host reference computed from the ORIGINAL forest. Params: labels@0x210, n@0x218 (NppiSize unused). Verified with a forest of 20 distinct roots and chains up to depth 9 (a degenerate 'write 0' kernel would fail).",
+  "tags": ["sm90","nv_libraries","npp","union_find","connected_components","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z20labelMarkersUFUpdatePjj8NppiSize",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_uf.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host union-find reference: 0/200 mismatches, TEST PASSED"
+}

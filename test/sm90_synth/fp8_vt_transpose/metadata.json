@@ -1,0 +1,8 @@
+{
+  "name": "fp8_vt_transpose",
+  "desc": "FA3 e4m3 V-transpose: LDSM.16.MT88.4 + PRMT byte-deinterleave + STSM.16.M88.4 on fp8 (1B) data; isolates the half-hdim transpose bug",
+  "tags": ["sm90", "ldsm", "stsm", "fp8", "transpose", "matrix_io"],
+  "feature": "W1-M1",
+  "gpu_ref": "analytic",
+  "kernel_func": "kern_fp8_vt"
+}

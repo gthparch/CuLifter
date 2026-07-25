@@ -1,0 +1,18 @@
+{
+  "kernel_id": "X4",
+  "slug": "base_large_off_float",
+  "dir_name": "X4_base_large_off_float",
+  "kernel_name": "addr_X4_base_large_off_float",
+  "family": "combo",
+  "tags": [
+    "base_select",
+    "carry_sensitive"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Base select + 64-bit offset"
+}

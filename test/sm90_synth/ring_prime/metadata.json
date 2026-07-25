@@ -1,0 +1,7 @@
+{
+  "name": "ring_prime",
+  "desc": "Minimal warp-specialized pipeline using cute's PRODUCER-PHASE-1 empty-barrier priming (cutlass::make_producer_start_state) — the exact mbarrier handshake structure of the FA3 paged_split MainloopPipeline. A producer warp (started at phase 1) streams K/V tiles into a 2-stage smem ring; the consumer does NOT pre-prime the empty[] barriers, relying instead on the producer's first try_wait(phase=1) reading the fresh phase-0 empty barrier as released. Reproduces the producer/consumer empty+full barrier ordering that exposed the paged_split A0T1 double-count deadlock. Single CTA, 2 warps, online-softmax attention; verified vs a CPU oracle.",
+  "tags": ["sm90","flash_attention","warp_specialized","mbarrier","pipeline","producer_consumer","producer_phase_1","empty_barrier_priming"],
+  "feature": "fa3-mainloop-producer-phase1",
+  "gpu_ref": "pass"
+}

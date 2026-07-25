@@ -1,0 +1,12 @@
+{
+  "name": "tma_4d_multitile",
+  "desc": "Genuine sm_90a multi-tile UTMALDG.4D (4 issues, 0 TRAP) — the FlashAttention 4D-coordinate-recovery test. The kernel drives cp.async.bulk.tensor.4d directly with a host-encoded rank-4 CUtensorMap (cuTensorMapEncodeTiled), looping the seq-tile coordinate so each UTMALDG.4D uses the SAME descriptor but a DIFFERENT coordinate vector {0, it*8, 0, 0}; each loaded (8x64) tile is stored straight back to gOut at its tile rows. The 4D tile coordinates are NOT printed operands nor encoded in the instruction word — they ride the implicit cute SM90_TMA_LOAD uniform-register window (UR10..UR13), verified across all 297 UTMALDG.4D in the real FA hdim64+hdim128 cubins. x86 correctness requires the new TmaCoordRecover pass [transform/tma_coord_recover.py] to attach those coord registers as use operands by reaching-def BEFORE SSA, so each op carries its own per-tile coords; lift_utmaldg then passes 4 i32 coords to utma_load [lift/lifter_cpu.py], and the wrapper's swizzle=4 plain-linear path applies (k_base,m_base) per tile [test/common/kernel_wrapper_75.h]. With the OLD coord=0 behaviour every tile loaded rows [0,8), so out rows 8..31 were wrong. Verified vs native H200: per-tile round-trip out==in.",
+  "tags": [
+    "sm90", "sm90a", "tma", "utmaldg", "utmaldg4d", "cutensormap",
+    "coord_recovery", "shared_memory", "flash_attention",
+    "execution_correctness", "value_root"
+  ],
+  "kernel_func": "tma_4d_multitile_kernel",
+  "native_arch": "sm90",
+  "ground_truth": "native H200 per-tile round-trip out==in; x86-lifted per-tile round-trip out==in, 0 mismatches"
+}

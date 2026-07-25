@@ -1,0 +1,9 @@
+{
+  "name": "tma_2d_tile",
+  "desc": "2D tile access pattern with stride - tests descriptor LDG/STG",
+  "tags": ["tma", "descriptor", "2d"],
+  "priority": "synth",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024,
+  "note": "Synthetic SM90 kernel testing 2D tile access via TMA descriptors."
+}

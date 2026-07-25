@@ -1,0 +1,15 @@
+{
+  "name": "B_ldl_wide",
+  "desc": "LDL.64/LDL.128/STL.128: wide local memory loads/stores (columnarSolver crash)",
+  "tags": [
+    "sm90",
+    "ldl",
+    "stl",
+    "local_mem",
+    "wide",
+    "crash_root"
+  ],
+  "feature": "crash_root_cause",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 512
+}

@@ -1,0 +1,21 @@
+{
+  "name": "imma_sp_s4_k64",
+  "desc": "INT4 m16n8k128 2:4-sparse tensor-core MMA — VALUE-EXACTNESS (executing). Companion to imma_sp_s4 (which only direct-drives the wrapper): this RUNS the lifted kernel and compares the real lifted D to a dense int4 2:4 oracle. The single LOGICAL int4 m16n8k128 PTX atom (CUTLASS 15_ampere_sparse_tensorop_gemm, SparseMma<GemmShape<16,8,128>,32,int4b_t,...>) lowers to a PAIR of native K=64 IMMA.SP.16864 SASS sub-atoms whose D the kernel SUMS (atom2.D += atom1.D). The lifter routes EACH sub-atom to imma_sp_s4_k64_warp (native K=64 int4 sparse = the int8 imma_sp16864 K=64 thread map reading int4 low-nibbles; ptxas splits the logical fragments by nibble parity into the two sub-atoms' registers, derived + verified 32/32 lanes GPU-free); the SASS IMAD.IADD sum then forms the K=128 result. High-entropy int4 data also exercises the .satfinite saturation path (PLOP3.LUT .SIGN add-overflow tests). Compared to a host integer-GEMM oracle (exact, no rounding).",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int4",
+    "sparse",
+    "2to4",
+    "metadata",
+    "warp",
+    "cutlass",
+    "m16n8k128",
+    "k64",
+    "satfinite",
+    "value-exact"
+  ],
+  "feature": "imma_sp_s4_k64",
+  "gpu_ref": "pass"
+}

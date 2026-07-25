@@ -1,0 +1,24 @@
+{
+  "name": "D2_base_loaded",
+  "tags": [
+    "signed_disp",
+    "2d_grid",
+    "ptr_indirect"
+  ],
+  "description": "2D stencil, loaded pointer from array",
+  "sass_lines": 105,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": false,
+    "n_ldg": 4,
+    "n_stg": 1
+  },
+  "has_host_cpu": true
+}

@@ -1,0 +1,13 @@
+{
+  "name": "pred_gather_ldgsts",
+  "desc": "Predicated LDGSTS whose gather address is far OOB on inactive lanes (CUTLASS ex36 crash class): the lifter must guard the global load with the instruction predicate, branch-free",
+  "tags": [
+    "sm90",
+    "ldgsts",
+    "predication",
+    "crash",
+    "cutlass"
+  ],
+  "feature": "ldgsts_pred",
+  "gpu_ref": "pass"
+}

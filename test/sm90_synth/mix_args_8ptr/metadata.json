@@ -1,0 +1,14 @@
+{
+  "name": "mix_args_8ptr",
+  "desc": "8 pointer args (wide const_mem, many 64-bit slots)",
+  "tags": [
+    "sm90",
+    "arg",
+    "many_ptr",
+    "wide_const_mem",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4096
+}

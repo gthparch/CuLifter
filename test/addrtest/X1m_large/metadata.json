@@ -1,0 +1,54 @@
+{
+  "name": "X1m_large",
+  "seed": "X1_stencil_64pitch_float",
+  "knob": "dimensions",
+  "tags": [
+    "signed_disp",
+    "64bit_index"
+  ],
+  "opt": "-O2",
+  "description": "Larger grid 64x64",
+  "gen_kwargs": {
+    "pitch_type": "size_t",
+    "W": "64",
+    "H": "64"
+  },
+  "build_status": "ok",
+  "sass_lines": 153,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": true,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 5,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 3,
+    "IADD3.X": 2,
+    "IADD3": 6,
+    "LEA.HI.X": 2,
+    "LEA.HI": 0,
+    "LEA": 2,
+    "SHF": 5
+  },
+  "skeleton_key": [
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    false,
+    true,
+    5,
+    1
+  ],
+  "dedup_status": "kept: neighbor of X1m_double (diff=1)"
+}

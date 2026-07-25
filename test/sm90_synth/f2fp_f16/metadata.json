@@ -1,0 +1,13 @@
+{
+  "name": "f2fp_f16",
+  "desc": "F2FP.F16.F32.PACK_AB: Float32 to packed Float16 conversion",
+  "tags": [
+    "sm90",
+    "f2fp",
+    "fp16",
+    "conversion"
+  ],
+  "feature": "phase2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

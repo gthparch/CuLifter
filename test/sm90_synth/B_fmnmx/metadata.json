@@ -1,0 +1,15 @@
+{
+  "name": "B_fmnmx",
+  "desc": "FMNMX: float min/max (fminf/fmaxf, nbnxm pattern)",
+  "tags": [
+    "sm90",
+    "untested",
+    "fmnmx",
+    "fmin",
+    "fmax",
+    "nbnxm"
+  ],
+  "feature": "untested_pattern",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1536
+}

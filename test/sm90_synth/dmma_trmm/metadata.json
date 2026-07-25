@@ -1,0 +1,17 @@
+{
+  "name": "dmma_trmm",
+  "desc": "DMMA.8x8x4 f64 TRMM (CUTLASS 32_basic_trmm op class): one warp computes the triangular matrix multiply D=alpha*A*B (A lower-triangular left-side operand, K=8 => TWO accumulated m8n8k4 atoms) via the warp-true atom; audits a triangular operand + multi-K-group accumulation. Compared to a host f64 fma-chain replica.",
+  "tags": [
+    "sm90",
+    "dmma",
+    "mma",
+    "f64",
+    "warp",
+    "cutlass",
+    "m8n8k4",
+    "trmm",
+    "triangular"
+  ],
+  "feature": "dmma_884",
+  "gpu_ref": "pass"
+}

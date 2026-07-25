@@ -1,0 +1,10 @@
+{
+  "kernel": "ISA1a_atomicAdd_global",
+  "tags": [
+    "ATOM",
+    "ATOMG",
+    "ADD"
+  ],
+  "description": "Global atomicAdd on int array \u2014 each thread adds its tid",
+  "sass_features": {}
+}

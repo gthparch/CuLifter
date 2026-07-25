@@ -1,0 +1,9 @@
+{
+  "name": "npp_proximate_points",
+  "desc": "Real npp PBA distance-transform kernel kernelProximatePoints(short2* input, short2* stack, int size, int bandSize) from libnpp sm_90 npp.cubin, lifted to x86 and run on CPU. Phase-2: per column, walk the band's rows and maintain a stack of sites that can be nearest along that column, popping sites dominated by their neighbours via the 64-bit integer cross-product test dominate(x1,y1,x2,y2,x3,y3,x0)= (k1*(y1+y2)+(x2-x1)*((x1+x2)-2*x0))*k2 > (k2*(y2+y3)+(x3-x2)*((x2+x3)-2*x0))*k1 with k1=y2-y1,k2=y3-y2. Stack entries hold (.x=site x, .y=backward pointer = prev site row); tail sentinel (.x=MARKER, .y=last row) at band bottom. Each column independent and a thread only re-reads stack rows it wrote -> pure function of input, ORDER-INDEPENDENT. Params: input@0x210, stack@0x218, size@0x220, bandSize@0x224. 2D launch.",
+  "tags": ["sm90","nv_libraries","npp","pba","distance_transform","short2","dominate","cross_product","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z21kernelProximatePointsP6short2S0_ii",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host stack/dominate reference (sites placed so mid-sites are popped): 0/1024 mismatches, TEST PASSED"
+}

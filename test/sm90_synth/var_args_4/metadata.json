@@ -1,0 +1,13 @@
+{
+  "name": "var_args_4",
+  "desc": "Arg count=4: 2 ptrs + 2 scalars",
+  "tags": [
+    "sm90",
+    "var",
+    "args",
+    "n4"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

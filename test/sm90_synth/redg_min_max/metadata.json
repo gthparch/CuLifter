@@ -1,0 +1,14 @@
+{
+  "name": "redg_min_max",
+  "desc": "REDG: atomicMin and atomicMax",
+  "tags": [
+    "sm90",
+    "redg",
+    "atomic_min",
+    "atomic_max",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 32
+}

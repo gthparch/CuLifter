@@ -1,0 +1,29 @@
+{
+  "name": "MU_rcp",
+  "tags": [
+    "mufu",
+    "rcp"
+  ],
+  "priority": 9,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 201,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "mufu_ops": {
+    "MUFU.RCP": 5,
+    "MUFU": 5
+  },
+  "ref_output_bytes": 4096
+}

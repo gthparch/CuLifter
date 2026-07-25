@@ -1,0 +1,8 @@
+{
+  "name": "syncs_arrive",
+  "desc": "SYNCS.ARRIVE + SYNCS.EXCH + SYNCS.PHASECHK: mbarrier init/arrive/try_wait pattern",
+  "tags": ["sm90", "syncs", "mbarrier", "pipeline_sync"],
+  "feature": "W2-A2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

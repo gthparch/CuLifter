@@ -1,0 +1,14 @@
+{
+  "name": "mix_c4_shared_reduce",
+  "desc": "c[0x4] __device__ + shared memory reduction (columnarSolver pattern)",
+  "tags": [
+    "sm90",
+    "c4",
+    "shared",
+    "reduce",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4
+}

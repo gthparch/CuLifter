@@ -1,0 +1,15 @@
+{
+  "name": "imma16832",
+  "desc": "IMMA.16832 int8->int32 tensor-core MMA (Ampere sm80 dense int8 atom, e.g. CUTLASS 13_two_tensor_op_fusion s8 variants): one warp computes the m16n8k32 atom D = C + A(16x32,s8)*B(8x32,s8)^T via warp-true fragment gather; compared to a host integer-GEMM oracle (exact, no rounding). Larger-shape sibling of imma8816.",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int8",
+    "warp",
+    "cutlass",
+    "m16n8k32"
+  ],
+  "feature": "imma_16832",
+  "gpu_ref": "pass"
+}

@@ -1,0 +1,31 @@
+{
+  "name": "WS2_warp_xor_sum",
+  "tags": [
+    "shfl",
+    "shfl_xor",
+    "butterfly",
+    "all_lanes_same"
+  ],
+  "priority": 11,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "shfl_ops": {
+    "SHFL.BFLY": 5,
+    "SHFL": 5
+  },
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,11 @@
+{
+  "name": "tma_hgmma",
+  "desc": "Genuine sm_90a TMA->HGMMA kernel (4 UTMALDG + 1 HGMMA.64x16x16.F32, 0 TRAP): TMA bulk-loads A(64x16) and B(16x16) K-INTER fp16 tiles global->shared (2 K-blocks each), then the warpgroup HGMMA computes D[64x16]=A*B^T. Mirrors FlashAttention's operand load. x86 correctness exercises the full TMA path (DCE keep, use-address classification, 64-bit descriptor recovery, utma_load runtime copy) plus the GMMA descriptor-product decode from wgmma_ss_fa. Host driver materializes two SlifterTmaDescs in one block (descA at base+0x30, descB at base+0xf0) at const[0x198]. Native-H200 validation measured max |HGMMA - cpu_fp32| = 0.00000.",
+  "tags": [
+    "sm90", "sm90a", "tma", "utmaldg", "hgmma", "wgmma", "tensor_core",
+    "flash_attention", "execution_correctness", "value_root"
+  ],
+  "kernel_func": "tma_hgmma_kernel",
+  "native_arch": "sm90",
+  "ground_truth": "native H200: max |HGMMA - cpu_fp32| = 0.00000"
+}

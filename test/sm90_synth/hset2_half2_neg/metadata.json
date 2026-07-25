@@ -1,0 +1,8 @@
+{
+  "name": "hset2_half2_neg",
+  "desc": "half2 boolean compare __heq2(__hneg2(x), y) -> HSET2.BF.EQ.AND Rd,-Ra,Rb,PT. Regression for the half2 REGISTER-operand negation bug on HSET2: lift_hset2 fetched ra/rb via the GENERIC _get_val, so -Ra was an i32 two's-complement negate of the packed f16x2 word (e.g. -0x38003800 -> lane0=-8.0 not -0.5) => wrong compare mask. Fix routes ra/rb through _get_val_half2 (per-lane fneg).",
+  "kernel_func": "hset2_half2_neg",
+  "tags": ["sm90", "half2", "hset2", "negation", "compare", "regression"],
+  "feature": "half2_operand_negation",
+  "gpu_ref": "host_computed"
+}

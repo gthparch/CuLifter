@@ -1,0 +1,9 @@
+{
+  "kernel": "ISA5b_bfe_bfi",
+  "tags": [
+    "BFE",
+    "BFI"
+  ],
+  "description": "Bit field extract and insert via __bfe/__bfi intrinsics",
+  "sass_features": {}
+}

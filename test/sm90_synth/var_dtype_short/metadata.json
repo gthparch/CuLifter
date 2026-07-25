@@ -1,0 +1,13 @@
+{
+  "name": "var_dtype_short",
+  "desc": "Data type=short: saxpy-like with short operands",
+  "tags": [
+    "sm90",
+    "var",
+    "dtype",
+    "short"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 512
+}

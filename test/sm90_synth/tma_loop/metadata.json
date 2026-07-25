@@ -1,0 +1,9 @@
+{
+  "name": "tma_loop",
+  "desc": "Reduction loop with descriptor loads - tests descriptor in loop",
+  "tags": ["tma", "descriptor", "loop"],
+  "priority": "synth",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 256,
+  "note": "Synthetic SM90 kernel testing descriptor-based loads in a reduction loop."
+}

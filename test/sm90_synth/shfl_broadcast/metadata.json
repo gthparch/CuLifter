@@ -1,0 +1,8 @@
+{
+  "name": "shfl_broadcast",
+  "desc": "SHFL.IDX broadcast: lane 0 value broadcast to all lanes via shuffle-idx",
+  "tags": ["sm90", "shfl", "warp_broadcast", "shfl_idx"],
+  "feature": "W3-S1",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,10 @@
+{
+  "name": "npp_uf_global_merge",
+  "desc": "Real npp 8-way connected-components GLOBAL-MERGE kernel labelMarkersUF8WayGlobalMerge<unsigned char>(unsigned char* image, size_t pitch, unsigned int* labels, NppiSize) from libnpp sm_90 npp_uf.cubin, lifted to x86 and run on CPU. 2D launch, block 16x16, grid ceil(w/16)xceil(h/16). For each pixel p=row*width+col, for each of the 4 BACKWARD 8-neighbours (left p-1, up-left p-w-1, up p-w, up-right p-w+1), if image[p]==image[neighbour] (read-only u8 image at base+row*pitch+col) it unions their global label-trees with the classic atomic-min hooking merge (ATOMG.E.MIN.STRONG.GPU loops, BREAK on settle). Image read-only; only labels[] written; edges depend ONLY on the image. Params: image@0x210, pitch@0x218, labels@0x220, width@0x228, height@0x22c.",
+  "tags": ["sm90","nv_libraries","npp","union_find","connected_components","8way","global_merge","atomic_min","execution_correctness","cpu_x86"],
+  "kernel_func": "_Z29labelMarkersUF8WayGlobalMergeIhEvPT_mPj8NppiSize",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_uf.cubin",
+  "native_arch": "sm90",
+  "status": "BLOCKED (single iteration of an iterative pipeline; soundness+determinism verified)",
+  "ground_truth": "This is ONE PASS of NPP's iterative union-find pipeline (local_merge_block -> boundary/partial -> global_merge, looped by the host to a fixed point). A single standalone pass from labels[p]=p is byte-DETERMINISTIC (identical label hash across 8 reps) but does NOT converge to full 8-connected component-min (e.g. seed=8 40x40: 84/1600 pixels not at component-min, true components left split across roots) -> the full-CCL target is not order-independent in one invocation, so not forced. VERIFIED order-independent property on a 34x22 multi-tile image: SOUNDNESS (0 cross-component merges: every chain-root stays in the pixel's true 8-connected component) + byte-determinism (0/748), TEST PASSED. Full convergence requires the multi-kernel host driver loop."
+}

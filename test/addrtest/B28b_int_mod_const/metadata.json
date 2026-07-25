@@ -1,0 +1,35 @@
+{
+  "name": "B28b_int_mod_const",
+  "tags": [
+    "bug028",
+    "imad_hi",
+    "int_mod",
+    "strength_reduce"
+  ],
+  "priority": 5,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": true,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "bug_sass": {
+    "ISETP": 1,
+    "BRA": 1,
+    "LDG": 1,
+    "STG": 1,
+    "SHF": 1,
+    "IMAD": 5
+  },
+  "ref_output_bytes": 4096
+}

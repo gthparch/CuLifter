@@ -1,0 +1,51 @@
+{
+  "name": "M2m_dbl_indirect",
+  "seed": "M2_ptr_array_float",
+  "knob": "indirection_depth",
+  "tags": [
+    "ptr_indirect"
+  ],
+  "opt": "-O2",
+  "description": "Double indirection: table \u2192 ptrs \u2192 data",
+  "gen_kwargs": {
+    "double_indirect": "True"
+  },
+  "build_status": "ok",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": true,
+    "store_carry": false,
+    "n_ldg": 3,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 4,
+    "IADD3.X": 0,
+    "IADD3": 0,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 0
+  },
+  "skeleton_key": [
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    3,
+    1
+  ],
+  "dedup_status": "kept: new skeleton (True, False, False, False, False, False, False, True, False, 3, 1)"
+}

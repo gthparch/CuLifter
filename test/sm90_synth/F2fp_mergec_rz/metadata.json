@@ -1,0 +1,1 @@
+{"name":"F2fp_mergec_rz","desc":"F2FP.E4M3.F32.PACK_AB_MERGE_C Rd,RZ,Rb,Rd.H1 (A=RZ shift idiom, +PRMT)","tags":["sm90","f2fp","fp8","e4m3","pack_ab_merge_c","prmt","operand_modifier"],"feature":"operand_modifier","kernel_func":"F2fp_mergec_rz","gpu_ref":"oracle_cpu"}

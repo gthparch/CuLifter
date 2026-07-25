@@ -1,0 +1,7 @@
+{
+  "name": "ws_attn_pipe",
+  "desc": "Minimal WARP-SPECIALIZED FlashAttention forward: a producer warp streams K/V tiles into a 2-stage double-buffered ring (full[]/empty[] mbarriers, phase reuse across KV tiles) while a consumer warp runs online-softmax attention from the ring. The FA3 mainloop structure (producer/consumer warps + multi-stage mbarrier handshake) at tractable scale (scalar FMA, no WGMMA; flat args, no Params). Single CTA, 2 warps. Verified vs a CPU attention oracle.",
+  "tags": ["sm90","flash_attention","warp_specialized","mbarrier","pipeline","producer_consumer","online_softmax"],
+  "feature": "fa3-mainloop-minimal",
+  "gpu_ref": "pass"
+}

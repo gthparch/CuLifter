@@ -1,0 +1,33 @@
+{
+  "name": "PHI2_switch_nested_if",
+  "tags": [
+    "phi",
+    "switch",
+    "nested_if",
+    "bssy_nested"
+  ],
+  "priority": 10,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 121,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": true,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "cfg_ops": {
+    "BSSY": 1,
+    "BSYNC": 1,
+    "BRA": 5,
+    "BRA_pred": 2
+  },
+  "ref_output_bytes": 1024
+}

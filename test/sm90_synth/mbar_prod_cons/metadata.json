@@ -1,0 +1,7 @@
+{
+  "name": "mbar_prod_cons",
+  "desc": "Cross-warp producer/consumer mbarrier: consumer warp (tids 0-31) reads shared data produced by producer warp (tids 32-63), gated by mbarrier.arrive/try_wait.parity. The minimal case the always-ready NOP mbarrier model gets WRONG (consumer warp runs first under the wrapper's per-thread execution -> reads smem before the producer writes). Correct only with a REAL mbarrier that blocks the consumer on the producer's 32 arrivals. Single block, 64 threads, one barrier cycle; out[i]=2*in[i].",
+  "tags": ["sm90", "syncs", "mbarrier", "warp_specialized", "producer_consumer", "cross_warp"],
+  "feature": "W2-prodcons",
+  "gpu_ref": "pass"
+}

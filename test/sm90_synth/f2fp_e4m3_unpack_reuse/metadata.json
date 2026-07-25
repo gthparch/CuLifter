@@ -1,0 +1,15 @@
+{
+  "name": "f2fp_e4m3_unpack_reuse",
+  "kernel_func": "kern_f2fp_e4m3_unpack",
+  "description": "Same as f2fp_e4m3_unpack but the .H1 source operand carries the .reuse scheduling hint (R2.reuse.H1), as nvdisasm prints in CUTLASS ex94. Guards the operand-suffix-chain parse: BUG was suffix='reuse.H1' != 'H1' so UNPACK_B converted the LOW half. .reuse is semantics-free, so the host-computed expectations are unchanged.",
+  "grid": [
+    1,
+    1,
+    1
+  ],
+  "block": [
+    64,
+    1,
+    1
+  ]
+}

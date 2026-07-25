@@ -1,0 +1,15 @@
+{
+  "name": "B_uprmt",
+  "desc": "UPRMT: uniform byte permutation (columnarSolver pattern)",
+  "tags": [
+    "sm90",
+    "untested",
+    "uprmt",
+    "prmt",
+    "byte_shuffle",
+    "columnarSolver"
+  ],
+  "feature": "untested_pattern",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,8 @@
+{
+  "name": "loop_carry_gather",
+  "desc": "Loop-carried induction (filter_r/s/c advance cascade with data-dependent continue + nested counter rollover) feeding a gather, stripped from the 42_ampere_tensorop_group_conv iterator advance(). CONFIRMS the loop-carried-IV + gather lift is bit-exact in isolation (the conv divergence is NOT the loop, it is the 64-bit magic divide). VALUE-VERIFIED PASS.",
+  "kernel_func": "kern_loop_carry_gather",
+  "tags": ["sm90", "loop", "induction", "gather", "cutlass", "conv", "regression"],
+  "feature": "loop_carry_gather",
+  "gpu_ref": "host_computed"
+}

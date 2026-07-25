@@ -1,0 +1,15 @@
+{
+  "name": "hv_split_warpscan",
+  "desc": "split stripped: warp scan prefix sum via volatile shared unsigned int",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "split",
+    "warpscan",
+    "volatile",
+    "shared"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

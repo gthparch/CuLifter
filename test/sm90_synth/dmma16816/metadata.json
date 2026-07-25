@@ -1,0 +1,14 @@
+{
+  "name": "dmma16816",
+  "desc": "DMMA.16x8x16 f64 tensor-core MMA (cuBLAS dgemm class): warp-true wrapper decomposition via warp_group_gather; one warp computes D = C + A(16x16)*B(16x8) vs a host fma-chain replica",
+  "tags": [
+    "sm90",
+    "dmma",
+    "mma",
+    "f64",
+    "warp",
+    "cublas"
+  ],
+  "feature": "dmma_16816",
+  "gpu_ref": "pass"
+}

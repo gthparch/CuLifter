@@ -1,0 +1,24 @@
+{
+  "name": "cross_cta_spin",
+  "kernel_func": "cross_cta_spin",
+  "tags": [
+    "sm90",
+    "cross_cta",
+    "spin_barrier",
+    "streamk",
+    "redg",
+    "atomg_cas",
+    "membar",
+    "deadlock",
+    "concurrent_cta",
+    "cutlass_47_streamk"
+  ],
+  "description": "Minimal reproduction of the stream-K (47_ampere_gemm_universal_streamk) cross-CTA spin-barrier DEADLOCK on the x86 wrapper. The wrapper runs CTAs SEQUENTIALLY (one CTA to completion before the next), so a CTA that spins on a global flag set by a PEER CTA that has not run yet waits forever. The kernel is the minimal fixup shape: 2 CTAs, 1 thread each. PHASE A (mode=1, grid=1) is a single-CTA control that exercises REDG (atomicAdd partial) + ATOMG.EXCH (flag set) + acquire-load poll + __threadfence on the SEQUENTIAL path and MUST produce out[0]==base+contrib (proves lift/atomics correct). PHASE B (mode=0, grid=2): OWNER=CTA0 spins on a flag PRODUCER=CTA1 sets; under the sequential wrapper CTA0 runs first so the flag is never set -> the kernel's acquire-poll is a real infinite loop -> DEADLOCK. PHASE B runs on a watchdog thread and the deadlock IS the documented current behavior (passes as characterization). With SLIFTER_EXPECT_CONCURRENT_CTA set (the gate a future cross-CTA execution mode is validated against), PHASE B must instead complete with the correct value.",
+  "arch": "sm_90a",
+  "block": [1, 1, 1],
+  "grid": [2, 1, 1],
+  "arg_base": "0x210",
+  "has_host_cpu": true,
+  "build_note": "host pins args via ArgAt{0x208 desc=0, 0x210 out, 0x218 partials, 0x220 flag, 0x228 base f32, 0x22c contrib f32, 0x230 mode i32}. PHASE B intentionally hangs on the default sequential wrapper; the driver uses a 4s watchdog + detaches the orphaned kernel thread so the process still exits.",
+  "result_x86": "TEST PASSED (PHASE A out[0]==11.75; PHASE B DEADLOCK REPRODUCED on default sequential wrapper)"
+}

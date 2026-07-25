@@ -1,0 +1,15 @@
+{
+  "name": "hv_pns_float_compare",
+  "desc": "pns: float compare chains + predicated branching (FCHK/FSETP pattern)",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "pns",
+    "float_compare",
+    "fchk",
+    "predicate"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4
+}

@@ -1,0 +1,13 @@
+{
+  "name": "B_u64div_dualgemm",
+  "desc": "45_dual_gemm 64-bit magic-reciprocal divide (I2F.U64.RP -> MUFU.RCP -> VIADD +0x1FFFFFFE -> F2I.U64.TRUNC + Newton-Raphson). ptxas emits the pre-correction remainder HIGH word in two interchangeable forms: IMAD.X rem_hi (recognized) and IADD3.X rem_hi (45_dual_gemm; was REJECTED by _try_rewrite_u64._match_rem_hi -> whole u64 divide lost -> faithful software-rcp lift -> wrong/off 64-bit quotient & remainder). A single s64 div+mod kernel exercises both rem-hi forms. IntDivRecognize._match_rem_hi must accept the IADD3.X form too.",
+  "tags": [
+    "sm90",
+    "intdiv",
+    "u64_divide",
+    "magic_divide",
+    "dual_gemm",
+    "value_root"
+  ],
+  "feature": "value_root_cause"
+}

@@ -1,0 +1,82 @@
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+		Function : _Z27minimal_address_calculationPfi
+	.headerflags	@"EF_CUDA_TEXMODE_UNIFIED EF_CUDA_64BIT_ADDRESS EF_CUDA_SM75 EF_CUDA_VIRTUAL_SM(EF_CUDA_SM75)"
+        /*0000*/                   MOV R1, c[0x0][0x28] ;                         /* 0x00000a0000017a02 */
+                                                                                  /* 0x000fe40000000f00 */
+        /*0010*/                   S2R R2, SR_CTAID.X ;                           /* 0x0000000000027919 */
+                                                                                  /* 0x000e280000002500 */
+        /*0020*/                   S2R R3, SR_TID.X ;                             /* 0x0000000000037919 */
+                                                                                  /* 0x000e280000002100 */
+        /*0030*/                   S2R R5, SR_CTAID.Y ;                           /* 0x0000000000057919 */
+                                                                                  /* 0x000e620000002600 */
+        /*0040*/                   IMAD R2, R2, c[0x0][0x0], R3 ;                 /* 0x0000000002027a24 */
+                                                                                  /* 0x001fca00078e0203 */
+        /*0050*/                   SHF.R.S32.HI R3, RZ, 0x1f, R2.reuse ;          /* 0x0000001fff037819 */
+                                                                                  /* 0x100fe20000011402 */
+        /*0060*/                   I2F R9, R2 ;                                   /* 0x0000000200097306 */
+                                                                                  /* 0x000e280000201400 */
+        /*0070*/                   IMAD.WIDE R4, R5, c[0x0][0x168], R2 ;          /* 0x00005a0005047a25 */
+                                                                                  /* 0x002fca00078e0202 */
+        /*0080*/                   LEA R6, P0, R4, c[0x0][0x160], 0x2 ;           /* 0x0000580004067a11 */
+                                                                                  /* 0x000fc800078010ff */
+        /*0090*/                   LEA.HI.X R7, R4, c[0x0][0x164], R5, 0x2, P0 ;  /* 0x0000590004077a11 */
+                                                                                  /* 0x000fd000000f1405 */
+        /*00a0*/                   STG.E.SYS [R6], R9 ;                           /* 0x0000000906007386 */
+                                                                                  /* 0x001fe2000010e900 */
+        /*00b0*/                   EXIT ;                                         /* 0x000000000000794d */
+                                                                                  /* 0x000fea0003800000 */
+        /*00c0*/                   BRA 0xc0;                                      /* 0xfffffff000007947 */
+                                                                                  /* 0x000fc0000383ffff */
+        /*00d0*/                   NOP;                                           /* 0x0000000000007918 */
+                                                                                  /* 0x000fc00000000000 */
+        /*00e0*/                   NOP;                                           /* 0x0000000000007918 */
+                                                                                  /* 0x000fc00000000000 */
+        /*00f0*/                   NOP;                                           /* 0x0000000000007918 */
+                                                                                  /* 0x000fc00000000000 */
+		..........
+
+
+
+Fatbin ptx code:
+================
+arch = sm_75
+code version = [8,5]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions = 
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+
+Fatbin ptx code:
+================
+arch = sm_75
+code version = [8,5]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions = 

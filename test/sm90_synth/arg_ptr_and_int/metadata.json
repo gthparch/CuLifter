@@ -1,0 +1,13 @@
+{
+  "name": "arg_ptr_and_int",
+  "desc": "Arg: 1 pointer + 1 int (baseline, simplest case)",
+  "tags": [
+    "sm90",
+    "arg",
+    "baseline",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

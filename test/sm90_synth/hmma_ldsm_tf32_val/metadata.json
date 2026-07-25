@@ -1,0 +1,7 @@
+{
+  "name": "hmma_ldsm_tf32_val",
+  "desc": "VALUE-verifying single HMMA.1688.F32.TF32 fed by LDSM.16.M88.4 with NON-UNIFORM data + f64 oracle (the coverage hmma_ldsm lacks: uniform+isnan can't catch frag permutation). Probes the SYMM LDSM.x4 crosswise read.",
+  "tags": ["sm90","hmma","ldsm","tf32","warp","value"],
+  "feature": "hmma_ldsm_x4_tf32_value",
+  "gpu_ref": "unverified"
+}

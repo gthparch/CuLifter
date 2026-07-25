@@ -1,0 +1,31 @@
+{
+  "name": "V_idiv_127",
+  "tags": [
+    "imad_hi",
+    "idiv",
+    "div127"
+  ],
+  "priority": 6,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 2,
+    "n_stg": 2
+  },
+  "key_ops": {
+    "IMAD.HI": 2,
+    "IMAD": 7,
+    "SHF": 2
+  },
+  "ref_output_bytes": 8192
+}

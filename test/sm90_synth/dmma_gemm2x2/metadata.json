@@ -1,0 +1,17 @@
+{
+  "name": "dmma_gemm2x2",
+  "desc": "DMMA.8x8x4 f64 multi-tile GEMM (2x2 = 4 output 8x8 atom tiles): one warp computes D=alpha*A*Bᵀ+beta*C over a 16x16 output via 4 warp-true m8n8k4 atoms. Re-audits the C/D m<->n square-tile transpose hazard across off-diagonal output tiles (the second bug fixed for 19_tensorop_canonical). Compared to a host f64 fma-chain replica.",
+  "tags": [
+    "sm90",
+    "dmma",
+    "mma",
+    "f64",
+    "warp",
+    "cutlass",
+    "m8n8k4",
+    "gemm",
+    "multitile"
+  ],
+  "feature": "dmma_884",
+  "gpu_ref": "pass"
+}

@@ -1,0 +1,18 @@
+{
+  "kernel_id": "H2",
+  "slug": "big_mul_int",
+  "dir_name": "H2_big_mul_int",
+  "kernel_name": "addr_H2_big_mul_int",
+  "family": "64bit_carry",
+  "tags": [
+    "64bit_index",
+    "carry_sensitive"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Large stride with int index (control)"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "hadd2_bf16_neg",
+  "desc": "bf16x2 __hadd2(__hneg2(x), y) = (-x)+y. Locks the BF16 branch of the half2 per-lane register-negation fix: the negate lowers to HFMA2.BF16_V2 R0,-RZ.H0_H0,RZ.H0_H0,-R2 (negated accumulator), routed through _get_val_half2(is_bf16=True) -> fneg on <2 x bfloat> (per-lane sign-bit flip). Confirms per-lane neg is correct for bfloat16, not just fp16.",
+  "kernel_func": "hadd2_bf16_neg",
+  "tags": ["sm90", "bf16", "half2", "hadd2", "hfma2", "negation", "regression"],
+  "feature": "half2_operand_negation",
+  "gpu_ref": "host_computed"
+}

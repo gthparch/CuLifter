@@ -1,0 +1,8 @@
+{
+  "name": "ldgsts_barrier",
+  "desc": "LDGSTS + SYNCS barrier wait: two-phase async copy with barrier",
+  "tags": ["sm90", "ldgsts", "async_copy", "barrier"],
+  "feature": "W1-A1",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

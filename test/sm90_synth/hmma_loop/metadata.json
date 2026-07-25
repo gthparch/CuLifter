@@ -1,0 +1,14 @@
+{
+  "name": "hmma_loop",
+  "desc": "HMMA.16816.F32 in accumulation loop (D += A*B repeated)",
+  "tags": [
+    "sm90",
+    "hmma",
+    "tensor_core",
+    "loop",
+    "f32"
+  ],
+  "feature": "W2-M2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 512
+}

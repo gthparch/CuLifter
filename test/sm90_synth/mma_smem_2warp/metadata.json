@@ -1,0 +1,9 @@
+{
+  "name": "mma_smem_2warp",
+  "desc": "MULTI-WARP (2 warps/64 threads) cooperative cp.async (LDGSTS) staging GLOBAL->shared, then per-warp HMMA.16816.F32 over the shared tile. Fills the coverage gap between single-warp hmma_loop/hmma_ldsm (block=32, no LDGSTS) and the 4-warp 41_fmha kernel. Isolates multi-warp+LDGSTS+smem+HMMA and runs x86 BIT-EXACT (warp0 D=16, warp1 D=32, all 128 outputs each).",
+  "tags": ["sm90","hmma","ldgsts","cp_async","ldsm","tensor_core","multiwarp","smem","f32"],
+  "feature": "W2-M2-multiwarp",
+  "gpu_ref": "none (CPU oracle in driver: constant-tile GEMM)",
+  "sass_features": {"LDGSTS": 2, "HMMA.16816.F32": 1, "LDSM": 2, "BAR.SYNC": 2, "STS": 2},
+  "note": "ref_output.bin is intentionally absent; the driver performs a layout-agnostic constant-tile check."
+}

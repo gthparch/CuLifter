@@ -1,0 +1,17 @@
+{
+  "kernel_id": "H4",
+  "slug": "pitch_2d_int",
+  "dir_name": "H4_pitch_2d_int",
+  "kernel_name": "addr_H4_pitch_2d_int",
+  "family": "64bit_carry",
+  "tags": [
+    "64bit_index"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "int",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "2D pitch copy with int index (control)"
+}

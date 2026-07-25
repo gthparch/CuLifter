@@ -1,0 +1,8 @@
+{
+  "name": "F2fp_mergec_h1",
+  "desc": "F2FP.E4M3.F32.PACK_AB_MERGE_C with .H1 C-operand half-select (fp8x4 pack)",
+  "tags": ["sm90", "f2fp", "fp8", "pack_ab_merge_c", "h1_select", "operand_modifier"],
+  "feature": "operand_modifier",
+  "kernel_func": "F2fp_mergec_h1",
+  "gpu_ref": "oracle_cpu"
+}

@@ -1,0 +1,23 @@
+{
+  "name": "P2b_sel_sub_f32",
+  "tags": [
+    "base_select",
+    "signed_disp"
+  ],
+  "has_host_cpu": true,
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "gpu_ref": "pass"
+}

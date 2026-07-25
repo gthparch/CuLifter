@@ -1,0 +1,7 @@
+{
+  "name": "i2f_rp",
+  "kernel_func": "kern_i2f_rp",
+  "description": "I2F.RP / I2F.U32.RP (PTX cvt.rp.f32.{s32,u32}): int -> f32 rounding toward +Inf. Regression for lift_i2f ignoring the SASS rounding modifier and emitting a plain round-to-nearest sitofp/uitofp (wrong for |int| >= 2^24).",
+  "grid": [2, 1, 1],
+  "block": [32, 1, 1]
+}

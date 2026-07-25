@@ -1,0 +1,8 @@
+{
+  "kernel": "ISA2a_elect_one",
+  "tags": [
+    "ELECT"
+  ],
+  "description": "SM90 elect_one \u2014 first active thread writes to output",
+  "sass_features": {}
+}

@@ -1,0 +1,45 @@
+{
+  "name": "H6_base_large_param",
+  "tags": [
+    "64bit_index",
+    "carry_sensitive"
+  ],
+  "priority": 3,
+  "description": "Pointer + large byte offset param",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 2,
+    "IADD3.X": 1,
+    "IADD3": 1,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 0
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    1,
+    1
+  ]
+}

@@ -1,0 +1,114 @@
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+		Function : _Z15warp_reduce_sumPKfPfi
+	.headerflags	@"EF_CUDA_TEXMODE_UNIFIED EF_CUDA_64BIT_ADDRESS EF_CUDA_SM75 EF_CUDA_VIRTUAL_SM(EF_CUDA_SM75)"
+        /*0000*/                   MOV R1, c[0x0][0x28] ;                        /* 0x00000a0000017a02 */
+                                                                                 /* 0x000fe40000000f00 */
+        /*0010*/                   S2R R0, SR_CTAID.X ;                          /* 0x0000000000007919 */
+                                                                                 /* 0x000e220000002500 */
+        /*0020*/                   BMOV.32.CLEAR RZ, B0 ;                        /* 0x0000000000ff7355 */
+                                                                                 /* 0x000fe20000100000 */
+        /*0030*/                   VOTE.ANY R4, PT, PT ;                         /* 0x0000000000047806 */
+                                                                                 /* 0x000fe200038e0100 */
+        /*0040*/                   BSSY B0, 0xe0 ;                               /* 0x0000009000007945 */
+                                                                                 /* 0x000fe20003800000 */
+        /*0050*/                   S2R R13, SR_TID.X ;                           /* 0x00000000000d7919 */
+                                                                                 /* 0x000e220000002100 */
+        /*0060*/                   MOV R3, RZ ;                                  /* 0x000000ff00037202 */
+                                                                                 /* 0x000fe20000000f00 */
+        /*0070*/                   IMAD R0, R0, c[0x0][0x0], R13 ;               /* 0x0000000000007a24 */
+                                                                                 /* 0x001fca00078e020d */
+        /*0080*/                   ISETP.GE.AND P0, PT, R0, c[0x0][0x170], PT ;  /* 0x00005c0000007a0c */
+                                                                                 /* 0x000fd80003f06270 */
+        /*0090*/               @P0 BRA 0xd0 ;                                    /* 0x0000003000000947 */
+                                                                                 /* 0x000fea0003800000 */
+        /*00a0*/                   MOV R3, 0x4 ;                                 /* 0x0000000400037802 */
+                                                                                 /* 0x000fca0000000f00 */
+        /*00b0*/                   IMAD.WIDE R2, R0, R3, c[0x0][0x160] ;         /* 0x0000580000027625 */
+                                                                                 /* 0x000fd000078e0203 */
+        /*00c0*/                   LDG.E.CONSTANT.SYS R3, [R2] ;                 /* 0x0000000002037381 */
+                                                                                 /* 0x00016400001e6900 */
+        /*00d0*/                   BSYNC B0 ;                                    /* 0x0000000000007941 */
+                                                                                 /* 0x000fea0003800000 */
+        /*00e0*/                   SHFL.DOWN PT, R2, R3, 0x10, 0x1f ;            /* 0x0a001f0003027f89 */
+                                                                                 /* 0x021e2200000e0000 */
+        /*00f0*/                   LOP3.LUT P0, RZ, R13, 0x1f, RZ, 0xc0, !PT ;   /* 0x0000001f0dff7812 */
+                                                                                 /* 0x000fe2000780c0ff */
+        /*0100*/                   FADD R5, R2, R3 ;                             /* 0x0000000302057221 */
+                                                                                 /* 0x001fd00000000000 */
+        /*0110*/                   SHFL.DOWN PT, R2, R5, 0x8, 0x1f ;             /* 0x09001f0005027f89 */
+                                                                                 /* 0x000e2400000e0000 */
+        /*0120*/                   FADD R7, R5, R2 ;                             /* 0x0000000205077221 */
+                                                                                 /* 0x001fd00000000000 */
+        /*0130*/                   SHFL.DOWN PT, R2, R7, 0x4, 0x1f ;             /* 0x08801f0007027f89 */
+                                                                                 /* 0x000e2400000e0000 */
+        /*0140*/                   FADD R9, R7, R2 ;                             /* 0x0000000207097221 */
+                                                                                 /* 0x001fd00000000000 */
+        /*0150*/                   SHFL.DOWN PT, R2, R9, 0x2, 0x1f ;             /* 0x08401f0009027f89 */
+                                                                                 /* 0x000e2400000e0000 */
+        /*0160*/                   FADD R11, R9, R2 ;                            /* 0x00000002090b7221 */
+                                                                                 /* 0x001fd00000000000 */
+        /*0170*/                   SHFL.DOWN PT, R2, R11, 0x1, 0x1f ;            /* 0x08201f000b027f89 */
+                                                                                 /* 0x00006200000e0000 */
+        /*0180*/               @P0 EXIT ;                                        /* 0x000000000000094d */
+                                                                                 /* 0x000fea0003800000 */
+        /*0190*/                   SHF.R.U32.HI R3, RZ, 0x5, R0 ;                /* 0x00000005ff037819 */
+                                                                                 /* 0x000fe20000011600 */
+        /*01a0*/                   FADD R11, R11, R2 ;                           /* 0x000000020b0b7221 */
+                                                                                 /* 0x003fe20000000000 */
+        /*01b0*/                   MOV R0, 0x4 ;                                 /* 0x0000000400007802 */
+                                                                                 /* 0x000fca0000000f00 */
+        /*01c0*/                   IMAD.WIDE.U32 R2, R3, R0, c[0x0][0x168] ;     /* 0x00005a0003027625 */
+                                                                                 /* 0x000fd000078e0000 */
+        /*01d0*/                   STG.E.SYS [R2], R11 ;                         /* 0x0000000b02007386 */
+                                                                                 /* 0x000fe2000010e900 */
+        /*01e0*/                   EXIT ;                                        /* 0x000000000000794d */
+                                                                                 /* 0x000fea0003800000 */
+        /*01f0*/                   BRA 0x1f0;                                    /* 0xfffffff000007947 */
+                                                                                 /* 0x000fc0000383ffff */
+		..........
+
+
+
+Fatbin ptx code:
+================
+arch = sm_75
+code version = [8,5]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions = 
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+	code for sm_75
+
+Fatbin ptx code:
+================
+arch = sm_75
+code version = [8,5]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions = 

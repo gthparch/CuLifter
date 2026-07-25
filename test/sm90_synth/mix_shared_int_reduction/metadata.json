@@ -1,0 +1,14 @@
+{
+  "name": "mix_shared_int_reduction",
+  "desc": "Shared memory int reduction (different type from float)",
+  "tags": [
+    "sm90",
+    "shared",
+    "int",
+    "reduce",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4
+}

@@ -1,0 +1,10 @@
+{
+  "name": "npp_uf_boundary_analysis",
+  "desc": "Real npp 8-way connected-components CROSS-TILE-BOUNDARY kernel labelMarkersUF8WayBoundaryAnalysis<unsigned char>(unsigned char* image, size_t pitch, unsigned int* labels, NppiSize) from libnpp sm_90 npp_uf.cubin, lifted to x86 and run on CPU. 2D launch, block 16x16, grid ceil(w/16)xceil(h/16). Using integer reciprocal-divide (MUFU.RCP/IMAD.HI) it derives the 16x16 tile row/col and within-tile boundary position, then ONLY for pixels on a tile EDGE compares image[p] against cross-tile neighbours (read-only u8 image) and unions their global label-trees with the same atomic-min hooking merge as global_merge (ATOMG.E.MIN.STRONG.GPU, BREAK on settle). Linear label index p=row*width+col. Image read-only; only labels[] written; edges depend ONLY on the image. Params: image@0x210, pitch@0x218, labels@0x220, width@0x228, height@0x22c.",
+  "tags": ["sm90","nv_libraries","npp","union_find","connected_components","8way","boundary","atomic_min","execution_correctness","cpu_x86"],
+  "kernel_func": "_Z34labelMarkersUF8WayBoundaryAnalysisIhEvPT_mPj8NppiSize",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_uf.cubin",
+  "native_arch": "sm90",
+  "status": "BLOCKED (cross-tile-boundary pass of an iterative pipeline; soundness+determinism verified)",
+  "ground_truth": "This is the tile-boundary pass of NPP's iterative union-find pipeline; by construction it only touches tile-edge pixels, so a single standalone pass from labels[p]=p cannot produce the full-CCL labelling (interior pixels keep identity labels) -> full component-min is not order-independent in one invocation, not forced. The pass IS byte-DETERMINISTIC (stable label hash across 8 reps). VERIFIED order-independent property on a 34x22 multi-tile image: SOUNDNESS (0 cross-component merges) + byte-determinism (0/748), TEST PASSED. Full convergence requires the multi-kernel host driver loop."
+}

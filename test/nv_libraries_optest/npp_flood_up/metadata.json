@@ -1,0 +1,9 @@
+{
+  "name": "npp_flood_up",
+  "desc": "Real npp PBA distance-transform kernel kernelFloodUp(short2* input, short2* output, int size, int bandSize) from libnpp sm_90 npp.cubin, lifted to x86 and run on CPU. Phase-1 'flood up': each thread owns one column tx and walks bandSize rows UPWARD from band bottom (ty=(blockIdx.y+1)*bandSize-1), carrying the nearest-by-row site so far: dist=abs(pixel.y + i - ty)=abs(pixel.y - currentRow); update when dist2<dist1. short2 packs a site coord; MARKER=-32768. Per-column independent, pure function of input -> ORDER-INDEPENDENT. Params: input@0x210, output@0x218, size@0x220, bandSize@0x224. 2D launch.",
+  "tags": ["sm90","nv_libraries","npp","pba","distance_transform","short2","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z13kernelFloodUpP6short2S0_ii",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host flood-up (nearest-by-row) reference: 0/1024 mismatches, TEST PASSED"
+}

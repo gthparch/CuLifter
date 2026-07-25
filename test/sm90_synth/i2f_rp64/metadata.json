@@ -1,0 +1,7 @@
+{
+  "name": "i2f_rp64",
+  "kernel_func": "kern_i2f_rp64",
+  "description": "I2F.S64.RP / I2F.U64.RP (PTX cvt.rp.f32.{s64,u64}): 64-bit int -> f32 rounding toward +Inf. Exercises the wide (i128) round-trip in the directed-rounding correction so a rounded-up result does not overflow.",
+  "grid": [2, 1, 1],
+  "block": [32, 1, 1]
+}

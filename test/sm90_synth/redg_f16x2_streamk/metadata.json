@@ -1,0 +1,15 @@
+{
+  "name": "redg_f16x2_streamk",
+  "desc": "REDG.E.ADD.F16x2.RN.STRONG.GPU (cutlass stream-K split-K epilogue reduction opcode) -> atomicrmw fadd <2 x half>. PHASE1 single-contributor-per-addr multi-CTA bit-exact (seq + CULIFTER_CONCURRENT_CTA); PHASE2 multi-contributor f64 oracle max_rel<1e-3. Regression for the F16x2-token float-REDG fix (was integer atomicrmw add).",
+  "tags": [
+    "sm90",
+    "redg",
+    "atomic_add",
+    "f16x2",
+    "streamk",
+    "concurrent_cta"
+  ],
+  "feature": "redg_float_reduction",
+  "kernel_func": "k_redg_h2_unique",
+  "gpu_ref": "cpu_oracle"
+}

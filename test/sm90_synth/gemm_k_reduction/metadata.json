@@ -1,0 +1,8 @@
+{
+  "name": "gemm_k_reduction",
+  "desc": "23_ampere_gemm_operand_reduction_fusion K-REDUCTION surface: warp-level bf16 A-fragment partial sum -> f32, then the epilogue cross-lane butterfly via __shfl_xor_sync (xor 1, xor 2) over each quad (epilogue_gemm_k_reduction.h), col_=lane&3 select, f32->bf16 convert + store. Audits the SHFL.BFLY xor-butterfly warp reduction + bf16 fragment decode + bf16 RNE convert. Launches a full warp (32 lanes). VALUE-VERIFIED BIT-EXACT vs f64-then-bf16 oracle (0/32, max_abs=0).",
+  "kernel_func": "kern_k_reduction",
+  "tags": ["sm90", "cutlass", "reduction", "shfl", "shfl_bfly", "bf16", "warp_reduce", "regression"],
+  "feature": "gemm_k_reduction",
+  "gpu_ref": "host_computed"
+}

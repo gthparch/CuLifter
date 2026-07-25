@@ -1,0 +1,8 @@
+{
+  "name": "runtime_divmod_gather",
+  "desc": "32-bit flat tid div+mod by a RUNTIME int divisor (non-pow2), feeding a gather. CONFIRMS the 32-bit runtime magic divide IS recognized + bit-exact (contrast with div64_runtime_gather: only the 64-bit-dividend form leaves an unrecognized fast-path leaf). VALUE-VERIFIED PASS.",
+  "kernel_func": "kern_runtime_divmod_gather",
+  "tags": ["sm90", "intdiv", "magic_divide", "runtime_divisor", "gather", "regression"],
+  "feature": "runtime_divmod_gather",
+  "gpu_ref": "host_computed"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "var_lea_s4_u",
+  "desc": "LEA variant: stride=4, unsigned index",
+  "tags": [
+    "sm90",
+    "var",
+    "lea",
+    "scale4",
+    "unsigned"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,14 @@
+{
+  "name": "mix_shared_double_stencil",
+  "desc": "Shared memory double precision 1D stencil (f64 in shared)",
+  "tags": [
+    "sm90",
+    "shared",
+    "double",
+    "stencil",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 2048
+}

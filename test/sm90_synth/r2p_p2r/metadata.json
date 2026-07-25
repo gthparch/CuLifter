@@ -1,0 +1,14 @@
+{
+  "name": "r2p_p2r",
+  "desc": "R2P/P2R: Register-to-Predicate and Predicate-to-Register transfer",
+  "tags": [
+    "sm90",
+    "r2p",
+    "p2r",
+    "predicate"
+  ],
+  "feature": "phase2",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024,
+  "note": "Target instruction R2P\\|P2R not found in SASS"
+}

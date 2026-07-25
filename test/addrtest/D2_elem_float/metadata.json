@@ -1,0 +1,23 @@
+{
+  "name": "D2_elem_float",
+  "tags": [
+    "signed_disp",
+    "2d_grid"
+  ],
+  "description": "2D vertical stencil with float element",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 3,
+    "n_stg": 1
+  },
+  "has_host_cpu": true
+}

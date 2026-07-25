@@ -1,0 +1,8 @@
+{
+  "kernel": "ISA4a_reduce_add",
+  "tags": [
+    "REDUX"
+  ],
+  "description": "Warp reduction \u2014 __reduce_add_sync",
+  "sass_features": {}
+}

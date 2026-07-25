@@ -1,0 +1,13 @@
+{
+  "name": "var_dtype_float",
+  "desc": "Data type=float: saxpy-like with float operands",
+  "tags": [
+    "sm90",
+    "var",
+    "dtype",
+    "float"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

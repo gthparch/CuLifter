@@ -1,0 +1,34 @@
+{
+  "name": "PHI9_cascade",
+  "tags": [
+    "phi",
+    "cascade",
+    "brx_chain",
+    "multi_bssy"
+  ],
+  "priority": 10,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 169,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": true,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "cfg_ops": {
+    "BSSY": 2,
+    "BSYNC": 2,
+    "BRX": 1,
+    "BRA": 14,
+    "BRA_pred": 8
+  },
+  "ref_output_bytes": 1024
+}

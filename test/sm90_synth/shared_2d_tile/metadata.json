@@ -1,0 +1,13 @@
+{
+  "name": "shared_2d_tile",
+  "desc": "Shared memory 2D tiling transpose (tensorT pattern from BUG-063)",
+  "tags": [
+    "sm90",
+    "shared_mem",
+    "transpose",
+    "bug063"
+  ],
+  "feature": "bug063",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4096
+}

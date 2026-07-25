@@ -1,0 +1,18 @@
+{
+  "kernel_id": "H2",
+  "slug": "big_mul_sizet",
+  "dir_name": "H2_big_mul_sizet",
+  "kernel_name": "addr_H2_big_mul_sizet",
+  "family": "64bit_carry",
+  "tags": [
+    "64bit_index",
+    "carry_sensitive"
+  ],
+  "knobs": {
+    "elem_type": "float",
+    "index_type": "size_t",
+    "opt": "-O2"
+  },
+  "priority": 1,
+  "description": "Large stride with size_t index (forces 64-bit)"
+}

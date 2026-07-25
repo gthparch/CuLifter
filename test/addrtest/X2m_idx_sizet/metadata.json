@@ -1,0 +1,53 @@
+{
+  "name": "X2m_idx_sizet",
+  "seed": "X2_ptr_stencil_float",
+  "knob": "index_type",
+  "tags": [
+    "ptr_indirect",
+    "signed_disp",
+    "64bit_index"
+  ],
+  "opt": "-O2",
+  "description": "size_t index + stencil + indirection",
+  "gen_kwargs": {
+    "idx_type": "size_t"
+  },
+  "build_status": "ok",
+  "sass_lines": 105,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": true,
+    "loaded_base": true,
+    "store_carry": true,
+    "n_ldg": 4,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 2,
+    "IADD3.X": 1,
+    "IADD3": 3,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 2
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    4,
+    1
+  ],
+  "dedup_status": "kept: new skeleton (True, True, False, False, False, True, True, True, True, 4, 1)"
+}

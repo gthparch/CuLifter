@@ -1,0 +1,15 @@
+{
+  "name": "mix_c4_atomic_shared",
+  "desc": "c[0x4] scale + atomicAdd to shared + shared reduction (triple combo)",
+  "tags": [
+    "sm90",
+    "c4",
+    "atomic",
+    "shared",
+    "triple",
+    "mixed"
+  ],
+  "feature": "mixed_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 64
+}

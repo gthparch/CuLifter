@@ -1,0 +1,33 @@
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+#include <cuda_runtime.h>
+__device__ float d_multiplier;
+extern "C" __global__ void CB4k_runtime_update(const float* in, float* out, int N) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N) out[i] = in[i] * d_multiplier;
+}
+int main(int argc, char** argv) {
+    constexpr int N = 256;
+    float h_in[N], h_out[N];
+    for (int i = 0; i < N; i++) h_in[i] = (float)(i+1);
+    memset(h_out, 0, sizeof(h_out));
+    // Set device var at runtime
+    float mult = 7.5f;
+    cudaMemcpyToSymbol(d_multiplier, &mult, sizeof(float));
+    float *d_in, *d_out;
+    cudaMalloc(&d_in, N*4); cudaMalloc(&d_out, N*4);
+    cudaMemcpy(d_in, h_in, N*4, cudaMemcpyHostToDevice);
+    cudaMemset(d_out, 0, N*4);
+    CB4k_runtime_update<<<(N+255)/256, 256>>>(d_in, d_out, N);
+    cudaDeviceSynchronize();
+    cudaMemcpy(h_out, d_out, N*4, cudaMemcpyDeviceToHost);
+    if (argc > 1 && strcmp(argv[1], "--dump") == 0) {
+        FILE* f = fopen("ref_output.bin", "wb"); fwrite(h_out, 4, N, f); fclose(f);
+    }
+    bool ok = true;
+    for (int i = 0; i < N; i++)
+        if (fabsf(h_out[i] - h_in[i]*mult) > 1e-3f) { printf("FAIL %d\n",i); ok=false; break; }
+    printf(ok ? "TEST PASSED\n" : "FAIL\n");
+    cudaFree(d_in); cudaFree(d_out); return ok ? 0 : 1;
+}

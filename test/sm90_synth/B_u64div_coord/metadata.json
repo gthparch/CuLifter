@@ -1,0 +1,14 @@
+{
+  "name": "B_u64div_coord",
+  "desc": "EXACT 45_dual_gemm shape: a signed 64-bit magic-reciprocal DIVIDE (I2F.U64.RP -> MUFU.RCP -> VIADD +0x1FFFFFFE -> F2I.U64.TRUNC + Newton-Raphson) whose QUOTIENT feeds a 64-bit address index (coord*stride), like dual_gemm's grid-strided coord=index/N. This codegen makes ptxas emit the pre-correction remainder HIGH word as IADD3.X (vs IMAD.X for a direct quotient store). IntDivRecognize must BOTH recognize the IADD3.X rem-hi form (_match_rem_hi) AND recover the quotient as UDIV64/UDIV64HI (_find_precorr_quotient_pair) — the remainder rewrite alone only suppresses the +1 correction, locking in the faithful software-rcp (wrong) NR quotient. Quotient written to out[coord]; value-verified, crash-safe (coords distinct/in-bounds).",
+  "tags": [
+    "sm90",
+    "intdiv",
+    "u64_divide",
+    "wide_leaf",
+    "magic_divide",
+    "dual_gemm",
+    "value_root"
+  ],
+  "feature": "value_root_cause"
+}

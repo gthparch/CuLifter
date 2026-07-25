@@ -1,0 +1,34 @@
+{
+  "name": "VL_int4_bitwise",
+  "tags": [
+    "vector",
+    "int4",
+    "bitwise",
+    "ldg128",
+    "stg128"
+  ],
+  "priority": 15,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 2,
+    "n_stg": 1
+  },
+  "vector_ops": {
+    "LDG.E.128": 2,
+    "STG.E.128": 1,
+    "LDG.E": 2,
+    "STG.E": 1
+  },
+  "ref_output_bytes": 4096
+}

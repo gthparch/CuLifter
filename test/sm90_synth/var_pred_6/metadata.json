@@ -1,0 +1,13 @@
+{
+  "name": "var_pred_6",
+  "desc": "Predicate count=6: 6 conditions \u2192 P0..P5",
+  "tags": [
+    "sm90",
+    "var",
+    "predicate",
+    "p6"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

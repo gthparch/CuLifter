@@ -1,0 +1,29 @@
+{
+  "name": "DM_idw_safe",
+  "tags": [
+    "domain",
+    "idw",
+    "rcp",
+    "rsq",
+    "safe_init",
+    "bug043"
+  ],
+  "priority": 12,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 1545,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": true,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 39,
+    "n_stg": 1
+  },
+  "ref_output_bytes": 256
+}

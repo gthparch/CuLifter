@@ -1,0 +1,8 @@
+{
+  "name": "tma_sw128",
+  "desc": "Genuine sm_90a TMA(SW128)->HGMMA kernel (2 UTMALDG.2D + 4 HGMMA.64x64x16.F32, 0 TRAP): TMA bulk-loads A(64x64) and B(64x64) 128B-swizzled K-major fp16 tiles global->shared (FlashAttention's exact Q/K/V layout), then 4 accumulating warpgroup HGMMAs compute D[64x64]=A*B^T. Exercises the SW128 swizzle in utma_load and the SW128 GMMA descriptor-product decode (row-major-then-element-swizzle, probed exact vs cute). Host materializes two SlifterTmaDescs (swizzle=3) in one block at const[0x198] (descA tile_base 0x400, descB 0x2400), D at const[0x3c0]. Native-H200 validation measured max |HGMMA - cpu_fp32| = 0.00000.",
+  "tags": ["sm90","sm90a","tma","utmaldg","hgmma","wgmma","tensor_core","swizzle","sw128","flash_attention","execution_correctness","value_root"],
+  "kernel_func": "tma_sw128_kernel",
+  "native_arch": "sm90",
+  "ground_truth": "native H200: max |HGMMA - cpu_fp32| = 0.00000"
+}

@@ -1,0 +1,42 @@
+#include <cstdint>
+#include <iostream>
+#include <cmath>
+#include <cstring>
+#include "kernel_wrapper.h"
+
+extern "C" void X1m_double();
+
+int main() {
+    constexpr int W = 32, H = 32, total = W * H;
+
+    double *in = new double[total];
+    double *out = new double[total];
+    std::memset(out, 0, total * sizeof(double));
+    for (int i = 0; i < total; i++) in[i] = (double)((i % 7 + 1) * 0.1);
+
+    Dim3 grid{(W + 15) / 16, (H + 15) / 16};
+    Dim3 block{16, 16};
+    launchKernel2D(X1m_double, grid, block,
+                   (const double*)in, out, (size_t)W, W, H);
+
+    bool ok = true;
+    for (int row = 1; row < H - 1; row++) {
+        for (int col = 1; col < W - 1; col++) {
+            int c = row * W + col;
+            double expected = in[(row-1)*W + col] + in[row*W + (col-1)]
+                            + in[(row+1)*W + col] + in[row*W + (col+1)]
+                            + in[row*W + col];
+            if (std::fabs(out[c] - expected) > 1e-10) {
+                std::cout << "FAIL at row=" << row << " col=" << col
+                          << " got=" << out[c] << " expected=" << expected << "\n";
+                ok = false;
+                goto done;
+            }
+        }
+    }
+    done:
+    std::cout << (ok ? "TEST PASSED" : "FAIL") << std::endl;
+
+    delete[] in; delete[] out;
+    return ok ? 0 : 1;
+}

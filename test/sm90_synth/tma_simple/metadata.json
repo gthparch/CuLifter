@@ -1,0 +1,11 @@
+{
+  "name": "tma_simple",
+  "desc": "Genuine sm_90a TMA bulk load (UTMALDG.2D, 1 issue, 0 TRAP) of a 64x8 K-INTER fp16 tile from global into shared memory, then stored straight back to global. Isolates the TMA data-movement mechanism (host CUtensorMap -> UTMALDG -> shared memory) that is the single FlashAttention execution blocker. x86 correctness requires: (1) DCE keeping UTMALDG live (it defines no register, writes only shared memory) [transform/dce.py]; (2) the parser classifying the leading [smem] operand as a USE-address, not a def, so its build chain stays linked [sir/instruction.py use_op_start_idx]; (3) the parser widening the descriptor address operand to a 64-bit reg pair so the full pointer is recovered [sir/instruction.py]; (4) lift_utmaldg lowering to one utma_load runtime call [lift/lifter_cpu.py]; (5) the host driver materializing a SlifterTmaDesc and the wrapper's utma_load() performing the K-INTER copy [test/common/kernel_wrapper_75.h]. Native-H200 validation produced a round-trip output equal to the input with zero mismatches.",
+  "tags": [
+    "sm90", "sm90a", "tma", "utmaldg", "cutensormap",
+    "shared_memory", "flash_attention", "execution_correctness", "value_root"
+  ],
+  "kernel_func": "tma_simple_kernel",
+  "native_arch": "sm90",
+  "ground_truth": "native H200 round-trip out==in; x86-lifted round-trip out==in, 0 mismatches"
+}

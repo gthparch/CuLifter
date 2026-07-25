@@ -1,0 +1,6 @@
+config,label,total,pass,pass_rate_pct,wrong_result,crash,lift_fail,compile_fail,link_fail,timeout
+B0,B0 full,98,98,100.0,0,0,0,0,0,0
+B1,B1 no Pred->SEL,98,98,100.0,0,0,0,0,0,0
+B2,B2 no pattern norm,98,98,100.0,0,0,0,0,0,0
+B3,B3 seed only,98,0,0.0,41,57,0,0,0,0
+B4,B4 no type recovery,98,0,0.0,41,57,0,0,0,0

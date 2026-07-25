@@ -1,0 +1,14 @@
+{
+  "name": "c4_array_small",
+  "desc": "c[0x4]: __device__ array[16] with known values (lookup table)",
+  "tags": [
+    "sm90",
+    "c4",
+    "array",
+    "lookup",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

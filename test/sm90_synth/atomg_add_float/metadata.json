@@ -1,0 +1,13 @@
+{
+  "name": "atomg_add_float",
+  "desc": "ATOMG: atomicAdd float on global memory",
+  "tags": [
+    "sm90",
+    "atomg",
+    "atomic_add",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 64
+}

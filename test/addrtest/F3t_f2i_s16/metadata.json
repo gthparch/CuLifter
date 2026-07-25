@@ -1,0 +1,29 @@
+{
+  "name": "F3t_f2i_s16",
+  "tags": [
+    "f2i",
+    "s16",
+    "fp16_cvt"
+  ],
+  "priority": 3,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "fp16_sass": {
+    "F2I": 1
+  },
+  "ref_output_bytes": 2048
+}

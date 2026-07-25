@@ -1,0 +1,8 @@
+{
+  "name": "wgmma_m64n8k16",
+  "desc": "HGMMA.64x8x16.F32: register-based WGMMA m64n8k16 with F32 accumulation",
+  "tags": ["sm90", "wgmma", "hgmma", "tensor_core", "f32"],
+  "feature": "W3-W1",
+  "gpu_ref": "pending",
+  "ref_output_bytes": 0
+}

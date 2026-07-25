@@ -1,0 +1,8 @@
+{
+  "name": "fa_online_softmax",
+  "desc": "Single-warp FlashAttention forward microbench: the genuine online-softmax algorithm (running max m, running denominator l, rescale corr=exp(m_old-m_new) across KV tiles) with shared-memory K/V staging. SQ=32 query rows (one per lane), D=16, seqlen_k=64 (2 KV tiles). Uses only already-verified ops (FFMA dots, MUFU.EX2 __expf, FMNMX fmaxf, STS + BAR.SYNC smem staging) and NO warp-specialized TMA/WGMMA/mbarrier, so it lifts and runs unconditionally on the x86 backend (no env toggles). Isolates the FA online-softmax dataflow from the Hopper warp-spec machinery. Verified vs a CPU attention oracle.",
+  "tags": ["sm90", "flash_attention", "online_softmax", "smem", "mufu_ex2", "fmnmx", "f32"],
+  "feature": "fa-online-softmax-1warp",
+  "gpu_ref": "none (CPU attention oracle in host_cpu.cpp; no GPU on build host)",
+  "sass_features": {"STS": 32, "BAR.SYNC": 2, "MUFU.EX2": 33, "FMNMX": 33}
+}

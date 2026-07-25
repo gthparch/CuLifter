@@ -1,0 +1,36 @@
+{
+  "name": "SH15_reduce_max_32",
+  "tags": [
+    "shared",
+    "reduce_max",
+    "32_threads",
+    "bar_sync",
+    "loop"
+  ],
+  "priority": 4,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 169,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "smem_sass": {
+    "STS": 6,
+    "LDS": 11,
+    "BAR.SYNC": 6,
+    "BAR": 6,
+    "BSYNC": 5,
+    "ULEA": 1
+  },
+  "ref_output_bytes": 128
+}

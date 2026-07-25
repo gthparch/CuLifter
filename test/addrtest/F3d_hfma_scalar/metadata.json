@@ -1,0 +1,34 @@
+{
+  "name": "F3d_hfma_scalar",
+  "tags": [
+    "hfma",
+    "fp16_math"
+  ],
+  "priority": 3,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 3,
+    "n_stg": 1
+  },
+  "fp16_sass": {
+    "HFMA2": 1,
+    "HADD2": 0,
+    "HMUL2": 0,
+    "F2F": 0,
+    "I2F": 0,
+    "F2I": 0,
+    "MUFU": 0
+  },
+  "ref_output_bytes": 2048
+}

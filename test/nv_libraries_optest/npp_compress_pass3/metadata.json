@@ -1,0 +1,9 @@
+{
+  "name": "npp_compress_pass3",
+  "desc": "Real closed-source NPP connected-component label-compaction kernel CompressMarkerLabelsPass3<uint,uint>(uint* pSrc, size_t nSrcStep, uint* pDst, size_t nDstStep, NppiSize oSize, int nMaxLabel, uint8_t* pBuffer), extracted from benchmark/nv_libraries/cubins/npp_compress.cubin (sm_90), lifted to x86 and run on CPU. Decoded from full SASS (predicated @P0 instrs included): 2D launch; if (col>=oSize.width || row>=oSize.height) return; label=pSrc[row*(nSrcStep/4)+col]; if (label>=nMaxLabel) return (NO write); destIdx=row*(nDstStep/4)+col; if (label==0) pDst[destIdx]=0; else pDst[destIdx]=((uint*)pBuffer)[label+nMaxLabel+2] (gather offset: R4=label+(nMaxLabel+1), LEA*4+pBuffer, LDG[..+0x4]). Label remap/gather: replace each old label by its compacted new label from pBuffer's prefix-sum region. Order-independent (each thread writes its own destIdx). Params: pSrc@0x210, nSrcStep@0x218, pDst@0x220, nDstStep@0x228, oSize.width@0x230, oSize.height@0x234, nMaxLabel@0x238, pBuffer@0x240. Discriminating input: distinct labels with 0 (->0), >=nMaxLabel (untouched/poison preserved), valid (gathered to distinct values).",
+  "tags": ["sm90","nv_libraries","npp","library_kernel","connected_components","label_compaction","gather","remap","const_bank_params","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z25CompressMarkerLabelsPass3IjjEvPT_mPT0_m8NppiSizeiPh",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_compress.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host remap/gather reference: 0/240 mismatches, TEST PASSED"
+}

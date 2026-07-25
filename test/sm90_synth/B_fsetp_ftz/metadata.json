@@ -1,0 +1,15 @@
+{
+  "name": "B_fsetp_ftz",
+  "desc": "FSETP.GTU.FTZ: NaN-aware float compare + flush-to-zero",
+  "tags": [
+    "sm90",
+    "untested",
+    "fsetp",
+    "ftz",
+    "nan_compare",
+    "pns"
+  ],
+  "feature": "untested_pattern",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,31 @@
+{
+  "name": "TC0_hmma_basic",
+  "tags": [
+    "hmma",
+    "tensor_core",
+    "wmma",
+    "16x16x16",
+    "fp16_in_fp32_out"
+  ],
+  "priority": 14,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 105,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 8,
+    "n_stg": 4
+  },
+  "advanced_ops": {
+    "HMMA": 2
+  },
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,45 @@
+{
+  "name": "H8_signed64_offset",
+  "tags": [
+    "64bit_index",
+    "signed_disp"
+  ],
+  "priority": 3,
+  "description": "Signed 64-bit offset: i - delta",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": false,
+    "iadd3x": true,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 0,
+    "IADD3.X": 1,
+    "IADD3": 1,
+    "LEA.HI.X": 2,
+    "LEA.HI": 0,
+    "LEA": 2,
+    "SHF": 2
+  },
+  "skeleton_key": [
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    false,
+    true,
+    1,
+    1
+  ]
+}

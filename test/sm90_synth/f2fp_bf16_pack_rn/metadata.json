@@ -1,0 +1,8 @@
+{
+  "name": "f2fp_bf16_pack_rn",
+  "desc": "F2FP.BF16.F32.PACK_AB round-to-nearest-even, BIT-EXACT incl. 256 exact RN-even tie cases (dropped low16==0x8000, kept-lsb decides round-up vs round-to-even) + just-below/just-above-tie + Inf/-Inf/NaN/-0.0. Locks the cutlass mainloop/epilogue bf16 NumericConverter<bfloat16_t,float,round_to_nearest> convert (129x in 23_ampere). Stronger than the existing f2fp_bf16 fixture (which only checks 10 elts at 0.1 tol). host_cpu.cpp runs the LIFTED kernel and compares every output bf16 lane bit-for-bit vs a host RN-even oracle.",
+  "kernel_func": "kern_f2fp_bf16_pack",
+  "tags": ["sm90", "bf16", "f2fp", "conversion", "rounding", "rne", "regression"],
+  "feature": "bf16_pack_convert",
+  "gpu_ref": "host_computed"
+}

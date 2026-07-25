@@ -1,0 +1,7 @@
+{
+  "name": "mbar_phase_reuse",
+  "desc": "mbarrier reused across a loop (FA3-mainloop pattern): one mbarrier is arrived+waited once per iteration so its phase parity flips and is REUSED each iteration. Single warp; each iteration writes a shared slot, the barrier orders all 32 writes, then each lane reads its neighbor's slot (cross-lane data gated by the barrier) and accumulates. Tests phase reuse + cross-lane ordering that the single-cycle mbar_prod_cons does not. Toggle-free real mbarrier.",
+  "tags": ["sm90", "syncs", "mbarrier", "phase_reuse", "loop", "cross_lane"],
+  "feature": "W1-phase-reuse",
+  "gpu_ref": "pass"
+}

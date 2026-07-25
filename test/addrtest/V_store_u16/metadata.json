@@ -1,0 +1,31 @@
+{
+  "name": "V_store_u16",
+  "tags": [
+    "stg_u16",
+    "sub_word_store"
+  ],
+  "priority": 7,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "key_ops": {
+    "IMAD.WIDE": 2,
+    "IMAD": 3,
+    "STG.E.U16": 1,
+    "STG": 1
+  },
+  "ref_output_bytes": 2048
+}

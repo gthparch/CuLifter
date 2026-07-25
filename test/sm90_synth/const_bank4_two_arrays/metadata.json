@@ -1,0 +1,14 @@
+{
+  "name": "const_bank4_two_arrays",
+  "desc": "c[0x4]: two __constant__ arrays at different offsets",
+  "tags": [
+    "sm90",
+    "c4",
+    "constant",
+    "multi_symbol",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,52 @@
+{
+  "name": "X1m_pos_only",
+  "seed": "X1_stencil_64pitch_float",
+  "knob": "offset_style",
+  "tags": [
+    "64bit_index"
+  ],
+  "opt": "-O2",
+  "description": "Positive-only offsets (no north/west)",
+  "gen_kwargs": {
+    "pitch_type": "size_t",
+    "positive_only": "True"
+  },
+  "build_status": "ok",
+  "sass_lines": 137,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 3,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 2,
+    "IADD3.X": 2,
+    "IADD3": 4,
+    "LEA.HI.X": 1,
+    "LEA.HI": 0,
+    "LEA": 1,
+    "SHF": 4
+  },
+  "skeleton_key": [
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    false,
+    true,
+    3,
+    1
+  ],
+  "dedup_status": "kept: new skeleton (True, True, True, False, True, True, False, False, True, 3, 1)"
+}

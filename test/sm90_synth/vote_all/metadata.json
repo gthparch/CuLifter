@@ -1,0 +1,8 @@
+{
+  "name": "vote_all",
+  "desc": "VOTE.ALL: warp vote with mixed predicates across warps",
+  "tags": ["sm90", "vote", "vote_all", "warp_vote"],
+  "feature": "W3-S1",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

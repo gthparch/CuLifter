@@ -1,0 +1,15 @@
+{
+  "name": "dmma884",
+  "desc": "DMMA.8x8x4 f64 tensor-core MMA (CUTLASS canonical tensorop GEMM class, e.g. 19_tensorop_canonical): one warp computes the m8n8k4 atom D = C + A(8x4)*B(8x4)^T via warp-true fragment gather; compared to a host f64 fma-chain replica.",
+  "tags": [
+    "sm90",
+    "dmma",
+    "mma",
+    "f64",
+    "warp",
+    "cutlass",
+    "m8n8k4"
+  ],
+  "feature": "dmma_884",
+  "gpu_ref": "pass"
+}

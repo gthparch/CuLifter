@@ -1,0 +1,15 @@
+{
+  "name": "hv_tensorT_minimal",
+  "desc": "tensorT stripped: 2D transpose via shared double[], 5 params",
+  "tags": [
+    "sm90",
+    "hecvar",
+    "tensorT",
+    "shared",
+    "double",
+    "transpose"
+  ],
+  "feature": "hecvar_crash",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 32768
+}

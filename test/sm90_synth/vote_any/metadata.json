@@ -1,0 +1,8 @@
+{
+  "name": "vote_any",
+  "desc": "VOTE.ANY: warp vote with known-true predicate on lane 0",
+  "tags": ["sm90", "vote", "vote_any", "warp_vote"],
+  "feature": "W3-S1",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

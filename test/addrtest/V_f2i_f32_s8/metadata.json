@@ -1,0 +1,32 @@
+{
+  "name": "V_f2i_f32_s8",
+  "tags": [
+    "f2i",
+    "f2i",
+    "f32",
+    "s8"
+  ],
+  "priority": 6,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 73,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": true,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "key_ops": {
+    "LOP3": 1,
+    "IMAD": 2,
+    "F2I": 1
+  },
+  "ref_output_bytes": 1024
+}

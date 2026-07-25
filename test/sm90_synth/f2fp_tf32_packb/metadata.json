@@ -1,0 +1,7 @@
+{
+  "name": "f2fp_tf32_packb",
+  "kernel_func": "kern_f2fp_tf32_packb",
+  "description": "F2FP.TF32.F32.PACK_B (PTX cvt.rn.tf32.f32): round f32 -> tf32 (zero low 13 mantissa bits, RN-even), result stored as a 32-bit bit pattern. Regression for the passthrough bug where TF32 was unrecognized by _parse_f2f_types and the f32 was emitted unchanged.",
+  "grid": [2, 1, 1],
+  "block": [32, 1, 1]
+}

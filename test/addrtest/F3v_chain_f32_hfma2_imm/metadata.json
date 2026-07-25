@@ -1,0 +1,31 @@
+{
+  "name": "F3v_chain_f32_hfma2_imm",
+  "tags": [
+    "hfma2_imm",
+    "f2fp",
+    "fp16_chain"
+  ],
+  "priority": 3,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 89,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 2,
+    "n_stg": 2
+  },
+  "fp16_sass": {
+    "HFMA2": 2,
+    "HADD2": 2,
+    "F2FP": 1
+  },
+  "ref_output_bytes": 4096
+}

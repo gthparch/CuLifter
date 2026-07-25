@@ -1,0 +1,16 @@
+{
+  "name": "imma16832_2tile",
+  "desc": "IMMA.16832 multi-tile int8 GEMM (8 atoms, 32x16x64, off-diagonal output tiles): one warp computes D = C + A(32x64,s8)*B(16x64,s8)^T as 2x2 tiles of 16x8 accumulating over K. Exposes any C/D m<->n transpose that the single-atom imma16832 fixture cannot; compared bit-exact to a host integer-GEMM oracle.",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int8",
+    "warp",
+    "cutlass",
+    "m16n8k32",
+    "multitile"
+  ],
+  "feature": "imma_16832",
+  "gpu_ref": "pass"
+}

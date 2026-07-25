@@ -1,0 +1,13 @@
+{
+  "name": "var_pred_8",
+  "desc": "Predicate count=8: 8 conditions \u2192 P0..P7",
+  "tags": [
+    "sm90",
+    "var",
+    "predicate",
+    "p8"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

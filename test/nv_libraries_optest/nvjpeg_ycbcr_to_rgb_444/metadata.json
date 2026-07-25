@@ -1,0 +1,8 @@
+{
+  "name": "nvjpeg_ycbcr_to_rgb_444",
+  "desc": "nvjpeg::ycbcr_to_format_kernel_roi<444(0), false, RGB(3), LaunchParams<32,8>> from libnvjpeg sm_90. Planar YCbCr 4:4:4 -> planar RGB. Identical FFMA conversion math to the 4:2:0 RGB variant; the ONLY difference is the chroma index: for subsamp=0 (4:4:4) the SASS uses chroma at FULL resolution (Cb=ch1[r*pCb+c], Cr=ch2[r*pCr+c]) with NO `LEA.HI;SHF.R 0x1` halving (verified absent vs the 4:2:0 kernel which has it). Output uint8 from FP; compared with +/-1 TOLERANCE (cmp_u8_tol).",
+  "tags": ["sm90","nv_libraries","nvjpeg","color_conversion","ycbcr_to_rgb","444_fullres","ffma_fusion","fp_tolerance","execution_correctness","cpu_x86"],
+  "kernel_func": "_ZN6nvjpeg26ycbcr_to_format_kernel_roiIL25nvjpegChromaSubsampling_t0ELb0EL20nvjpegOutputFormat_t3ENS_26ConvertToFormatDispatchROI12LaunchParamsILi32ELi8EEEEEv13nvjpegImage_t8NppiSizeS6_S7_",
+  "source_cubin": "benchmark/nv_libraries/cubins/nvjpeg.cubin",
+  "ground_truth": "x86-lifted vs host fmaf reference, +/-1 tol: 0/384, TEST PASSED"
+}

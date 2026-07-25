@@ -1,0 +1,9 @@
+{
+  "name": "npp_flood_down",
+  "desc": "Real npp PBA distance-transform kernel kernelFloodDown(short2* input, short2* output, int size, int bandSize) from libnpp sm_90 npp.cubin, lifted to x86 and run on CPU. Phase-1 'flood down': each thread owns one column tx and walks bandSize rows downward within its band (ty=blockIdx.y*bandSize), carrying the last seen non-empty site (pixel.x != MARKER, MARKER=-32768=0x8000) downward into output[id]. short2 packs a 2D site coord (.x low16, .y high16). Pure function of input, each column independent and writing only its own column rows -> ORDER-INDEPENDENT. Params: input@0x210, output@0x218, size@0x220, bandSize@0x224; desc base 0. 2D launch (reads SR_CTAID.Y).",
+  "tags": ["sm90","nv_libraries","npp","pba","distance_transform","short2","execution_correctness","cpu_x86","bit_exact"],
+  "kernel_func": "_Z15kernelFloodDownP6short2S0_ii",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host flood-down reference on scattered sites + MARKER sentinels: 0/1024 mismatches, TEST PASSED"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "stsm_x2",
+  "desc": "STSM.16.M88.2: warp-collective stmatrix.x2 store; lanes 16-31 addresses ignored (canary)",
+  "tags": ["sm90", "stsm", "matrix_io"],
+  "feature": "W1-M1",
+  "gpu_ref": "analytic"
+}

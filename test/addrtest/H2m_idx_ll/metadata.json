@@ -1,0 +1,53 @@
+{
+  "name": "H2m_idx_ll",
+  "seed": "H2_big_mul_sizet",
+  "knob": "index_type",
+  "tags": [
+    "64bit_index",
+    "carry_sensitive"
+  ],
+  "opt": "-O2",
+  "description": "Signed 64-bit index",
+  "gen_kwargs": {
+    "idx_type": "long long",
+    "big": "1048576LL"
+  },
+  "build_status": "ok",
+  "sass_lines": 281,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": true,
+    "lea": false,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": true,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": true,
+    "n_ldg": 1,
+    "n_stg": 1
+  },
+  "opcode_counts": {
+    "IMAD.WIDE": 7,
+    "IADD3.X": 9,
+    "IADD3": 15,
+    "LEA.HI.X": 0,
+    "LEA.HI": 0,
+    "LEA": 0,
+    "SHF": 3
+  },
+  "skeleton_key": [
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    true,
+    1,
+    1
+  ],
+  "dedup_status": "kept: neighbor of H2m_double (diff=1)"
+}

@@ -1,0 +1,66 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# Object files / generic build artifacts
+*.o
+*.so
+*.bc
+
+# Lifter outputs (regenerated each run; .ptx in committed test/cuobjdump
+# fixtures stays tracked because the patterns below are scoped)
+*.ll
+
+# SLURM job stdout/stderr at project root only — leave subdir *.out/*.err
+# alone since some test directories use those extensions for fixtures.
+/*.out
+/*.err
+/*.full.log
+
+# Built ptxswap shim (rebuilt from test/common/ptxswap.cc when stale)
+test/common/libptxswap.so
+
+# Eval stats run outputs
+eval_stats/per_kernel/
+eval_stats/_sass_split_*/
+
+# Auto-generated cuBLAS driver scaffolds (H3.A)
+test/cublas_full/
+
+# --- Reproduction outputs & data (regenerated; never committed) ---
+# Local conda environment and data archives at the repository root.
+/.conda_env/
+/.bundle_cache/
+/culifter_repro_*
+/*.zip
+/*.tar.gz
+/*.tar.zst
+# All of temp/ is per-run scratch (lift/run caches and e2e work directories).
+/temp/
+
+# Transient reproduction run logs at repo root
+/repro_all_*.log
+/repro_*.log
+
+# Download-only AE input bundle. Its internal scripts/docs are deliberately not
+# a second harness; reproduce/run_cpu_sm90.sh is authoritative.
+/benchmark/
+/benchmark.sessionbak/
+
+# Derived test artifacts: built binaries and per-run lift/build logs from the
+# sm90 warp harness (scripts regenerate these; sources + SASS stay tracked).
+test/**/*.out
+test/**/ref_test
+test/sm90_synth/**/k.main
+test/sm90_synth/**/main
+test/sm90_synth/**/mainf
+test/**/lift_warp.log
+test/**/clang_warp.log
+test/**/host_warp_gen.cpp
+test/_bundle/
+
+# AE reproduction run outputs (reproduce/run_cpu_sm90.sh)
+/reproduce/results/
+/reproduce/figures/_data/
+/reproduce/figures/output/
+*.log

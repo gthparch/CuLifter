@@ -1,0 +1,18 @@
+{
+  "name": "wgmma_ss_fa",
+  "desc": "Genuine sm_90a HGMMA.64x16x16.F32 SS-form (shared-memory matrix descriptor) tensor-core kernel via cute/CUTLASS 3.5: D[64x16]=A[64x16]*B[16x16]^T, fp16 in / fp32 accum. The cubin has 1 HGMMA and 0 TRAP (real -arch=sm_90a, not the disabled-feature trap stub the paper's FA artifacts compiled). x86 execution correctness requires: (1) the parser tracking the GMMA descriptor as a UR pair URn (desc_a) / UR(n+2) (desc_b) so the B-base build chain survives DCE [sir/instruction.py]; (2) the lifter decoding the descriptor pair into a real A*B product read back from shared memory, with per-thread CLayout_64xN D coordinates computed from SR_TID.X so all 128 warpgroup threads store correct D [lift/lifter_cpu.py _try_wgmma_descriptor_product]. Native-H200 validation measured max |x86 - H200| = 0.000000.",
+  "tags": [
+    "sm90",
+    "sm90a",
+    "hgmma",
+    "wgmma",
+    "tensor_core",
+    "flash_attention",
+    "gmma_descriptor",
+    "execution_correctness",
+    "value_root"
+  ],
+  "kernel_func": "fa_wgmma",
+  "native_arch": "sm90",
+  "ground_truth": "native GH200 (H200, sm_90a), max |HGMMA - cpu_fp32| = 0.00000; x86-lifted vs H200 max abs = 0.000000"
+}

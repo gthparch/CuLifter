@@ -1,0 +1,10 @@
+{
+  "name": "npp_uf_local_merge_block",
+  "desc": "Real npp 8-way connected-components INTRA-TILE init kernel labelMarkersUF8WayLocalMergeBlock<unsigned char>(unsigned char* image, size_t pitch, unsigned int* labels, NppiSize) from libnpp sm_90 npp_uf.cubin, lifted to x86 and run on CPU. 2D launch, block 16x16, grid ceil(w/16)xceil(h/16); each CTA processes ONE 16x16 tile independently. Loads the read-only u8 image (addr base+row*pitch+col) into shared memory, runs a barrier-synchronised (BAR.SYNC) union-find ENTIRELY in shared memory over ONLY the 3 backward neighbours {up-left -0x11, up -0x10, left -0x1} (NOT up-right) using STS/LDS + ATOMS.MIN hooking, then remaps the min-local-index root to a global linear index and writes labels[row*width+col] = rootRow*width+rootCol. ORDER-INDEPENDENT: tiles are disjoint (each CTA reads only the image and writes only its own tile's labels), and within a tile the algorithm is barrier-synchronised over a fixed edge set -> deterministic (stable across 12 reruns). Reference: per-tile union-find over the same {up-left,up,left} equal-value edges, root=min global linear index. Params: image@0x210, pitch@0x218, labels@0x220, width@0x228, height@0x22c.",
+  "tags": ["sm90","nv_libraries","npp","union_find","connected_components","8way","local_merge","shared_mem","execution_correctness","cpu_x86","order_independent"],
+  "kernel_func": "_Z33labelMarkersUF8WayLocalMergeBlockIhEvPT_mPj8NppiSize",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp_uf.cubin",
+  "native_arch": "sm90",
+  "status": "PASS",
+  "ground_truth": "x86-lifted vs independent per-tile {up-left,up,left} union-find reference on a 36x20 image (6 tiles, 4 pixel-values, diagonal corner-staircases deliberately split since up-right is not merged locally): 0/720 mismatches, TEST PASSED, deterministic across 12 reruns."
+}

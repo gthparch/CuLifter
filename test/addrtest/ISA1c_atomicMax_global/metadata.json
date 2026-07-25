@@ -1,0 +1,9 @@
+{
+  "kernel": "ISA1c_atomicMax_global",
+  "tags": [
+    "ATOM",
+    "MAX"
+  ],
+  "description": "Global atomicMax on int array \u2014 find max element",
+  "sass_features": {}
+}

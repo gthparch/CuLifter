@@ -1,0 +1,1 @@
+{"name":"F2fp_mergec_h1_e5m2","desc":"F2FP.E5M2.F32.PACK_AB_MERGE_C .H1 (fp8x4 e5m2 pack)","tags":["sm90","f2fp","fp8","e5m2","pack_ab_merge_c","operand_modifier"],"feature":"operand_modifier","kernel_func":"F2fp_mergec_h1_e5m2","gpu_ref":"oracle_cpu"}

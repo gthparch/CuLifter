@@ -1,0 +1,14 @@
+{
+  "name": "B_ldg128",
+  "desc": "LDG.E.128: 128-bit global quad load via float4 (split crash)",
+  "tags": [
+    "sm90",
+    "ldg128",
+    "float4",
+    "quad_load",
+    "crash_root"
+  ],
+  "feature": "crash_root_cause",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4096
+}

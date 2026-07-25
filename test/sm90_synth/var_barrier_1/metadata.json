@@ -1,0 +1,13 @@
+{
+  "name": "var_barrier_1",
+  "desc": "Barrier depth=1: 1 __syncthreads in sequence",
+  "tags": [
+    "sm90",
+    "var",
+    "barrier",
+    "depth1"
+  ],
+  "feature": "pattern_var",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

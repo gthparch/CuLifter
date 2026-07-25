@@ -1,0 +1,13 @@
+{
+  "name": "cluster_ctarank",
+  "desc": "SM90 SR_CgaCtaId (PTX %cluster_ctarank): ptxas addresses static __shared__ through the shared::cluster window ((rank<<24)+0x400) even without clusters in source. nvvm must emit the real sreg - const-0 folding restructures divergent vote.sync regions and the valid PTX segfaults ptxas 12.2 at -O1+ (lda-cuda PTXAS_FAIL). x86: rank 0 exact under the (1,1,1)-cluster wrapper. Plain -arch=sm_90 suffices to generate the pattern.",
+  "tags": [
+    "sm90",
+    "cluster",
+    "sreg",
+    "cgactaid",
+    "shared_window",
+    "value_root"
+  ],
+  "feature": "cluster_ctarank_sreg"
+}

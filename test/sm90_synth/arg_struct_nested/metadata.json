@@ -1,0 +1,13 @@
+{
+  "name": "arg_struct_nested",
+  "desc": "Arg: nested struct (struct containing struct)",
+  "tags": [
+    "sm90",
+    "arg",
+    "nested_struct",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

@@ -1,0 +1,29 @@
+# SLifter Python environment.
+#
+#   conda env create -f environment.yml      # creates env "slifter"
+#   conda activate slifter
+#
+# SLifter has no build system — once the deps below are importable, run the
+# lifter directly with `python main.py ...` (see README.md).
+#
+# External tools are needed only by workflows that build CUDA inputs or link
+# host executables:
+#   - CUDA 13.2: nvcc, cuobjdump, ptxas        (SASS/cubin extraction, nvvm run)
+#   - g++ >= 11                                (host drivers, HeCBench builds)
+#
+# LLVM and Clang 20 are installed below for IR validation and CPU codegen.
+# The reviewer-facing workflow never invokes the CUDA tools.
+name: slifter
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - llvmdev=20.1.8
+  - clang=20.1.8
+  - pip
+  - pip:
+      - llvmlite==0.48.0
+      - pyelftools==0.31
+      - pyyaml==6.0.3
+      - libcst==1.8.5
+      - pytest==8.4.1

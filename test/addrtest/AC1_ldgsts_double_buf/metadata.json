@@ -1,0 +1,35 @@
+{
+  "name": "AC1_ldgsts_double_buf",
+  "tags": [
+    "ldgsts",
+    "async_copy",
+    "double_buffer",
+    "depbar",
+    "two_stage"
+  ],
+  "priority": 14,
+  "has_host_cpu": true,
+  "gpu_ref": "pass",
+  "sass_lines": 121,
+  "features": {
+    "imad_wide": true,
+    "iadd3x": false,
+    "lea": true,
+    "lea_hi": false,
+    "lea_hi_x": false,
+    "shf_64": false,
+    "signed_disp": false,
+    "loaded_base": false,
+    "store_carry": false,
+    "n_ldg": 0,
+    "n_stg": 2
+  },
+  "advanced_ops": {
+    "LDGSTS": 2,
+    "LDGDEPBAR": 2,
+    "DEPBAR": 2,
+    "BAR.SYNC": 2,
+    "LDS": 5
+  },
+  "ref_output_bytes": 2048
+}

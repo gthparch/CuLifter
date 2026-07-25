@@ -1,0 +1,14 @@
+{
+  "name": "c4_scalar_float_init",
+  "desc": "c[0x4]: single __device__ float with non-zero initial value",
+  "tags": [
+    "sm90",
+    "c4",
+    "scalar",
+    "init_value",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}

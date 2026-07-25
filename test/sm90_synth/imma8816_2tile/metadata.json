@@ -1,0 +1,16 @@
+{
+  "name": "imma8816_2tile",
+  "desc": "IMMA.8816 int8->int32 MULTI-TILE GEMM (one warp computes 16x16x32 = 4 m8n8k16 atoms over 2x2 output tiles x 2 K-steps). The multi-tile companion to imma8816: off-diagonal output tiles expose any C/D m<->n fragment transpose that a single 8x8 atom hides (cf. the DMMA.8x8x4 square-tile transpose hazard). Compared to a host integer-GEMM oracle (exact).",
+  "tags": [
+    "sm90",
+    "imma",
+    "mma",
+    "int8",
+    "warp",
+    "cutlass",
+    "m8n8k16",
+    "multitile"
+  ],
+  "feature": "imma_8816",
+  "gpu_ref": "pass"
+}

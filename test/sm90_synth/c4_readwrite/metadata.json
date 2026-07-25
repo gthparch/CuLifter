@@ -1,0 +1,14 @@
+{
+  "name": "c4_readwrite",
+  "desc": "c[0x4]: __device__ var read AND written by kernel (atomicAdd)",
+  "tags": [
+    "sm90",
+    "c4",
+    "readwrite",
+    "atomic",
+    "debug"
+  ],
+  "feature": "c4_arg_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 4
+}

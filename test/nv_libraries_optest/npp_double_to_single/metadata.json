@@ -1,0 +1,12 @@
+{
+  "name": "npp_double_to_single",
+  "desc": "Real closed-source NPP library kernel kernelDoubleToSingleList(short2* A, short2* B, short2* C, int n), extracted from the libnpp sm_90 cubin (benchmark/nv_libraries/cubins/npp.cubin), lifted to x86 by SLifter and executed on CPU. Decoded semantics from SASS + lifted IR: 1D global index gid = blockDim.x*blockIdx.x + threadIdx.x (no bounds check -> launch exactly N threads); loads A[gid].x (u16 at A+gid*4) and B[gid].y (u16 at B+gid*4+2), packs them with PRMT 0x5410, stores C[gid] = short2(A[gid].x, B[gid].y). Params in the SM90 const bank: A@0x210, B@0x218, C@0x220, n@0x228; the desc[UR][addr] global access uses base 0 (lifter drops the default global descriptor). First end-to-end execution-correctness proof for the nv_libraries corpus: NO GPU, host reference computed independently.",
+  "tags": [
+    "sm90", "nv_libraries", "npp", "library_kernel", "prmt",
+    "const_bank_params", "execution_correctness", "cpu_x86"
+  ],
+  "kernel_func": "_Z24kernelDoubleToSingleListP6short2S0_S0_i",
+  "source_cubin": "benchmark/nv_libraries/cubins/npp.cubin",
+  "native_arch": "sm90",
+  "ground_truth": "x86-lifted vs independent host reference C[i]=(A[i].x,B[i].y): 0/256 mismatches, TEST PASSED"
+}

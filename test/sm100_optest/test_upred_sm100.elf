@@ -1,0 +1,465 @@
+
+64-bit ELF: type=ET_EXEC, ABI=8, sm=100, toolkit=13.0, flags=0x6006402
+Sections:
+Index Offset   Size ES Align                      Type    Flags Link     Info Name
+    1     40    202  0  1                       STRTAB        0    0        0 .shstrtab
+    2    266    1b2  0  1                       STRTAB        0    0        0 .strtab
+    3    418    108 18  8                       SYMTAB        0    2        b .symtab
+    4    520     d8  0  1                     PROGBITS        0    0        0 .debug_frame
+    5    5f8     a4  0  4                         NOTE  2000000    0        0 .note.nv.tkinfo
+    6    69c     20  0  4                         NOTE  1000040    5        8 .note.nv.cuinfo
+    7    6bc     30  0  4                    CUDA_INFO        0    3        0 .nv.info
+    8    6ec     24  0  4             CUDA_COMPAT_INFO        0    0        0 .nv.compat
+    9    710     c4  0  4                    CUDA_INFO       40    3        d .nv.info.test_upred
+    a    7d4     20  8  4               CUDA_CALLGRAPH        0    3        0 .nv.callgraph
+    b    7f8      0 18  8                         RELA       40    3        d .rela.text.test_upred
+    c    7f8     48 18  8                         RELA       40    3        4 .rela.debug_frame
+    d    880    700  0 80                     PROGBITS        6    3        9 .text.test_upred
+    e    f80     40  0  1                       NOBITS        3    0        0 .nv.shared.reserved.0
+    f    f80    3a8  0  4                     PROGBITS       42    0        d .nv.constant0.test_upred
+   10   1330    14e  0 10                 CUDA_CAPMERC 10000000   17        9 .nv.capmerc.text.test_upred
+   11   147e     e0  0  1                     PROGBITS 10000000    0        0 .nv.merc.debug_frame
+   12   1560     30  0  4                    CUDA_INFO 10000000   17        0 .nv.merc.nv.info
+   13   1590     e4  0  4                    CUDA_INFO 10000040   17       10 .nv.merc.nv.info.test_upred
+   14   1678     18 18  8                         RELA 10000040   17       10 .nv.merc.rela.text.test_upred
+   15   1690     48 18  8                         RELA 10000040   17       11 .nv.merc.rela.debug_frame
+   16   16d8      0  0  1         CUDA_RESERVED_SHARED 10000003    0        0 .nv.merc.nv.shared.reserved.0
+   17   16d8     f0 18  8                       SYMTAB 10000000    2        9 .nv.merc.symtab
+
+.section .strtab
+
+.section .shstrtab
+
+.section .symtab
+ index           value           size      info    other  shndx    name  
+   0               0               0        0        0      0     (null)
+ 0x1               0               0      0x3        0    0x5     .note.nv.tkinfo
+ 0x2               0               0      0x3        0    0x6     .note.nv.cuinfo
+ 0x3               0               0      0x3        0    0xd     .text.test_upred
+ 0x4            0x40             0x4     0x21        0      0     .nv.reservedSmem.offset0
+ 0x5            0x40               0     0x20     0xa0    0xe     __nv_reservedSMEM_offset_0_alias
+ 0x6           0x2c0           0x440     0x22        0    0xd     $__internal_0_$__cuda_sm20_rcp_rn_f32_slowpath
+ 0x7               0               0      0x3        0    0x4     .debug_frame
+ 0x8               0               0      0x3        0    0xa     .nv.callgraph
+ 0x9               0           0x700     0x12     0x10    0xd     test_upred
+ 0xa               0               0      0x3        0    0xf     .nv.constant0.test_upred
+
+
+.nv.shared.reserved.0
+   No data to be dumped. 
+
+
+.nv.constant0.test_upred
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 0x00000000 0x00000000
+0x00000000 0x00000000 
+
+
+.section .note.nv.tkinfo
+Entry: 1
+  Owner                  Data size        Description
+  NVIDIA Corp            140              NVIDIA CUDA Toolkit Information
+	Note Version: 2
+	Tool Name: ptxas
+	Tool Version: Cuda compilation tools, release 13.0, V13.0.88
+	Tool Branch: Build cuda_13.0.r13.0/compiler.36424714_0
+	Tool Command Line Arguments: -arch sm_100 -m 64 
+
+
+.section .note.nv.cuinfo
+Entry: 1
+  Owner                  Data size        Description
+  NVIDIA Corp            8                NVIDIA CUDA Information
+	Note Version: 2
+	CUDA Virtual SM: sm_100
+	CUDA Tool Kit Version: 13.0
+
+
+.nv.info
+	<0x1>
+	Attribute:	EIATTR_REGCOUNT
+	Format:	EIFMT_SVAL
+	Value:	function: test_upred(0x9)	register count: 14
+	<0x2>
+	Attribute:	EIATTR_FRAME_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: $__internal_0_$__cuda_sm20_rcp_rn_f32_slowpath(0x6)	frame size: 0x0
+	<0x3>
+	Attribute:	EIATTR_FRAME_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: test_upred(0x9)	frame size: 0x0
+	<0x4>
+	Attribute:	EIATTR_MIN_STACK_SIZE
+	Format:	EIFMT_SVAL
+	Value:	function: test_upred(0x9)	min stack size: 0x0
+
+
+.nv.compat
+	<0x1>
+	Attribute:	EICOMPAT_ATTR_CUDA_ACCELERATOR_TARGET
+	Format:	EIFMT_BVAL
+	Value:	0x0
+	<0x2>
+	Attribute:	EICOMPAT_ATTR_ISA_CLASS
+	Format:	EIFMT_BVAL
+	Value:	0x1
+	<0x3>
+	Attribute:	EICOMPAT_ATTR_INST_TCGEN05_MMA
+	Format:	EIFMT_BVAL
+	Value:	0x5
+	<0x4>
+	Attribute:	EICOMPAT_ATTR_MERCURY_ISA_MAJOR_MINOR_VERSION
+	Format:	EIFMT_HVAL
+	Value:	1.1
+	<0x5>
+	Attribute:	EICOMPAT_ATTR_INST_TENSORMAP_V1
+	Format:	EIFMT_BVAL
+	Value:	0x0
+	<0x6>
+	Attribute:	EICOMPAT_ATTR_ENABLE_OPPORTUNISTIC_FINALIZATION
+	Format:	EIFMT_BVAL
+	Value:	0x1
+	<0x7>
+	Attribute:	EICOMPAT_ATTR_CAN_FASTPATH_FINALIZE
+	Format:	EIFMT_SVAL
+	Value:	0x9 0x0 
+
+
+.nv.info.test_upred
+	<0x1>
+	Attribute:	EIATTR_CUDA_API_VERSION
+	Format:	EIFMT_SVAL
+	Value:	0x82 
+	<0x2>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x7	Offset  : 0x24	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x3>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x6	Offset  : 0x20	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x4>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x5	Offset  : 0x1c	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x5>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x4	Offset  : 0x18	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x6>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x3	Offset  : 0x14	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x7>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x2	Offset  : 0x10	Size    : 0x4
+		Pointee's logAlignment : 0x0	Space : 0x0	cbank : 0x1f	Parameter Space : CBANK	
+	<0x8>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x1	Offset  : 0x8	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x5	cbank : 0x1f	Parameter Space : CBANK	
+	<0x9>
+	Attribute:	EIATTR_KPARAM_INFO
+	Format:	EIFMT_SVAL
+	Value:	Index : 0x0	Ordinal : 0x0	Offset  : 0x0	Size    : 0x8
+		Pointee's logAlignment : 0x0	Space : 0x5	cbank : 0x1f	Parameter Space : CBANK	
+	<0x10>
+	Attribute:	EIATTR_SPARSE_MMA_MASK
+	Format:	EIFMT_HVAL
+	Value:	0x0
+	<0x11>
+	Attribute:	EIATTR_MAXREG_COUNT
+	Format:	EIFMT_HVAL
+	Value:	0xff
+	<0x12>
+	Attribute:	EIATTR_MERCURY_ISA_VERSION
+	Format:	EIFMT_HVAL
+	Value:	1.1
+	<0x13>
+	Attribute:	EIATTR_VRC_CTA_INIT_COUNT
+	Format:	EIFMT_BVAL
+	Value:	0x0
+	<0x14>
+	Attribute:	EIATTR_EXIT_INSTR_OFFSETS
+	Format:	EIFMT_SVAL
+	Value:	0x70 0x2b0 
+	<0x15>
+	Attribute:	EIATTR_CRS_STACK_SIZE
+	Format:	EIFMT_SVAL
+	Value:	0x0 
+	<0x16>
+	Attribute:	EIATTR_CBANK_PARAM_SIZE
+	Format:	EIFMT_HVAL
+	Value:	0x28
+	<0x17>
+	Attribute:	EIATTR_PARAM_CBANK
+	Format:	EIFMT_SVAL
+	Value:	0xa 0x280380 
+	<0x18>
+	Attribute:	EIATTR_SW_WAR
+	Format:	EIFMT_SVAL
+	Value:	0x8 
+
+
+.nv.callgraph
+ <0,-1>
+ <0,-2>
+ <0,-3>
+ <0,-4>
+
+
+.text.test_upred
+lmem=0	smem=0
+0xff017b82 0x0000df00 0x00000800 0x000fe200
+0x00007919 0x00000000 0x00002100 0x000e2e00
+0x000479c3 0x00000000 0x00002500 0x000e2200
+0xff0577ac 0x00007200 0x08000800 0x000e6e00
+0xff037b82 0x0000d800 0x00000800 0x000e2400
+0x03037c24 0x00000004 0x0f8e0200 0x001fca00
+0x03007c0c 0x00000005 0x0bf06270 0x002fda00
+0x0000094d 0x00000000 0x03800000 0x000fea00
+0xff047b82 0x0000e200 0x00000a00 0x000e2200
+0xff0477ac 0x00006b00 0x08000a00 0x000e6200
+0xff0677ac 0x00007300 0x08000a00 0x000eac00
+0xff027b82 0x0000e500 0x00000800 0x000ee200
+0xff0877ac 0x00007400 0x08000a00 0x000f2200
+0x03047825 0x00000004 0x078e0204 0x001fca00
+0x04007981 0x00000004 0x0c1e1900 0x002f6200
+0xff007c0c 0x00000006 0x0bf25270 0x004fe200
+0x00007945 0x00000160 0x03800200 0x000fe200
+0x0200780c 0x00000001 0x03f65270 0x048fe400
+0x0200780c 0x00000002 0x03f45270 0x000fe400
+0xff007c0c 0x00000007 0x0bf05270 0x000fd200
+0x0000b221 0x00000000 0x00000000 0x020fe200
+0xff007c0c 0x00000008 0x0bf65270 0x010fc600
+0x0000a820 0x40400000 0x00400000 0x000fc800
+0x00001421 0x3f800000 0x00000000 0x000fc800
+0x00000421 0xbf000000 0x00000000 0x000fc800
+0x00003220 0x00000000 0x00400000 0x000fe200
+0xff007c0c 0x00000009 0x0bf65270 0x000fc600
+0x00027836 0x01800000 0x00000000 0x000fca00
+0x02027812 0x7f800000 0x078ec0ff 0x000fc800
+0x0200780c 0x01ffffff 0x03f04070 0x000fda00
+0x000c0947 0x00000000 0x03800000 0x000fea00
+0x00047802 0x00000210 0x00000f00 0x000fce00
+0x002c7944 0x00000000 0x03c00000 0x000fea00
+0x00107947 0x00000000 0x03800000 0x000fea00
+0x00077308 0x00000000 0x00001000 0x000e2400
+0x00027423 0xbf800000 0x00000007 0x001fc800
+0x02027221 0x800000ff 0x00010100 0x000fc800
+0x07077223 0x00000002 0x00000007 0x000fce00
+0x00007941 0x00000000 0x03800200 0x000fea00
+0xff047b82 0x0000e000 0x00000a00 0x000e2200
+0x00077208 0x00000007 0x05800000 0x000fe200
+0x03027825 0x00000004 0x078e0204 0x001fca00
+0x02007986 0x00000007 0x0c101904 0x000fe200
+0x0000794d 0x00000000 0x03800000 0x000fea00
+0x00027824 0x00000002 0x078e00ff 0x000fe200
+0x00017945 0x00000300 0x03800200 0x000fe800
+0xff027819 0x00000018 0x00011602 0x000fc800
+0x0200720c 0x000000ff 0x03f05070 0x000fda00
+0x00280947 0x00000000 0x03800000 0x000fea00
+0x00027824 0x00000002 0x078e00ff 0x000fca00
+0x0200720c 0x000000ff 0x03f05270 0x000fda00
+0x00060823 0x5f800000 0x000000ff 0x000fe200
+0x00058308 0x00000000 0x00001000 0x000ff000
+0x00070308 0x00000006 0x00001000 0x000e2400
+0x06020423 0xbf800000 0x00000007 0x001fc800
+0x02020221 0x800000ff 0x00010100 0x000fc800
+0x07020223 0x00000002 0x00000007 0x000fc800
+0x02050823 0x5f800000 0x000000ff 0x000fe200
+0x00887947 0x00000000 0x03800000 0x000fec00
+0x02057836 0xffffff03 0x00000000 0x000fca00
+0x0500780c 0x00000001 0x03f04070 0x000fda00
+0x00780947 0x00000000 0x03800000 0x000fea00
+0x00067812 0x007fffff 0x078ec0ff 0x000fe200
+0xff0a7424 0x00000003 0x078e00ff 0x000fc600
+0x06067812 0x3f800000 0x078efcff 0x000fe400
+0x0a0b7219 0x00000005 0x000006ff 0x000fe400
+0x00077308 0x00000006 0x00001000 0x000e2400
+0x06087423 0xbf800000 0x00000007 0x001fc800
+0x08087221 0x800000ff 0x00010100 0x000fc800
+0x07097223 0x00000008 0x00004007 0x1c0fe200
+0x07087223 0x00000008 0x00008007 0x000fc800
+0x09077812 0x007fffff 0x078ec0ff 0x040fe400
+0x0900720b 0x00000008 0x03f1d000 0x000fe400
+0x07087812 0x00800000 0x078efcff 0x000fe400
+0xff077807 0xffffffff 0x04000000 0x000fe400
+0x0b067212 0x00000008 0x078ec0ff 0x000fc600
+0xff077224 0x000000ff 0x078e0a07 0x000fe200
+0xff067219 0x00000005 0x00011606 0x000fc800
+0x07ff7212 0x00000005 0x0782f808 0x000fe400
+0x06ff7812 0x00000001 0x0780c0ff 0x040fe400
+0x06ff7812 0x00000002 0x0784c0ff 0x000fc800
+0x0000781c 0x00000000 0x00703c20 0x000fe400
+0x00ff7812 0x007fffff 0x0782c0ff 0x000fe400
+0xff057807 0x00000001 0x04000000 0x000fca00
+0xff057224 0x000000ff 0x078e0a05 0x000fca00
+0x0500720c 0x000000ff 0x03f06270 0x000fe200
+0x02057836 0xffffff04 0x00000000 0x000fca00
+0xff057219 0x00000005 0x00011608 0x000fce00
+0x05058836 0x00000001 0x00000000 0x000fc800
+0x05059824 0x00000002 0x078e00ff 0x000fca00
+0x05057812 0x80000000 0x078ef800 0x000fe200
+0x00047947 0x00000000 0x03800000 0x000fec00
+0x00057308 0x00000000 0x00001000 0x00006400
+0x00017941 0x00000000 0x03800200 0x000fea00
+0xff077224 0x000000ff 0x078e0005 0x002fe400
+0xff057424 0x00000000 0x078e00ff 0x000fc800
+0x047c7950 0xfffffff8 0x03c3ffff 0x001fea00
+0x00fc7947 0xfffffffc 0x0383ffff 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+0x00007918 0x00000000 0x00000000 0x000fc000
+
+
+.section .rela.text.test_upred	RELA
+
+.section .debug_frame
+decodeDebugFrame, frameBuf 0xffffffff, total_length 216
+CIE length 36, cie_id -1
+version 3
+augmentation slen 1
+augmentation 
+code_align_factor slen 1
+data_align_factor slen 1
+ Debug Frame Common Information Entry
+  length:                 36
+  CIE_id :                -1
+  version:                3
+  augmentation:           
+  code align factor:      4
+  data align factor:      -4
+  return address register 0xffffffff
+  initial instructions: 19 bytes, ptr = 0x8080810c, frameBuf = 0xffffffff
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_same_value R255
+  DW_CFA_same_value R1
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+ Debug Frame Description Entry
+  length:                 44
+  CIE_pointer:            0
+  initial_location:       0x0
+  address_range:          0x2c0
+  function:               test_upred
+  instructions: 20 bytes
+  DW_CFA_advance_loc4 delta 32
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_advance_loc4 delta 140
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+CIE length 60, cie_id -1
+version 3
+augmentation slen 1
+augmentation 
+code_align_factor slen 1
+data_align_factor slen 1
+ Debug Frame Common Information Entry
+  length:                 60
+  CIE_id :                -1
+  version:                3
+  augmentation:           
+  code align factor:      4
+  data align factor:      -4
+  return address register R256
+  initial instructions: 44 bytes, ptr = 0x8080810c, frameBuf = 0xffffffff
+  DW_CFA_def_cfa register R1, offset 0
+  DW_CFA_same_value R255
+  DW_CFA_same_value R1
+  DW_CFA_same_value R4
+  DW_CFA_val_expression R256,                   16 byte block:  3  0  0  0  0  0  0  0  0 92 84 80 80 28  0 22 (DW_OP_addr: 0x0; DW_OP_bregx: R4 0x0; DW_OP_plus)
+  DW_CFA_nop
+ Debug Frame Description Entry
+  length:                 28
+  CIE_pointer:            104
+  initial_location:       0x2c0
+  address_range:          0x440
+  function:               test_upred
+  instructions: 4 bytes
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+
+.section .rela.debug_frame	RELA
+0xc4    test_upred    R_CUDA_64    0x2c0
+0x44    test_upred    R_CUDA_64    0x0
+0xa0    test_upred    R_CUDA_64    0x0

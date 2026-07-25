@@ -1,0 +1,7 @@
+{
+  "name": "hmma1688f32",
+  "desc": "HMMA.1688.F32 (f16-input f32-accum m16n8k8 tensor-core MMA, cutlass ex12/ex41 class): warp-true wrapper decomposition; one warp computes D = A(16x8 f16)*B(8x8 f16) + C(f32) vs an f32 host replica with random signed inputs",
+  "tags": ["sm90", "hmma", "mma", "f16", "warp", "cutlass"],
+  "feature": "hmma_1688_f32",
+  "gpu_ref": "unverified"
+}

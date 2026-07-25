@@ -1,0 +1,12 @@
+{
+  "name": "B_sdiv_sign",
+  "desc": "Granlund-Moller magic divide with signed operands: SDIV pseudo-op must receive the chain magnitudes (|n|,|d|), not the signed originals (idivide-cuda H200 pilot FAIL, quotient=-dividend for d=-1)",
+  "tags": [
+    "sm90",
+    "intdiv",
+    "sdiv",
+    "magic_divide",
+    "value_root"
+  ],
+  "feature": "value_root_cause"
+}

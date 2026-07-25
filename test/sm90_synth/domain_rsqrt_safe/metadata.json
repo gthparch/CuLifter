@@ -1,0 +1,13 @@
+{
+  "name": "domain_rsqrt_safe",
+  "desc": "rsqrt with safe positive inputs (should NOT produce NaN)",
+  "tags": [
+    "sm90",
+    "nan",
+    "rsqrt",
+    "debug"
+  ],
+  "feature": "crash_debug",
+  "gpu_ref": "pass",
+  "ref_output_bytes": 1024
+}
