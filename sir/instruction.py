@@ -467,6 +467,11 @@ class Instruction:
             if len(self.operands) > 1 and self.operands[1].is_reg:
                 self.operands[1] = Operand.create_reg_pair(self.operands[1])
 
+        # SYNCS.EXCH.64 takes the barrier state from a register pair. Track
+        # its high word as a use so SSA preserves the initial phase bit.
+        elif self.opcodes == ["SYNCS", "EXCH", "64"] and len(self.operands) == 3:
+            self.operands[2] = Operand.create_reg_pair(self.operands[2])
+
         # STAS [R6.64+0x10], R8 uses R6+0x10 as a DSMEM destination and
         # R7 as the completion barrier. The .64 operand is two addresses.
         elif self.opcodes == ["STAS"] and len(self.operands) == 2:

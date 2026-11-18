@@ -2488,7 +2488,9 @@ extern "C" void slifter_mbar_init(uint32_t off, uint64_t initval) {
     MbarState* s = mbar_get(off);
     std::lock_guard<std::mutex> lk(s->m);
     s->expected = mbar_count_from_init(initval);
-    s->arrived = 0; s->tx = 0; s->phase = 0; s->inited = true;
+    s->arrived = 0; s->tx = 0;
+    s->phase = static_cast<int>(initval >> 63);
+    s->inited = true;
     if (mbar_dbg()) std::fprintf(stderr, "[mbar] init cta=%d off=0x%x iv=0x%llx expected=%d\n",
                                  g_threadCtx.cta, off, (unsigned long long)initval, s->expected);
     s->cv.notify_all();

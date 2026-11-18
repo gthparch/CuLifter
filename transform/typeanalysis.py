@@ -154,9 +154,9 @@ class TypeAnalysis(SaSSTransform):
             # Int32 like every real memory op (LDS/STS/ATOMS/LDGSTS) so a PHI merging
             # the predicated-arrive address doesn't unify with a Float32 wgmma
             # accumulator that ptxas parked in the same physical reg (the split-kernel
-            # nvvm lift crash: `phi float` -> _shared_gep GEP-index TypeError). uses[1]
-            # (EXCH src / ARRIVE tx count) and the def stay unconstrained.
+            # nvvm lift crash: `phi float` -> _shared_gep GEP-index TypeError).
             "SYNCS": [[], [INT32]],
+            "SYNCS.EXCH.64": [[], [INT32, INT64]],
             "FENCE": [[], []],
             "ELECT": [[BOOL, INT32], [BOOL]],
             # IDP.4A.S8.S8 Rd, Ra, Rb, Rc — integer dot product

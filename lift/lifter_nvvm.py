@@ -3349,10 +3349,8 @@ class NVVMLifter(Lifter):
         the PTX mbarrier.* ops to exactly this SYNCS family, so lifting back to
         the PTX ops round-trips the semantics:
 
-          SYNCS.EXCH.64 URZ,[a],Rv   -> atom.shared::cta.exch.b64  (mbarrier.init
-              writes an ENCODED state word; the encoding is undocumented, but the
-              lifted dataflow reproduces the original value bit-for-bit, so a raw
-              64-bit exchange recreates the identical barrier state.)
+          SYNCS.EXCH.64 URZ,[a],Rv   -> mbarrier.init with the encoded count,
+              followed by a full-count arrive if the initial phase is one.
           SYNCS.ARRIVE.TRANS64[.RED].A1T0 RZ,[a],RZ -> mbarrier.arrive
           SYNCS.ARRIVE.TRANS64[.RED].A0T1 RZ,[a],Rt -> mbarrier.arrive.expect_tx
               (arrive-count 0, bump expected-transaction count: the TMA
@@ -3397,17 +3395,32 @@ class NVVMLifter(Lifter):
             # BARRIER unit never sees a valid init -> "Illegal barrier arrive".
             # Decode N = 2^20 - (lo >> 1) from the lifted dataflow and emit a
             # real mbarrier.init so the sync unit installs the state itself.
-            src = _val_or_zero(i32, "mbar_init_state")
-            half = IRBuilder.lshr(src, self.ir.Constant(i32, 1), "mbar_cd")
+            state = _val_or_zero(i64, "mbar_init_state")
+            low = IRBuilder.trunc(state, i32, "mbar_init_low")
+            half = IRBuilder.lshr(low, self.ir.Constant(i32, 1), "mbar_cd")
             count = IRBuilder.sub(
                 self.ir.Constant(i32, 1 << 20), half, "mbar_count_raw")
             count = IRBuilder.and_(
                 count, self.ir.Constant(i32, (1 << 20) - 1), "mbar_count")
-            asm_ty = self.ir.FunctionType(self.ir.VoidType(), [i64, i32])
+            phase = IRBuilder.trunc(
+                IRBuilder.lshr(state, self.ir.Constant(i64, 63)), i32, "mbar_init_phase")
+            # PTX init starts in phase zero. A counted arrival completes that
+            # phase and restores the pending count for phase one. Uniform SASS
+            # performs the exchange once for the active warp.
+            if defs and defs[0].is_uniform_reg:
+                init = (".reg .b32 mask, enabled; .reg .pred leader;"
+                        " activemask.b32 mask; elect.sync _|leader, mask;"
+                        " @leader mbarrier.init.shared::cta.b64 [$0], $1;"
+                        " selp.u32 enabled, $2, 0, leader; setp.ne.u32 advance, enabled, 0;")
+            else:
+                init = "mbarrier.init.shared::cta.b64 [$0], $1; setp.ne.u32 advance, $2, 0;"
+            asm_ty = self.ir.FunctionType(self.ir.VoidType(), [i64, i32, i32])
             asm = self.ir.InlineAsm(
-                asm_ty, "mbarrier.init.shared::cta.b64 [$0], $1;", "l,r,~{memory}",
+                asm_ty, "{ .reg .pred advance; " + init +
+                " @advance mbarrier.arrive.shared::cta.b64 _, [$0], $1; }",
+                "l,r,r,~{memory}",
                 side_effect=True)
-            IRBuilder.call(asm, [bar_ptr, count], "")
+            IRBuilder.call(asm, [bar_ptr, count, phase], "")
             return
 
         if "ARRIVE" in modifiers:
