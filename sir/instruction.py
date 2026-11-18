@@ -1,3 +1,5 @@
+import re
+
 from sir.operand import Operand
 from sir.controlcode import ControlCode
 from sir.controlcode import PresetCtlCodeException
@@ -464,6 +466,15 @@ class Instruction:
         elif self.opcodes[0] == "LDGSTS" and "E" in self.opcodes:
             if len(self.operands) > 1 and self.operands[1].is_reg:
                 self.operands[1] = Operand.create_reg_pair(self.operands[1])
+
+        # STAS [R6.64+0x10], R8 uses R6+0x10 as a DSMEM destination and
+        # R7 as the completion barrier. The .64 operand is two addresses.
+        elif self.opcodes == ["STAS"] and len(self.operands) == 2:
+            dst = self.operands[0]
+            if dst.is_mem_addr and dst.suffix == "64" and re.fullmatch(r"R\d+", dst.reg or ""):
+                barrier = f"R{int(dst.reg[1:]) + 1}"
+                dst.suffix = None
+                self.operands.append(Operand.from_reg(barrier, barrier))
 
         # UBLKCP.S.G [UR6], [UR4], UR10 ;  (cp.async.bulk global→shared)
         # operand[0] = base of a {dst, mbar} TUPLE — like UTMALDG, the smem
@@ -1028,7 +1039,7 @@ class Instruction:
         return len(self.opcodes) > 0 and (self.opcodes[0] in ["LDG"])
 
     def is_store(self):
-        return len(self.opcodes) > 0 and (self.opcodes[0] in ["STG", "SUST", "ST", "STS", "STL", "LDGSTS", "STSM"])
+        return len(self.opcodes) > 0 and (self.opcodes[0] in ["STG", "SUST", "ST", "STS", "STL", "LDGSTS", "STSM", "STAS"])
     
     def is_global_store(self):
         return len(self.opcodes) > 0 and (self.opcodes[0] in ["STG"])

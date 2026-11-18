@@ -162,7 +162,7 @@ class TypeAnalysis(SaSSTransform):
             # IDP.4A.S8.S8 Rd, Ra, Rb, Rc — integer dot product
             "IDP": [[INT32], [INT32, INT32, INT32]],
             "NANOSLEEP": [[], []],
-            "STAS": [[], []],
+            "STAS": [[], [INT32, INT32, INT32]],
             "REDAS": [[], []],
             "WARPGROUP": [[], []],
             "LOP32I": [[INT32], [INT32, INT32]],

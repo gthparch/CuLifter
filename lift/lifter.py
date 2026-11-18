@@ -9,6 +9,7 @@ import llvmlite
 import llvmlite.binding as llvm
 from llvmlite import binding, ir
 
+from transform.dce import DCE
 from transform.transforms import Transforms
 from transform.typeanalysis import (
     BOOL, FLOAT16, BF16, TF32, FLOAT32, FLOAT64,
@@ -629,6 +630,8 @@ class Lifter:
             # TypeAnalysis may have max_iterations
             if hasattr(p, 'max_iterations'):
                 fresh.append(cls(max_iterations=p.max_iterations))
+            elif isinstance(p, DCE):
+                fresh.append(cls(extra_side_effect=p._extra_side_effect))
             else:
                 try:
                     fresh.append(cls())
@@ -2041,9 +2044,12 @@ class Lifter:
         pass
 
     @lift_for("NOP", "YIELD", "ERRBAR", "LDGDEPBAR", "ENDCOLLECTIVE", "CGAERRBAR",
-              "UTMACCTL", "UTMACMDFLUSH", "UTMAPF", "UCGABAR_ARV", "UCGABAR_WAIT",
-              "CCTL")
+              "UTMACCTL", "UTMACMDFLUSH", "UTMAPF", "CCTL")
     def lift_nop(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        pass
+
+    @lift_for("UCGABAR_ARV", "UCGABAR_WAIT")
+    def lift_cluster_barrier(self, Inst, IRBuilder, IRRegs, block_map=None, **kwargs):
         pass
 
     @lift_for("BMOV")

@@ -87,6 +87,7 @@ class NVVMLifter(Lifter):
         CrossFuncInline().apply(module)
 
     def get_transform_passes(self):
+        cluster_barriers = ("UCGABAR_ARV", "UCGABAR_WAIT")
         return [
             BuildCFG(),
             # Restore warp-synchronous semantics broken by PBRA branch-splitting
@@ -126,13 +127,13 @@ class NVVMLifter(Lifter):
             DefUseAnalysis(),
             MovEliminate(),
             DefUseAnalysis(),
-            DCE(),
+            DCE(extra_side_effect=cluster_barriers),
             CFGSimplify(),
             DefUseAnalysis(),
             # OperAggregate(),  # Temporarily disabled
             RegRemap(),
             DefUseAnalysis(),
-            DCE(),
+            DCE(extra_side_effect=cluster_barriers),
             CFGSimplify(),
             DefUseAnalysis(),
             TypeAnalysis(),
@@ -616,9 +617,15 @@ class NVVMLifter(Lifter):
         # The original module's slot value is meaningless under our launch —
         # substitute cvta.param of OUR param_0 minus the fixed 0x30 ABI bias so
         # downstream arithmetic lands on our own (identical-layout) params.
-        if bank == 0 and byte_offset == 0x198 and \
+        fn_name = builder.function.name
+        param_bias = 0x30 if byte_offset == 0x198 else None
+        # The older NVJET Hopper cubins load the bank-0 base from 0xc0.
+        # Their TMA offsets are absolute bank offsets (e.g. 0x2c0 for
+        # the descriptor 176 bytes into the argument at 0x210).
+        if byte_offset == 0xc0 and fn_name.startswith("nvjet_sm90_") and self.arg_info:
+            param_bias = min(self.arg_info)
+        if bank == 0 and param_bias is not None and \
                 isinstance(target_ty, self.ir.IntType) and target_ty.width == 64:
-            fn_name = builder.function.name
             i64 = self.ir.IntType(64)
             asm = self.ir.InlineAsm(
                 self.ir.FunctionType(i64, []),
@@ -626,7 +633,7 @@ class NVVMLifter(Lifter):
                 % fn_name,
                 "=l", side_effect=False)
             base = builder.call(asm, [], name or "gc_param_base")
-            return builder.sub(base, self.ir.Constant(i64, 0x30),
+            return builder.sub(base, self.ir.Constant(i64, param_bias),
                                (name or "gc_param_base") + "_biased")
         # Bank 4 holds loader-relocated __device__-global base addresses
         # (R_CUDA_64). Resolve to our materialized addrspace(1) globals.
@@ -2176,6 +2183,30 @@ class NVVMLifter(Lifter):
         self._set_val(IRBuilder, IRRegs, dest, val)
 
 
+    @lift_for("STAS")
+    def lift_stas(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        """Lower scalar STAS into a DSMEM store plus its PTX completion action."""
+        uses = Inst.get_uses()
+        if Inst.opcodes != ["STAS"] or len(uses) != 3:
+            raise UnsupportedInstructionException("expected scalar STAS [Rn.64+offset], Rt")
+        i32 = self.ir.IntType(32)
+        mapped = []
+        for operand, tag in ((uses[0], "stas_dst"), (uses[2], "stas_mbar")):
+            address = self._insert_type_cast_if_needed(IRBuilder, _get_val(operand, tag), i32, tag + "_bits")
+            local = IRBuilder.ptrtoint(self._shared_gep(IRBuilder, address, tag + "_local"), i32)
+            rank = IRBuilder.lshr(address, self.ir.Constant(i32, 24), tag + "_rank")
+            mapped.extend((local, rank))
+        value = self._insert_type_cast_if_needed(IRBuilder, _get_val(uses[1], "stas_value"), i32, "stas_value_bits")
+        asm_ty = self.ir.FunctionType(self.ir.VoidType(), [i32] * 5)
+        asm = self.ir.InlineAsm(
+            asm_ty,
+            "{.reg .u32 d, b; mapa.shared::cluster.u32 d, $0, $1; "
+            "mapa.shared::cluster.u32 b, $2, $3; "
+            "st.async.weak.shared::cluster.mbarrier::complete_tx::bytes.b32 [d], $4, [b];}",
+            "r,r,r,r,r,~{memory}", side_effect=True,
+        )
+        IRBuilder.call(asm, [*mapped, value])
+
     @lift_for("STSM")
     def lift_stsm(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, _as_pointer=None):
         """STSM.16.[M|MT]88.N -> PTX stmatrix.sync.aligned.xN.m8n8[.trans].
@@ -2684,6 +2715,15 @@ class NVVMLifter(Lifter):
         while still reconverging the lanes that participate in the reduction."""
         mask = self.run_intrinsic("activemask", IRBuilder, [], "warp_reconv_mask")
         self.run_intrinsic("bar_warp_sync", IRBuilder, [mask], "warp_reconv")
+
+    @lift_for("UCGABAR_ARV", "UCGABAR_WAIT")
+    def lift_cluster_barrier(self, Inst, IRBuilder, IRRegs, block_map=None, **kwargs):
+        operation = "arrive" if Inst.opcodes[0] == "UCGABAR_ARV" else "wait"
+        asm = self.ir.InlineAsm(
+            self.ir.FunctionType(self.ir.VoidType(), []),
+            f"barrier.cluster.{operation}.aligned;", "~{memory}", side_effect=True,
+        )
+        IRBuilder.call(asm, [])
 
     @lift_for("MEMBAR")
     def lift_membar(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
