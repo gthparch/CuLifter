@@ -4633,7 +4633,7 @@ class Lifter:
         """P2R Rd, PR, Rs, mask — Pack predicate registers into integer register.
 
         Reads predicate registers P0-P6 (7 predicates), packs their boolean values
-        into bit positions selected by mask, ORs with Rs, stores to Rd.
+        into the selected byte in Rs and stores the combined value to Rd.
 
         P2R R20, PR, RZ, 0x20  → R20 = (P5 << 5)  (mask 0x20 = bit 5 = P5)
         P2R R0, PR, RZ, 0x1   → R0 = P0            (mask 0x01 = bit 0 = P0)
@@ -4660,9 +4660,11 @@ class Lifter:
         else:
             mask = int(mask_op.name, 0) if mask_op.name.startswith("0x") else int(mask_op.name)
 
-        result = base_val
         i32 = self.ir.IntType(32)
         i1 = self.ir.IntType(1)
+        byte_off = next((8 * int(mod[1]) for mod in Inst.opcodes[1:] if mod in ("B0", "B1", "B2", "B3")), 0)
+        keep_mask = 0xffffffff ^ ((mask & 0x7f) << byte_off)
+        result = IRBuilder.and_(base_val, self.ir.Constant(i32, keep_mask), "p2r_base_masked")
 
         # The masked physical predicates are explicit use operands (appended by
         # Instruction.__init__ in ascending bit order, after [PR, Rs, mask]), so
@@ -4684,7 +4686,7 @@ class Lifter:
                     pred_val = IRBuilder.trunc(pred_val, i1, f"p2r_p{bit}_i1")
                 pred_i32 = IRBuilder.zext(pred_val, i32, f"p2r_p{bit}_i32")
                 shifted = IRBuilder.shl(
-                    pred_i32, self.ir.Constant(i32, bit), f"p2r_p{bit}_shl"
+                    pred_i32, self.ir.Constant(i32, bit + byte_off), f"p2r_p{bit}_shl"
                 )
                 result = IRBuilder.or_(result, shifted, f"p2r_or_{bit}")
 

@@ -83,35 +83,19 @@ class SaSSParserBase:
         return items[1]
 
     def get_inst_opcode(self, line):
-        items = line.split(";")
-        line = items[0].lstrip()
-        items = line.split(" ")
-        opcode = items[0]
-        pflag = None
-
-        pred_reg = None
-        is_not = False
-        if opcode.startswith("@"):
-            opcode = opcode[1:]
-        if opcode.startswith("!"):
-            is_not = True
-            opcode = opcode[1:]
-        # P2R is an opcode, not a predicate guard — exclude it
-        if opcode.startswith("UP") and len(opcode) > 2 and (opcode[2].isdigit() or opcode[2] == "T"):
-            pred_reg = opcode
-        elif opcode.startswith("P") and len(opcode) > 1 and (opcode[1].isdigit() or opcode[1] == "T"):
-            if opcode not in ("P2R",):
-                pred_reg = opcode
-
-        rest_content = line.replace(items[0], "")
-
-        if pred_reg:
-            prefix = "!" if is_not else None
-            pflag = Operand.from_reg(pred_reg, pred_reg, prefix=prefix)
-            opcode = items[1]
-            rest_content = rest_content.replace(items[1], "")
-
-        return opcode, pflag, rest_content
+        content = line.split(";", 1)[0].lstrip()
+        # nvdisasm attaches a BRX destination list to the operand. ResolveBRX
+        # reads those destinations from the cubin's constant table.
+        content = re.sub(r'\s*\(\*"BRANCH_TARGETS [^"]*"\*\)\s*$', '', content)
+        opcode, *rest = content.split(maxsplit=1)
+        operands = rest[0] if rest else ""
+        # Match the whole guard token: P2R and P2R.B1 are instructions.
+        guard = re.fullmatch(r"@?(!?)(U?P(?:[0-7]|T))", opcode)
+        if guard is None:
+            return opcode, None, operands
+        prefix, register = guard.groups()
+        opcode, *rest = operands.split(maxsplit=1)
+        return opcode, Operand.from_reg(register, register, prefix=prefix or None), rest[0] if rest else ""
 
     def get_inst_operands(self, line):
         items = line.split(",")

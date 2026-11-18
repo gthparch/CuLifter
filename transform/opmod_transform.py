@@ -9,7 +9,7 @@ class OpModTransform(SaSSTransform):
     # folded with a plain 32-bit add. 64-bit global forms ([R16.64+UR4],
     # already expanded to a reg-pair group at parse time) are folded below
     # with an IADD64 over the base pair and the UR pair.
-    IDX_MEM_OPS = {"LDS", "STS", "LDSM", "STSM", "ATOMS", "LDL", "STL"}
+    IDX_MEM_OPS = {"LDS", "STS", "LDSM", "STSM", "ATOMS", "LDL", "STL", "LDGSTS", "SYNCS"}
 
     @staticmethod
     def _next_reg_name(reg):
