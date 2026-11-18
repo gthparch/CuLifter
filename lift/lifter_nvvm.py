@@ -3825,8 +3825,9 @@ class NVVMLifter(Lifter):
         """LDGSTS (Ampere+ async global->shared copy) -> PTX cp.async.
 
         LDGSTS.E.BYPASS.LTC128B.128 [Rsm+off], desc[URd][Rg.64+off], !Pz
-        The .128/.64/.32 modifier is the copy size (16/8/4 bytes); 16B copies
-        use .cg (L1-bypass, matching .BYPASS), smaller .ca. The trailing
+        The .128/.64/.32 modifier is the copy size (16/8/4 bytes). When it is
+        omitted, the copy is 4 bytes, including with the .LTC128B cache hint.
+        16B copies use .cg (L1-bypass, matching .BYPASS), smaller .ca. The trailing
         predicate is the SOURCE-read guard: when it evaluates FALSE the copy
         ZERO-FILLS the destination instead of reading global — lower it as the
         cp.async src-size operand (pred ? size : 0). Completion is tracked by
@@ -3839,7 +3840,7 @@ class NVVMLifter(Lifter):
             raise UnsupportedInstructionException(f"LDGSTS needs 2 mem ops: {Inst.opcodes}")
         i32 = self.ir.IntType(32)
         i64 = self.ir.IntType(64)
-        size = 16
+        size = 4
         for m in Inst.opcodes[1:]:
             if m in ("128", "64", "32"):
                 size = int(m) // 8
