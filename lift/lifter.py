@@ -2209,7 +2209,14 @@ class Lifter:
         has_cin = "X" in Inst.opcodes
         has_cout = len(defs) > 1
 
-        val_src = _get_val(uses[0], "lea_src")
+        # LEA applies the sign/complement to the selected 32-bit word
+        # *after* shifting. In LEA.HI that word can depend on both Ra and Rc.
+        src = uses[0]
+        modifier = src.prefix
+        if modifier in ("-", "~"):
+            src = src.clone()
+            src.prefix = None
+        val_src = _get_val(src, "lea_src")
         val_base = _get_val(uses[1], "lea_base")
 
         if is_sx32:
@@ -2240,20 +2247,23 @@ class Lifter:
 
         val_shifted = IRBuilder.shl(val_a_64, val_shift_64)
 
+        i64 = self.ir.IntType(64)
+        word_mask = self.ir.Constant(i64, 0xFFFFFFFF)
         if is_hi:
-            val_shifted_high = IRBuilder.lshr(val_shifted, self.ir.Constant(self.ir.IntType(64), 32))
-            t_sum = IRBuilder.add(val_shifted_high, val_base_64)
-
-            if has_cin:
-                val_cin = _get_val(uses[-1], "lea_cin")
-                t_sum = IRBuilder.add(t_sum, IRBuilder.zext(val_cin, self.ir.IntType(64)))
-
-            res = IRBuilder.trunc(t_sum, dest.get_ir_type(self))
+            word = IRBuilder.lshr(val_shifted, self.ir.Constant(i64, 32))
         else:
-            val_shifted_low = IRBuilder.and_(val_shifted, self.ir.Constant(self.ir.IntType(64), 0xFFFFFFFF))
-            t_sum = IRBuilder.add(val_shifted_low, val_base_64)
+            word = IRBuilder.and_(val_shifted, word_mask)
+        if modifier in ("-", "~"):
+            word = IRBuilder.xor(word, word_mask, "lea_complement")
+            if modifier == "-":
+                # Keep the carry out of ~0 + 1 for the next LEA.HI.X.
+                word = IRBuilder.add(word, self.ir.Constant(i64, 1), "lea_negate")
+        t_sum = IRBuilder.add(word, val_base_64)
+        if is_hi and has_cin:
+            val_cin = _get_val(uses[-1], "lea_cin")
+            t_sum = IRBuilder.add(t_sum, IRBuilder.zext(val_cin, i64))
 
-            res = IRBuilder.trunc(t_sum, dest.get_ir_type(self))
+        res = IRBuilder.trunc(t_sum, dest.get_ir_type(self))
 
         if has_cout:
             carry_val = IRBuilder.lshr(t_sum, self.ir.Constant(self.ir.IntType(64), 32))
