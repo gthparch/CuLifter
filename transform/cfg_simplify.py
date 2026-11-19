@@ -190,7 +190,11 @@ class CFGSimplify(SaSSTransform):
         if term is None or not term.opcodes:
             return
 
-        if term.opcodes and term.opcodes[0] == "BRA" and term.operands:
+        # A direct CALL can have both a target edge and a fallthrough edge.
+        # Keep the literal target in sync when its trampoline is collapsed.
+        if term.operands and (
+            term.opcodes[0] == "BRA" or (term.is_call() and len(term.operands) == 1)
+        ):
             target_op = term.operands[-1]
             if getattr(target_op, "is_immediate", False) and target_op.immediate_value == old_succ.addr:
                 target_op.name = new_succ.addr_content

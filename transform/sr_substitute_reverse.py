@@ -5,12 +5,22 @@ from sir.instruction import Instruction
 from transform.sr_substitute import _sr_map_for_isa
 
 
+PRE_HOPPER_STACK_POINTER_ISAS = frozenset({
+    "sm_70", "sm_70a", "sm_75", "sm_80", "sm_80a", "sm_86", "sm_86a", "sm_89", "sm_89a",
+})
+
+
 class SRSubstituteReverse(SaSSTransform):
     def apply(self, module):
         print("=== Start of SRSubstituteReverse ===")
         count = 0
 
-        offset_to_sr = {offset: sr for sr, offset in _sr_map_for_isa(getattr(module, "isa", None)).items()}
+        isa = module.isa
+        offset_to_sr = {offset: sr for sr, offset in _sr_map_for_isa(isa).items()}
+        if isa in PRE_HOPPER_STACK_POINTER_ISAS:
+            # Direct constant-bank operands use the stack-pointer slot.
+            # Explicit S2R instructions still read the real block index.
+            del offset_to_sr[0x28]
 
         for func in module.functions:
             for block in func.blocks:

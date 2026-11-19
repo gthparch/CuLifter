@@ -368,15 +368,18 @@ class Instruction:
         # defs — the same SSA-tracking that P2R relies on, for the write side.
         # operands become [<pred defs...>, Rs, mask]; defs/uses split via
         # use_op_start_idx = number of predicate defs.
-        elif self.opcodes[0] == "R2P" and len(self.operands) >= 3 \
-                and getattr(self.operands[2], "is_immediate", False) \
-                and isinstance(self.operands[2].immediate_value, int):
-            mask = self.operands[2].immediate_value
-            preds = [Operand.from_reg(f"P{bit}", f"P{bit}")
-                     for bit in range(7) if mask & (1 << bit)]
-            if preds:
-                self.operands = preds + self.operands[1:]
-                self.use_op_start_idx = len(preds)
+        elif self.opcodes[0] == "R2P":
+            # The disassembler omits the mask when the encoded byte is 0xff.
+            if len(self.operands) == 2 and self.operands[0].name == "PR":
+                self.operands = [*self.operands, Operand.from_immediate("0xff", 0xff)]
+            if (len(self.operands) >= 3 and self.operands[2].is_immediate
+                    and isinstance(self.operands[2].immediate_value, int)):
+                mask = self.operands[2].immediate_value
+                preds = [Operand.from_reg(f"P{bit}", f"P{bit}")
+                         for bit in range(7) if mask & (1 << bit)]
+                if preds:
+                    self.operands = preds + self.operands[1:]
+                    self.use_op_start_idx = len(preds)
 
         # MUFU.RCP64H / MUFU.RSQ64H: R6:R5 is 64-bit source pair
         elif self.opcodes[0] == "MUFU" and len(self.opcodes) > 1 and self.opcodes[1] in ("RCP64H", "RSQ64H"):
