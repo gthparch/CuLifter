@@ -3277,8 +3277,10 @@ class CpuLifter(Lifter):
             else:
                 old_val = IRBuilder.extract_value(cas_result, 0, "atoms_cas_old")
         else:
+            is_signed = "S32" in modifiers
             rmw_ops = {
-                "ADD": "add", "MIN": "min", "MAX": "max",
+                "ADD": "add", "MIN": "min" if is_signed else "umin",
+                "MAX": "max" if is_signed else "umax",
                 "AND": "and", "OR": "or", "XOR": "xor",
                 "EXCH": "xchg", "INC": "add", "DEC": "sub",
             }
