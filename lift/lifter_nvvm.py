@@ -1917,7 +1917,7 @@ class NVVMLifter(Lifter):
                 f"{ptr.get_ir_name(self)}_addr_ptr" if ptr.is_reg else "ldg_addr_ptr",
                 addrspace=addrspace,
             )
-            vec = IRBuilder.load(vaddr_ptr, "ldg_vec", typ=vec_ty)
+            vec = self._load_ldg_data(Inst, IRBuilder, vaddr_ptr, vec_ty, _get_val, "ldg_vec")
             for i, sub_op in enumerate(dest.reg_group):
                 IRRegs[sub_op.get_ir_name(self)] = IRBuilder.extract_element(
                     vec, self.ir.Constant(i32, i), f"ldg_lane{i}"
@@ -1974,9 +1974,9 @@ class NVVMLifter(Lifter):
                 raw = IRBuilder.call(ld_asm, [addr_int], "ld_volatile")
                 val = raw if ld_int_ty == pointee_ty else IRBuilder.bitcast(raw, pointee_ty, "ldstrong_cast")
             else:
-                val = IRBuilder.load(addr_ptr, "ldg", typ=pointee_ty)
+                val = self._load_ldg_data(Inst, IRBuilder, addr_ptr, pointee_ty, _get_val)
         else:
-            val = IRBuilder.load(addr_ptr, "ldg", typ=pointee_ty)
+            val = self._load_ldg_data(Inst, IRBuilder, addr_ptr, pointee_ty, _get_val)
         if use_narrow and dest_ty != narrow_ty:
             if is_signed:
                 val = IRBuilder.sext(val, dest_ty, "ldg_sext")
