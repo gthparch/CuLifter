@@ -9,6 +9,14 @@ from sir.function import Function
 from sir.instruction import Instruction
 from sir.operand import Operand
 from transform.typeanalysis import TypeAnalysis
+from .test_utils import TEST_DIR, run_cmd
+
+
+def test_cpu_mbarrier_initial_and_next_phase(tmp_path):
+    executable = tmp_path / "mbarrier_phase"
+    run_cmd(["c++", "-std=c++20", "-pthread", TEST_DIR / "mbarrier_phase.cpp",
+             "-o", executable], tmp_path)
+    run_cmd([executable], tmp_path, timeout=10)
 
 
 @pytest.mark.parametrize("low, high, count, phase", [
