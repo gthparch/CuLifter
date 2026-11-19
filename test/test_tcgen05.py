@@ -47,11 +47,12 @@ def test_cluster_table_reads_are_derived_from_launch_dimensions(offset, axis, un
     assert ("fdiv float" in ir) == reciprocal
 
 
-def test_work_request_keeps_both_shared_addresses_and_issues_once():
+@pytest.mark.parametrize("mode,scope", [("SELFCAST", ""), ("BROADCAST", ".multicast::cluster::all")])
+def test_work_request_keeps_both_shared_addresses_and_issues_once(mode, scope):
     module = lift_kernel(["UMOV UR6, 0x180", "UMOV UR7, 0x40",
-                          "UGETNEXTWORKID.BROADCAST [UR6], [UR7]"], 100)
+                          f"UGETNEXTWORKID.{mode} [UR6], [UR7]"], 100)
     ir = str(module)
-    assert ir.count("clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes.multicast::cluster::all.b128") == 1
+    assert ir.count(f"clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes{scope}.b128") == 1
     assert "elect.sync" in ir
     assert "i32 384" in ir and "i32 64" in ir
 
