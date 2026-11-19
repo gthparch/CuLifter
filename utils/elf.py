@@ -26,6 +26,7 @@ class Elf:
 
     def __init__(self, path):
         self.path = Path(path)
+        self.blackwell_param_abi = False
         self.arg_map = {}
         self.const_data = {}
         # Shared constant banks (`.nv.constant<N>` with NO `.<kernel>` suffix):
@@ -87,6 +88,7 @@ class Elf:
             self._parse_binary_cubin()
         else:
             self._text = self.path.read_text(encoding="utf-8", errors="ignore")
+            self.blackwell_param_abi = bool(re.search(r"\b(?:EF_CUDA_SM|sm_)(?:100|120)a?\b", self._text, re.I))
             self._parse(self._text)
 
     @property
@@ -184,6 +186,9 @@ class Elf:
 
         with open(self.path, 'rb') as f:
             elf = ELFFile(f)
+            flags = elf.header["e_flags"]
+            # CUDA ELF ABI 6 records the cubin's physical SM in bits 8..15.
+            self.blackwell_param_abi = flags >> 24 == 6 and (flags >> 8) & 0xff in (100, 120)
             self._parse_binary_const_sections(elf)
             self._parse_binary_nvinfo_sections(elf)
             self._parse_binary_frame_size(elf)

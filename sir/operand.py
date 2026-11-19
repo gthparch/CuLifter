@@ -131,6 +131,12 @@ class Operand:
                 desc_reg=desc_reg,
             )
 
+        # Blackwell tensor-memory instructions address tmem[URn+imm].
+        # Keep the original address space in name, and expose its register
+        # and displacement to the instruction-specific lifter.
+        if operand_content.startswith("tmem[") and operand_content.endswith("]"):
+            operand_content = operand_content[4:]
+
         # SM90 descriptor memory: desc[UR4][R2.64+0x10]
         # Extract descriptor register, then parse inner bracket as memory address.
         if operand_content.startswith("desc["):

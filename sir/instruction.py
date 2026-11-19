@@ -46,6 +46,15 @@ class Instruction:
             else:
                 self.use_op_start_idx = 4
 
+        elif self.opcodes == ["FFMA2"] and (len(self.operands) == 8 or len(self.operands) == 4 and all(
+                op.is_reg and op.prefix in (None, "", "-") and (op.suffix or "").upper() in
+                ("F32", "F32X2.HI_LO", "F32X2.HI_LO.NP", "F32X2.LO_HI", "F32X2.LO_HI.NP")
+                for op in self.operands[1:])):
+            self.use_op_start_idx = 2
+
+        elif self.opcodes[:3] == ["QMMA", "16832", "F32"]:
+            self.use_op_start_idx = 4
+
         # HGMMA/WGMMA/QGMMA: warpgroup MMA (SM90)
         # HGMMA.64x8x16.F32 D, A, B, C  (register form, 4 operands)
         # HGMMA.64x128x16.F32 D, gdesc[UR8].tnspA.tnspB, C  (descriptor form, 3+ operands)
@@ -239,6 +248,11 @@ class Instruction:
         # to apply unconditionally to the third use operand.
         elif len(self.opcodes) > 1 and (self.opcodes[0] == "IMAD" or self.opcodes[0] == "UIMAD") and self.opcodes[1] == "HI":
             self.operands[2 + self.use_op_start_idx] = Operand.create_reg_pair(self.operands[2 + self.use_op_start_idx])
+
+        # Blackwell uses the base register of a pair for IADD.64 and MOV.64.
+        elif self.opcodes in (["IADD", "64"], ["MOV", "64"]):
+            self.opcodes = [self.opcodes[0] + "64"]
+            self.operands = [Operand.create_reg_pair(op) for op in self.operands]
 
         # QSPC.E.S P0, RZ, [R8] ; => R8:R9
         elif len(self.opcodes) > 1 and self.opcodes[0] == "QSPC" and self.opcodes[1] == "E":
@@ -549,7 +563,9 @@ class Instruction:
                 self.operands[0] = Operand.create_reg_pair(self.operands[0])
 
         # LDC.64 / ULDC.64: loads 64-bit into register pair (R2:R3 or UR6:UR7)
-        elif self.opcodes[0] in ("LDC", "ULDC") and "64" in self.opcodes:
+        elif self.opcodes[0] in ("LDC", "ULDC", "LDCU") and "128" in self.opcodes:
+            self.operands[0] = Operand.create_reg_quad(self.operands[0])
+        elif self.opcodes[0] in ("LDC", "ULDC", "LDCU") and "64" in self.opcodes:
             dest = self.operands[0]
             if dest.is_reg and not dest.is_const_mem:
                 self.operands[0] = Operand.create_reg_pair(self.operands[0])
@@ -688,6 +704,30 @@ class Instruction:
             CRegs = Operand.create_reg_group(self.operands[3], c_count).reg_group
 
             self.operands = DRegs + ARegs + BRegs + CRegs
+
+        elif self.opcodes == ["FFMA2"] and len(self.operands) == 4 and self.use_op_start_idx == 2:
+            expanded = Operand.create_reg_group(self.operands[0], 2).reg_group
+            for op in self.operands[1:]:
+                form = op.suffix.upper()
+                if form == "F32":
+                    lanes = [op.clone(), op.clone()]
+                else:
+                    lanes = Operand.create_reg_group(op, 2).reg_group
+                    if "LO_HI" in form:
+                        lanes.reverse()
+                for lane, word in enumerate(lanes):
+                    # NP negates the second destination lane after selecting its source.
+                    negative = bool(op.is_negative_reg) ^ (form.endswith(".NP") and lane == 1)
+                    word.prefix = "-" if negative else None
+                expanded += lanes
+            self.operands = expanded
+
+        elif self.opcodes[:3] == ["QMMA", "16832", "F32"] and len(self.operands) in (4, 5):
+            # Per-lane D/A/B/C register fragments of dense FP8 m16n8k32.
+            expanded = []
+            for operand, count in zip(self.operands, (4, 4, 2, 4)):
+                expanded.extend(Operand.create_reg_group(operand, count).reg_group)
+            self.operands = expanded + self.operands[4:]
 
         # IMMA.8816.S8.S8 D, A, B, C — integer MMA
         # m8n8k16: D -> 2 regs, A -> 1 reg, B -> 1 reg, C -> 2 regs

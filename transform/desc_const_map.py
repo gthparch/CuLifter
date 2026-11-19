@@ -64,7 +64,7 @@ class RecordDescriptorConsts(SaSSTransform):
                         for reg in reg_names(dst):
                             state.pop(reg, None)
 
-                    if inst.opcodes[0] in ("ULDC", "LDC") and defs and uses:
+                    if inst.opcodes[0] in ("ULDC", "LDC", "LDCU") and defs and uses:
                         src = uses[0]
                         if getattr(src, "is_const_mem", False) \
                                 and src.offset_value is not None:

@@ -1269,6 +1269,25 @@ class Lifter:
         v2 = self._insert_type_cast_if_needed(IRBuilder, _get_val(uses[1], "fadd_rhs"), f32, "fadd_rhs")
         self._set_val(IRBuilder, IRRegs, dest, IRBuilder.fadd(v1, v2, "fadd"))
 
+    @lift_for("FFMA2")
+    def lift_ffma2(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        defs, uses = Inst.get_defs(), Inst.get_uses()
+        if Inst.opcodes != ["FFMA2"] or len(defs) != 2 or len(uses) != 6:
+            raise UnsupportedInstructionException("Unsupported packed FFMA2 operand selection")
+        f32 = self.ir.FloatType()
+        fn = self.llvm_module.globals.get("llvm.fma.f32")
+        if fn is None:
+            fn = self.ir.Function(self.llvm_module, self.ir.FunctionType(f32, [f32]*3), "llvm.fma.f32")
+        inputs = []
+        for op in uses:
+            source = op.clone()
+            source.prefix = None
+            value = self._insert_type_cast_if_needed(IRBuilder, _get_val(source, "ffma2_arg"), f32, "ffma2_arg")
+            inputs.append(IRBuilder.fneg(value) if op.is_negative_reg else value)
+        for lane, dest in enumerate(defs):
+            value = IRBuilder.call(fn, inputs[lane::2], "ffma2")
+            self._set_val(IRBuilder, IRRegs, dest, value)
+
     @lift_for("FFMA", "UFFMA")
     def lift_ffma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         dest = Inst.get_defs()[0]
@@ -2473,7 +2492,11 @@ class Lifter:
         one = self.ir.Constant(fbits_ty, 1)
         sign_neg = IRBuilder.icmp_signed("<", fbits, self.ir.Constant(fbits_ty, 0),
                                          "i2f_fneg")
-        if rnd == "RP":
+        if rnd == "RZ":
+            # Toward zero always reduces magnitude. The comparison direction follows the sign.
+            need = IRBuilder.select(sign_neg,cmp("<",back,ival),cmp(">",back,ival))
+            up = IRBuilder.sub(fbits,one,"i2f_toward_zero")
+        elif rnd == "RP":
             # round toward +Inf: needed only when RN landed BELOW the true value.
             need = cmp("<", back, ival, "i2f_rp_lt")
             # nextafter(+Inf): magnitude up.  For f>=0 bits+1; for f<0 bits-1.
@@ -2521,7 +2544,7 @@ class Lifter:
                 src_signed = (m[0] == "S")
                 src_width = int(m[1:])
             elif m in ("RP", "RM", "RZ", "RN", "RNI"):      # rounding mode
-                rnd = m if m in ("RP", "RM") else None
+                rnd = m if m in ("RP", "RM", "RZ") else None
         is_unsigned = not src_signed
 
         v1 = _get_val(op1, "i2f_src")
@@ -2545,7 +2568,7 @@ class Lifter:
         if v1.type != src_int_ty:
             v1 = self._insert_type_cast_if_needed(IRBuilder, v1, src_int_ty, "i2f_w")
 
-        if rnd in ("RP", "RM"):
+        if rnd in ("RP", "RM", "RZ"):
             val = self._int_to_float_directed(
                 IRBuilder, v1, dest_float_type, is_unsigned, rnd)
         elif is_unsigned:
@@ -3098,7 +3121,8 @@ class Lifter:
         a = _get_val(src1, "lop3_a")
         b = _get_val(src2, "lop3_b")
         c = _get_val(src3, "lop3_c")
-        q = _get_val(src4, "lop3_q")
+        is_pred_logic = Inst.opcodes[0] in ("PLOP3", "UPLOP3")
+        q = None if is_pred_logic else _get_val(src4, "lop3_q")
 
         lut_val = lut.immediate_value
 
@@ -3114,7 +3138,6 @@ class Lifter:
         # flipping a "false" LUT term to true (fpc: PLOP3 0xf1 with a=0,b=1,c=1
         # wrongly yielded P=true -> misclassification). LOP3/ULOP3 stay full-width
         # (true bitwise ops; their predicate output is genuinely `result != 0`).
-        is_pred_logic = Inst.opcodes[0] in ("PLOP3", "UPLOP3")
         if is_pred_logic:
             one = self.ir.Constant(i32, 1)
             a = IRBuilder.and_(a, one, "plop3_a_bit")
@@ -3126,28 +3149,41 @@ class Lifter:
         nc = IRBuilder.xor(c, neg)
 
         zero = self.ir.Constant(i32, 0)
-        r = zero
+        def apply_lut(lut_val):
+            r = zero
 
-        for idx in range(8):
-            if (lut_val >> idx) & 1 == 0:
-                continue
+            for idx in range(8):
+                if (lut_val >> idx) & 1 == 0:
+                    continue
 
-            a_bit = (idx >> 2) & 1
-            b_bit = (idx >> 1) & 1
-            c_bit = idx & 1
+                a_bit = (idx >> 2) & 1
+                b_bit = (idx >> 1) & 1
+                c_bit = idx & 1
 
-            va = a if a_bit else na
-            vb = b if b_bit else nb
-            vc = c if c_bit else nc
+                va = a if a_bit else na
+                vb = b if b_bit else nb
+                vc = c if c_bit else nc
 
-            t_ab = IRBuilder.and_(va, vb)
-            t_term = IRBuilder.and_(t_ab, vc)
+                t_ab = IRBuilder.and_(va, vb)
+                t_term = IRBuilder.and_(t_ab, vc)
 
-            if r is zero:
-                r = t_term
-            else:
-                r = IRBuilder.or_(r, t_term)
+                if r is zero:
+                    r = t_term
+                else:
+                    r = IRBuilder.or_(r, t_term)
+            return r
 
+        if is_pred_logic:
+            # PLOP3 has two predicate destinations and a truth table for each.
+            # A table belonging to a discarded PT destination cannot set the other result.
+            for dest, truth in zip(Inst.get_defs(), (lut, src4)):
+                if dest.is_writable_reg:
+                    value = apply_lut(truth.immediate_value)
+                    pred = IRBuilder.icmp_unsigned("!=", value, zero, "plop3_pred")
+                    self._set_val(IRBuilder, IRRegs, dest, pred)
+            return
+
+        r = apply_lut(lut_val)
         target_ty = destReg.get_ir_type(self)
         if destReg.is_writable_reg:
             result = self._insert_type_cast_if_needed(IRBuilder, r, target_ty, "lop3_result") if r.type != target_ty else r
@@ -3638,6 +3674,60 @@ class Lifter:
                 val, i, f"imma_res_{i}"
             ))
 
+    @lift_for("IDP")
+    def lift_idp(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        """IDP.4A.{S8.S8|U8.U8|S8.U8} Rd, Ra, Rb, Rc — integer dot product.
+
+        Computes D = C + sum(ext(A_bytes[i]) * ext(B_bytes[i])) for i=0..3
+        where A_bytes/B_bytes are 4 packed int8 values in Ra/Rb.
+        Sign extension depends on modifiers (S8=signed, U8=unsigned).
+        """
+        if "4A" not in Inst.opcodes or any(m not in ("4A", "S8", "U8") for m in Inst.opcodes[1:]):
+            raise UnsupportedInstructionException(f"unsupported IDP form {Inst.opcodes}")
+        defs = Inst.get_defs()
+        uses = Inst.get_uses()
+
+        ra = _get_val(uses[0], "idp_ra")
+        rb = _get_val(uses[1], "idp_rb")
+        rc = _get_val(uses[2], "idp_rc")
+
+        i32 = ir.IntType(32)
+        i8 = ir.IntType(8)
+
+        # Determine sign extension for A and B from modifiers
+        modifiers = [tok.upper() for tok in Inst.opcodes[1:]]
+        # Typical: ["4A", "S8", "S8"] or ["4A", "U8", "U8"] or ["4A", "S8", "U8"]
+        sign_tokens = [m for m in modifiers if m in ("S8", "U8")]
+        a_signed = sign_tokens[0] == "S8" if len(sign_tokens) > 0 else True
+        b_signed = sign_tokens[1] == "S8" if len(sign_tokens) > 1 else True
+
+        # Ensure operands are i32
+        ra = self._insert_type_cast_if_needed(IRBuilder, ra, i32, "idp_ra")
+        rb = self._insert_type_cast_if_needed(IRBuilder, rb, i32, "idp_rb")
+        rc = self._insert_type_cast_if_needed(IRBuilder, rc, i32, "idp_rc")
+
+        accum = rc
+        for i in range(4):
+            shift_amt = ir.Constant(i32, i * 8)
+            a_shifted = IRBuilder.lshr(ra, shift_amt, f"idp_a_shr{i}")
+            a_byte = IRBuilder.trunc(a_shifted, i8, f"idp_a_byte{i}")
+            if a_signed:
+                a_ext = IRBuilder.sext(a_byte, i32, f"idp_a_ext{i}")
+            else:
+                a_ext = IRBuilder.zext(a_byte, i32, f"idp_a_ext{i}")
+
+            b_shifted = IRBuilder.lshr(rb, shift_amt, f"idp_b_shr{i}")
+            b_byte = IRBuilder.trunc(b_shifted, i8, f"idp_b_byte{i}")
+            if b_signed:
+                b_ext = IRBuilder.sext(b_byte, i32, f"idp_b_ext{i}")
+            else:
+                b_ext = IRBuilder.zext(b_byte, i32, f"idp_b_ext{i}")
+
+            prod = IRBuilder.mul(a_ext, b_ext, f"idp_prod{i}")
+            accum = IRBuilder.add(accum, prod, f"idp_acc{i}")
+
+        self._set_val(IRBuilder, IRRegs, defs[0], accum)
+
     @lift_for("DEPBAR")
     def lift_depbar(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         pass
@@ -3672,7 +3762,7 @@ class Lifter:
             if narrow_ty is not None:
                 load_ty = narrow_ty
             else:
-                load_ty = self.ir.IntType(64) if is_64 else self.ir.IntType(32)
+                load_ty = self.ir.IntType(128 if "128" in mods else 64 if is_64 else 32)
             if src.is_reg and src.reg and src.reg not in ("RZ", "URZ"):
                 # Register-indexed load, e.g. `LDC.S8 Rd, c[0x3][R0]`: the byte
                 # offset is dynamic (R0[+imm]), so index const_mem at runtime.
@@ -4308,12 +4398,15 @@ class Lifter:
         # f16 bit pattern 0x0004 = subnormal -> would flush to 0).
         if (
             not is_bf16
-            and is_mma
             and len(uses) >= 4
             and uses[0].is_rz
             and uses[1].is_rz
             and uses[2].is_immediate
             and uses[3].is_immediate
+            and (is_mma or (len(Inst.opcodes) == 1 and uses[0].is_negative_reg
+                            and not uses[1].is_negative_reg
+                            and any(0 < abs(float(op.immediate_value)) < 2**-14
+                                    for op in uses[2:4])))
         ):
             c_hi = self._float_to_half_bits_ieee(float(uses[2].immediate_value))
             c_lo = self._float_to_half_bits_ieee(float(uses[3].immediate_value))

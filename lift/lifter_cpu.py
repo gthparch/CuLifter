@@ -3384,58 +3384,6 @@ class CpuLifter(Lifter):
                     self._set_val(IRBuilder, IRRegs, d, true_pred)
         # DEALLOC / any other form: NOP (no register pool to manage on x86).
 
-    @lift_for("IDP")
-    def lift_idp(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, _as_pointer=None):
-        """IDP.4A.{S8.S8|U8.U8|S8.U8} Rd, Ra, Rb, Rc — integer dot product.
-
-        Computes D = C + sum(ext(A_bytes[i]) * ext(B_bytes[i])) for i=0..3
-        where A_bytes/B_bytes are 4 packed int8 values in Ra/Rb.
-        Sign extension depends on modifiers (S8=signed, U8=unsigned).
-        """
-        defs = Inst.get_defs()
-        uses = Inst.get_uses()
-
-        ra = _get_val(uses[0], "idp_ra")
-        rb = _get_val(uses[1], "idp_rb")
-        rc = _get_val(uses[2], "idp_rc")
-
-        i32 = ir.IntType(32)
-        i8 = ir.IntType(8)
-
-        # Determine sign extension for A and B from modifiers
-        modifiers = [tok.upper() for tok in Inst.opcodes[1:]]
-        # Typical: ["4A", "S8", "S8"] or ["4A", "U8", "U8"] or ["4A", "S8", "U8"]
-        sign_tokens = [m for m in modifiers if m in ("S8", "U8")]
-        a_signed = sign_tokens[0] == "S8" if len(sign_tokens) > 0 else True
-        b_signed = sign_tokens[1] == "S8" if len(sign_tokens) > 1 else True
-
-        # Ensure operands are i32
-        ra = self._insert_type_cast_if_needed(IRBuilder, ra, i32, "idp_ra")
-        rb = self._insert_type_cast_if_needed(IRBuilder, rb, i32, "idp_rb")
-        rc = self._insert_type_cast_if_needed(IRBuilder, rc, i32, "idp_rc")
-
-        accum = rc
-        for i in range(4):
-            shift_amt = ir.Constant(i32, i * 8)
-            a_shifted = IRBuilder.lshr(ra, shift_amt, f"idp_a_shr{i}")
-            a_byte = IRBuilder.trunc(a_shifted, i8, f"idp_a_byte{i}")
-            if a_signed:
-                a_ext = IRBuilder.sext(a_byte, i32, f"idp_a_ext{i}")
-            else:
-                a_ext = IRBuilder.zext(a_byte, i32, f"idp_a_ext{i}")
-
-            b_shifted = IRBuilder.lshr(rb, shift_amt, f"idp_b_shr{i}")
-            b_byte = IRBuilder.trunc(b_shifted, i8, f"idp_b_byte{i}")
-            if b_signed:
-                b_ext = IRBuilder.sext(b_byte, i32, f"idp_b_ext{i}")
-            else:
-                b_ext = IRBuilder.zext(b_byte, i32, f"idp_b_ext{i}")
-
-            prod = IRBuilder.mul(a_ext, b_ext, f"idp_prod{i}")
-            accum = IRBuilder.add(accum, prod, f"idp_acc{i}")
-
-        self._set_val(IRBuilder, IRRegs, defs[0], accum)
-
     @lift_for("SYNCS")
     def lift_syncs(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, _as_pointer=None):
         """SYNCS Hopper mbarrier op — lifted to the wrapper's real mbarrier

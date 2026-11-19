@@ -619,6 +619,15 @@ class NVVMLifter(Lifter):
         # downstream arithmetic lands on our own (identical-layout) params.
         fn_name = builder.function.name
         param_bias = 0x30 if byte_offset == 0x198 else None
+        if bank == 0 and byte_offset == 0x36c and getattr(self.elf, "blackwell_param_abi", False) and target_ty == self.ir.IntType(32):
+            # Verified with mov.pred %is_explicit_cluster on sm_100a/sm_120.
+            read_cluster = self.ir.InlineAsm(self.ir.FunctionType(target_ty, []),
+                "{ .reg .pred p; mov.pred p, %is_explicit_cluster; selp.u32 $0, 1, 0, p; }",
+                "=r", side_effect=False)
+            return builder.call(read_cluster, [], name or "explicit_cluster")
+        # Blackwell cvta.param materializes the address of param_0 directly.
+        if byte_offset == 0x348 and getattr(self.elf, "blackwell_param_abi", False):
+            param_bias = 0
         # The older NVJET Hopper cubins load the bank-0 base from 0xc0.
         # Their TMA offsets are absolute bank offsets (e.g. 0x2c0 for
         # the descriptor 176 bytes into the argument at 0x210).
@@ -830,6 +839,12 @@ class NVVMLifter(Lifter):
                 self.llvm_module, func_ty,
                 "llvm.nvvm.mma.m16n8k16.row.col.f32.f32",
             )
+        elif name == "hmma16816f32_bf16":
+            # NVVM uses four packed i32 A fragments, two packed i32 B
+            # fragments and four f32 accumulators for the bf16 form.
+            func_ty = ir.FunctionType(ir.LiteralStructType([f32] * 4),
+                                      [ir.IntType(32)] * 6 + [f32] * 4)
+            func = ir.Function(self.llvm_module, func_ty, "llvm.nvvm.mma.m16n8k16.row.col.bf16")
         elif name == "hmma16816f16":
             # m16n8k16 f16-input, f16-accum MMA. A:4 + B:2 + C:2 = 8 v2f16.
             v2f16 = ir.VectorType(ir.HalfType(), 2)
@@ -1141,7 +1156,7 @@ class NVVMLifter(Lifter):
         # directed rounding with an i64->i128 round-trip (`fptosi double to
         # i128`) that the NVPTX backend cannot select ("unsupported library call
         # operation" -> intrinsics-cast/resize/bitpacking FAIL_LIFT).
-        rmode = "rp" if rnd == "RP" else "rm"
+        rmode = {"RP":"rp", "RM":"rm", "RZ":"rz"}[rnd]
         w = ival.type.width
         if w not in (32, 64):
             ival = (IRBuilder.zext(ival, self.ir.IntType(64), "i2f_dir_ext")
@@ -2648,6 +2663,34 @@ class NVVMLifter(Lifter):
         for i in range(len(dests)):
             self._set_val(IRBuilder, IRRegs, dests[i],
                           IRBuilder.extract_value(val, i, f"dmma_d{i}"))
+
+    @lift_for("QMMA")
+    def lift_qmma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        # ptxas uses QMMA D,A,B,C,UPn when a uniform select zeros C if UPn
+        # is false. Preserve that select before the warp-level MMA.
+        mods = Inst.opcodes[1:]
+        uses = Inst.get_uses()
+        if (len(mods) != 4 or mods[:2] != ["16832", "F32"] or
+                any(t not in ("E4M3", "E5M2") for t in mods[2:]) or
+                len(uses) not in (10, 11) or len(Inst.get_defs()) != 4):
+            raise UnsupportedInstructionException(f"Unsupported QMMA form: {Inst.opcodes}")
+        i32, f32 = self.ir.IntType(32), self.ir.FloatType()
+        types = [i32] * 6 + [f32] * 4
+        values = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "qmma_input"), ty, "qmma_input")
+                  for op, ty in zip(uses, types)]
+        if len(uses) == 11:
+            predicate = _get_val(uses[-1], "qmma_use_c")
+            for j in range(6, 10):
+                values[j] = IRBuilder.select(predicate, values[j], self.ir.Constant(f32, 0.0))
+        result_type = self.ir.LiteralStructType([f32] * 4)
+        asm = self.ir.InlineAsm(
+            self.ir.FunctionType(result_type, types),
+            f"mma.sync.aligned.m16n8k32.row.col.f32.{mods[2].lower()}.{mods[3].lower()}.f32 "
+            "{$0,$1,$2,$3}, {$4,$5,$6,$7}, {$8,$9}, {$10,$11,$12,$13};",
+            "=f,=f,=f,=f,r,r,r,r,r,r,f,f,f,f", side_effect=False)
+        result = IRBuilder.call(asm, values, "qmma")
+        for j, dest in enumerate(Inst.get_defs()):
+            self._set_val(IRBuilder, IRRegs, dest, IRBuilder.extract_value(result, j))
 
     @lift_for("IMMA")
     def lift_imma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
