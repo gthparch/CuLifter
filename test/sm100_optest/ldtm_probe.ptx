@@ -1,0 +1,22 @@
+.version 8.7
+.target sm_100a
+.address_size 64
+
+.visible .entry read_tmem(.param .u32 addr, .param .u64 dst)
+{
+    .reg .b32 %base, %v<6>;
+    .reg .b64 %out;
+    ld.param.u32 %base, [addr];
+    ld.param.u64 %out, [dst];
+    tcgen05.ld.sync.aligned.32x32b.x2.b32 {%v0, %v1}, [%base+2];
+    tcgen05.wait::ld.sync.aligned;
+    tcgen05.ld.sync.aligned.32x32b.x4.b32 {%v2, %v3, %v4, %v5}, [%base+4];
+    tcgen05.wait::ld.sync.aligned;
+    st.global.u32 [%out],    %v0;
+    st.global.u32 [%out+4],  %v1;
+    st.global.u32 [%out+8],  %v2;
+    st.global.u32 [%out+12], %v3;
+    st.global.u32 [%out+16], %v4;
+    st.global.u32 [%out+20], %v5;
+    ret;
+}
