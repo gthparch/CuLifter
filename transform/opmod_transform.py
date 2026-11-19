@@ -1,9 +1,12 @@
+from collections import Counter
+
 from transform.transform import SaSSTransform
 from sir.instruction import Instruction
 from sir.operand import Operand
 
 
 class OpModTransform(SaSSTransform):
+    ADDRESS_SCALE_SHIFTS = {"X2": 1, "X4": 2, "X8": 3, "X16": 4}
 
     # 32-bit address spaces (shared/local) whose [Rbase+URidx] operands can be
     # folded with a plain 32-bit add. 64-bit global forms ([R16.64+UR4],
@@ -22,7 +25,7 @@ class OpModTransform(SaSSTransform):
     def apply(self, module):
         print("=== Start of OpModeTransform ===")
 
-        total_inserted = 0
+        scale_counts = Counter()
         total_idx_folds = 0
         new_regs_count = {}
 
@@ -33,25 +36,27 @@ class OpModTransform(SaSSTransform):
                     inserted_here = 0
                     # Scan all operands; 
                     for op in inst.operands:
-                        # Handle any memory operand with .X4 suffix
-                        if op.is_mem_addr and op.suffix == "X4":
-                            # Create SHL tmp, base, 0x2
+                        # Scale the base before folding the index. The immediate
+                        # displacement remains attached to the memory operand.
+                        if (op.is_mem_addr and op.is_reg and not op.is_reg_group
+                                and op.suffix in self.ADDRESS_SCALE_SHIFTS):
+                            scale = op.suffix.lower()
+                            shift = self.ADDRESS_SCALE_SHIFTS[op.suffix]
                             base_reg = op.reg  # underlying register name (e.g., R7)
 
                             # Source operand (as a plain register, not a memory address)
                             src_op = Operand.from_reg(base_reg, base_reg)
 
                             # Unique destination register name
-                            base_dst = f"{base_reg}_x4"
+                            base_dst = f"{base_reg}_{scale}"
                             new_regs_count[base_dst] = new_regs_count.get(base_dst, 0) + 1
                             dst_name = f"{base_dst}_{new_regs_count[base_dst]}"
                             dst_op = Operand.from_reg(dst_name, dst_name)
 
-                            # Immediate 2 (shift by 2 == multiply by 4)
-                            imm_op = Operand.from_immediate("0x2", 2)
+                            imm_op = Operand.from_immediate(hex(shift), shift)
 
                             shl_inst = Instruction(
-                                id=f"{inst.id}_x4",
+                                id=f"{inst.id}_{scale}",
                                 opcodes=["SHL"],
                                 operands=[dst_op, src_op, imm_op],
                                 parentBB=inst.parent
@@ -60,7 +65,7 @@ class OpModTransform(SaSSTransform):
                             # Insert before the current instruction
                             new_insts.append(shl_inst)
                             inserted_here += 1
-                            total_inserted += 1
+                            scale_counts[op.suffix] += 1
 
                             # Rewrite memory operand to use the new register (and drop suffix)
                             op.set_reg(dst_name)
@@ -146,8 +151,8 @@ class OpModTransform(SaSSTransform):
 
                 block.instructions = new_insts
 
-        self.total_x4_expansions = total_inserted
-        print(f"Total .X4 expansions inserted: {total_inserted}")
+        self.total_x4_expansions = scale_counts["X4"]
+        print(f"Total scaled address expansions inserted: {sum(scale_counts.values())}")
         if total_idx_folds:
             print(f"Total index-reg folds inserted: {total_idx_folds}")
         print("=== End of OpModeTransform ===")

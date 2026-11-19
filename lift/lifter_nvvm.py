@@ -9,7 +9,7 @@ from transform.resolve_indirect_call import ResolveIndirectCall
 from transform.cg_patterns import CGPatterns
 from transform.intdiv_recognize import IntDivRecognize
 from transform.predicated_to_sel import PredicatedToSel
-from transform.sr_substitute_reverse import SRSubstituteReverse
+from transform.sr_substitute_reverse import PRE_HOPPER_STACK_POINTER_ISAS, SRSubstituteReverse
 from transform.opmod_transform import OpModTransform
 from transform.defuse_analysis import DefUseAnalysis, FullDefUseAnalysis
 from transform.ssa import SSA
@@ -684,6 +684,13 @@ class NVVMLifter(Lifter):
     def LocalMem(self):
         return self._local_mem
 
+    def _sp_base_value(self, func_name):
+        stack_size = super()._sp_base_value(func_name)
+        if self.sir_module.isa in PRE_HOPPER_STACK_POINTER_ISAS:
+            # The local address window starts on a 16-byte boundary.
+            return (stack_size + 15) & ~15
+        return stack_size
+
     def _load_from_const_mem(self, builder, bank, byte_offset, target_ty, name=""):
         # sm_90 driver slot c[0x0][0x198]: the GENERIC ADDRESS of the kernel's
         # grid-constant param buffer (nvcc's cvta.param materialization; TMA
@@ -692,7 +699,8 @@ class NVVMLifter(Lifter):
         # substitute cvta.param of OUR param_0 minus the fixed 0x30 ABI bias so
         # downstream arithmetic lands on our own (identical-layout) params.
         fn_name = builder.function.name
-        param_bias = 0x30 if byte_offset == 0x198 else None
+        hopper = self.sir_module.isa in ("sm_90", "sm_90a")
+        param_bias = 0x30 if hopper and byte_offset == 0x198 else None
         if bank == 0 and byte_offset == 0x36c and getattr(self.elf, "blackwell_param_abi", False) and target_ty == self.ir.IntType(32):
             # Verified with mov.pred %is_explicit_cluster on sm_100a/sm_120.
             read_cluster = self.ir.InlineAsm(self.ir.FunctionType(target_ty, []),

@@ -2877,6 +2877,11 @@ class Lifter:
 
         # Standard F2F/F2FP (non-PACK_AB)
         op1 = uses[0]
+        if src_width == 64 and op1.is_const_mem:
+            # A constant-bank operand has no register pair to carry its width.
+            # Read it as a double before applying any source modifiers.
+            op1 = op1.clone()
+            op1.set_type_desc("Float64")
 
         # Scalar BF16 endpoints are bit-level conversions — the generic
         # 16-bit path below maps width 16 to HalfType (f16, exp bias 15),
