@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef SLIFTER_ARG_BASE
+#define SLIFTER_ARG_BASE 0x160
+#endif
+
 // -----------------------------------------------------------------------------
 // Runtime support for lifted CUDA SASS (SM75)
 // - const_mem  : per-thread "constant memory" (c[0]..c[4])
@@ -193,11 +197,7 @@ enum : uint32_t {
     SR_TID_Y      = 0x30,
     SR_TID_Z      = 0x34,
     SR_LANE_ID    = 0x38,
-#ifndef SLIFTER_ARG_BASE
-    ARG_BASE      = 0x160
-#else
     ARG_BASE      = SLIFTER_ARG_BASE
-#endif
 };
 
 static uint32_t off = ARG_BASE;
