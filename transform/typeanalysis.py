@@ -520,6 +520,11 @@ class TypeAnalysis(SaSSTransform):
             "UTMACMDFLUSH": [[], []],
             "UCGABAR_ARV": [[], []],
             "UCGABAR_WAIT": [[], []],
+            "UTCIMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
+            "UTCBAR": [[], [INT32, INT32]],
+            "UTCBAR.MULTICAST": [[], [INT32, INT32, INT32]],
+            "UTCATOMSWS.FIND_AND_SET": [[BOOL, INT32], [INT32]],
+            "UTCATOMSWS.AND": [[INT32], [INT32]],
             # TMA data-move opcodes — lift_utmaldg / lift_utmastg decompose
             # the memory effect; types of the UR operands are driven by
             # downstream propagation (descriptor reg = INT64 pointer, coord

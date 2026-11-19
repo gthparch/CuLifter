@@ -18,6 +18,7 @@ from transform.xmad_to_imad import XmadToImad
 from transform.fp_hack import FPHack
 from transform.set_zero import SetZero
 from transform.dce import DCE
+from transform.tmem_alloc import mark_full_tmem_alloc
 from transform.mov_eliminate import MovEliminate
 from transform.typeanalysis import TypeAnalysis, FLOAT32, FLOAT64
 from transform.resolve_brx import ResolveBRX
@@ -85,6 +86,9 @@ class NVVMLifter(Lifter):
         # module level before per-function transforms split the Functions apart.
         from transform.cross_func_inline import CrossFuncInline
         CrossFuncInline().apply(module)
+        if module.isa in ("sm_100", "sm_100a"):
+            for func in module.functions:
+                mark_full_tmem_alloc(func)
 
     def get_transform_passes(self):
         cluster_barriers = ("UCGABAR_ARV", "UCGABAR_WAIT")
@@ -2182,6 +2186,95 @@ class NVVMLifter(Lifter):
             [self.ir.Constant(self.ir.IntType(32), 0), addr],
             name,
         )
+
+    @lift_for("UTCATOMSWS")
+    def lift_utcatomsws(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        i32 = self.ir.IntType(32)
+        if Inst.opcodes == ["UTCATOMSWS", "FIND_AND_SET", "FULL_TMEM"]:
+            units = _get_val(Inst.get_uses()[0], "tmem_units")
+            if not isinstance(units, self.ir.Constant) or units.constant != 16:
+                raise UnsupportedInstructionException("full TMEM allocation requires 16 groups of 32 columns")
+            slot = self.llvm_module.globals.get("tcgen05_alloc_slot")
+            if slot is None:
+                slot = self.ir.GlobalVariable(self.llvm_module, i32, "tcgen05_alloc_slot", addrspace=3)
+                slot.linkage = "internal"
+                slot.initializer = self.ir.Constant(i32, self.ir.Undefined)
+                slot.align = 4
+            asm = self.ir.InlineAsm(self.ir.FunctionType(i32, [i32]),
+                                    "{ .reg .b32 base; tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32"
+                                    " [$1], 512; bar.warp.sync 0xffffffff; ld.shared.b32 base, [$1];"
+                                    " shr.u32 $0, base, 5; }", "=r,r,~{memory}", side_effect=True)
+            group = IRBuilder.call(asm, [IRBuilder.ptrtoint(slot, i32)], "tmem_group")
+            self._set_val(IRBuilder, IRRegs, Inst.get_defs()[1], group)
+        elif Inst.opcodes == ["UTCATOMSWS", "AND", "FULL_TMEM"]:
+            mask = self._insert_type_cast_if_needed(IRBuilder, _get_val(Inst.get_uses()[0], "tmem_keep"),
+                                                    i32, "tmem_keep32")
+            asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32]),
+                                    "{ .reg .b32 base; not.b32 base, $0; brev.b32 base, base;"
+                                    " clz.b32 base, base; shl.b32 base, base, 5;"
+                                    " tcgen05.dealloc.cta_group::1.sync.aligned.b32 base, 512;"
+                                    " tcgen05.relinquish_alloc_permit.cta_group::1.sync.aligned; }",
+                                    "r,~{memory}", side_effect=True)
+            IRBuilder.call(asm, [mask])
+        else:
+            raise UnsupportedInstructionException("unrecognized tensor-memory SW-state allocation/release protocol")
+
+    @lift_for("UTCIMMA")
+    def lift_utcimma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        ops = Inst.get_uses()
+        if (Inst.opcodes != ["UTCIMMA"] or len(ops) != 6
+                or not all(op.is_reg_group and len(op.reg_group) == 2 for op in ops[:2])):
+            raise UnsupportedInstructionException("expected dense single-CTA UTCIMMA with two SMEM descriptors")
+        i32, i64 = self.ir.IntType(32), self.ir.IntType(64)
+        # The fourth SASS operand is the metadata TMEM slot of the descriptor
+        # pair. Dense i8 has no sparsity metadata or disable-output-lane tuple.
+        a, b, dest, metadata, idesc, acc = ops
+        metadata_value = _get_val(metadata, "mma_metadata")
+        if not isinstance(metadata_value, self.ir.Constant) or metadata_value.constant != 0:
+            raise UnsupportedInstructionException("nonzero or dynamic UTCIMMA metadata slot")
+        delta = IRBuilder.ptrtoint(self.SharedMem, i64)
+        delta = IRBuilder.sub(delta, self.ir.Constant(i64, getattr(self, "_shared_dyn_base", 0)))
+        delta = IRBuilder.lshr(delta, self.ir.Constant(i64, 4))
+
+        def descriptor(op):
+            value = _get_val(op, "mma_smem_desc")
+            field = self.ir.Constant(i64, 0x3fff)
+            start = IRBuilder.and_(IRBuilder.add(value, delta), field)
+            return IRBuilder.or_(IRBuilder.and_(value, self.ir.Constant(i64, ~0x3fff)), start)
+
+        args = [_get_val(dest, "mma_tmem"), descriptor(a), descriptor(b),
+                _get_val(idesc, "mma_idesc"), _get_val(acc, "mma_enable_d")]
+        types = [i32, i64, i64, i32, i32]
+        args = [self._insert_type_cast_if_needed(IRBuilder, v, t, "mma_arg") for v, t in zip(args, types)]
+        body = self._elect_one_wrap("tcgen05.mma.cta_group::1.kind::i8 [$0], $1, $2, $3, use_d")
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), types),
+                                "{ .reg .pred use_d; setp.ne.u32 use_d, $4, 0; " + body + " }",
+                                "r,l,l,r,r,~{memory}", side_effect=True)
+        IRBuilder.call(asm, args)
+
+    @lift_for("UTCBAR")
+    def lift_utcbar(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        ops = Inst.get_uses()
+        multicast = Inst.opcodes == ["UTCBAR", "MULTICAST"]
+        if ((not multicast and Inst.opcodes != ["UTCBAR"]) or len(ops) != 2 + multicast
+                or not (ops[1].is_rz or ops[1].is_immediate and ops[1].immediate_value == 0)):
+            raise UnsupportedInstructionException("unsupported UTCBAR form or completion operand")
+        i32 = self.ir.IntType(32)
+        address = self._insert_type_cast_if_needed(IRBuilder, _get_val(ops[0], "utcbar_addr"), i32, "utcbar_bits")
+        local = IRBuilder.ptrtoint(self._shared_gep(IRBuilder, address, "utcbar_local"), i32)
+        args = [local, IRBuilder.lshr(address, self.ir.Constant(i32, 24))]
+        op = "tcgen05.commit.cta_group::1.mbarrier::arrive::one.shared::cluster"
+        constraints = "r,r"
+        if multicast:
+            args.append(self._insert_type_cast_if_needed(IRBuilder, _get_val(ops[2], "utcbar_mask"),
+                                                         self.ir.IntType(16), "utcbar_mask16"))
+            op += ".multicast::cluster"
+            constraints += ",h"
+        body = self._elect_one_wrap(op + ".b64 [bar]" + (", $2" if multicast else ""))
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [v.type for v in args]),
+                                "{ .reg .u32 bar; mapa.shared::cluster.u32 bar, $0, $1; " + body + " }",
+                                constraints + ",~{memory}", side_effect=True)
+        IRBuilder.call(asm, args)
 
     @lift_for("LDTM")
     def lift_ldtm(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, **kwargs):

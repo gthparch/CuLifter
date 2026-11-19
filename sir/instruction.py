@@ -146,6 +146,10 @@ class Instruction:
         elif self.is_load():
             self.use_op_start_idx = 1
 
+        # FIND_AND_SET writes the success predicate and the group index.
+        elif self.opcodes[:2] == ["UTCATOMSWS", "FIND_AND_SET"]:
+            self.use_op_start_idx = 2
+
         # Store and Branch have no def op (UBLKCP: TMA bulk copy writes
         # only memory — its dst-address chain must be traced as a USE so
         # DCE keeps it live, same as RED/REDG)
@@ -585,6 +589,14 @@ class Instruction:
         # STL.128 [R10+0x100], R87 stores 128-bit from R87, R88, R89, R90
         elif self.opcodes[0] == "STL" and "128" in self.opcodes:
             self.operands[1] = Operand.create_reg_quad(self.operands[1])
+
+        elif (self.opcodes == ["UTCIMMA"] and len(self.operands) == 6
+              and all(re.fullmatch(r"gdesc\[UR\d+\]", op.name or "") for op in self.operands[:2])
+              and all(re.fullmatch(r"tmem\[UR\d+\]", op.name or "") for op in self.operands[2:4])
+              and (idesc := re.fullmatch(r"idesc\[(UR\d+)\]", self.operands[4].name or ""))
+              and (self.operands[5].is_predicate_reg or self.operands[5].is_pt)):
+            self.operands[:2] = [Operand.create_reg_pair(op) for op in self.operands[:2]]
+            self.operands[4] = Operand.from_reg(idesc[1], idesc[1])
 
         elif self.opcodes[0] == "LDTM" and self.ldtm_register_count:
             count = self.ldtm_register_count
