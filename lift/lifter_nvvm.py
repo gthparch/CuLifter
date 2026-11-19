@@ -256,6 +256,76 @@ class NVVMLifter(Lifter):
         # globals) are unchanged — they stay on the global @const_mem.
         self._param_local = None
         self._setup_nv_globals(llvm_module)
+        self._setup_warpgroup_wait(llvm_module)
+
+    def _setup_warpgroup_wait(self, llvm_module):
+        # A CTA can contain eight 128-thread warpgroups. Give each a distinct
+        # named barrier, disjoint from BAR instructions even across device calls.
+        self._warpgroup_wait_functions = set()
+        self._warpgroup_init_functions = set()
+        used = {0}  # Also used by llvm.nvvm.barrier0.
+        callers = {}
+        for func in self.sir_module.functions:
+            for block in func.blocks:
+                for inst in block.instructions:
+                    if inst.opcodes[:2] == ["WARPGROUP", "WAIT"]:
+                        self._warpgroup_wait_functions.add(func.name)
+                    elif inst.opcodes[:1] == ["BAR"] and inst.get_uses():
+                        operand = inst.get_uses()[0]
+                        if operand.is_immediate:
+                            used.add(operand.immediate_value)
+                        else:
+                            used.update(range(16))
+                    elif inst.opcodes[:1] == ["CALLFUNC"]:
+                        target = inst.get_uses()[0]
+                        callers.setdefault(target.name or str(target), set()).add(func.name)
+        if not self._warpgroup_wait_functions:
+            return
+
+        self._warpgroup_barrier_base = next(
+            (base for base in range(8, 0, -1) if used.isdisjoint(range(base, base + 8))),
+            None)
+        if self._warpgroup_barrier_base is not None:
+            return
+
+        # A register-selected BAR may use any slot. Use private, reusable
+        # mbarriers instead, initialized before any warp can leave kernel entry.
+        # Only the first eight words are used. Pad the allocation to one full
+        # 128-byte TMA swizzle period so moving the application's shared window
+        # past it preserves the low ten address bits used for bank selection.
+        ty = ir.ArrayType(ir.IntType(64), 1024 // 8)
+        self._warpgroup_mbarriers = ir.GlobalVariable(llvm_module, ty, "warpgroup_mbarriers", 3)
+        self._warpgroup_mbarriers.linkage = "internal"
+        self._warpgroup_mbarriers.initializer = ir.Constant(ty, ir.Undefined)
+        self._warpgroup_mbarriers.align = 8
+        pending = list(self._warpgroup_wait_functions)
+        while pending:
+            func = pending.pop()
+            if func not in self._warpgroup_init_functions:
+                self._warpgroup_init_functions.add(func)
+                pending.extend(callers.get(func, ()))
+
+    def _prepare_warpgroup_barrier(self, builder, initialize):
+        i32 = ir.IntType(32)
+        x, y, z, nx, ny = [self.run_intrinsic("sreg_" + reg, builder, [])
+                           for reg in ("tid.x", "tid.y", "tid.z", "ntid.x", "ntid.y")]
+        row = builder.add(builder.mul(z, ny), y)
+        tid = builder.add(builder.mul(row, nx), x)
+        group = builder.lshr(tid, ir.Constant(i32, 7), "warpgroup")
+        if self._warpgroup_barrier_base is not None:
+            self._warpgroup_barrier = builder.add(group, ir.Constant(i32, self._warpgroup_barrier_base))
+            return
+
+        ptr = builder.gep(self._warpgroup_mbarriers, [ir.Constant(i32, 0), group])
+        self._warpgroup_barrier = builder.ptrtoint(ptr, i32)
+        if initialize:
+            lane = builder.and_(tid, ir.Constant(i32, 127))
+            asm = ir.InlineAsm(ir.FunctionType(ir.VoidType(), [i32, i32]),
+                               "{ .reg .pred leader; setp.eq.u32 leader, $1, 0; "
+                               "@leader mbarrier.init.shared::cta.b64 [$0], 128; }",
+                               "r,r,~{memory}", side_effect=True)
+            builder.call(asm, [self._warpgroup_barrier, lane])
+            self.run_intrinsic("barrier", builder, [], "warpgroup_init_sync")
 
     # Opcodes that address shared memory; their first memory operand's base
     # register is the shared base we trace into.
@@ -1246,9 +1316,8 @@ class NVVMLifter(Lifter):
                 f"Function type mismatch for {func.name}: {ir_function.function_type} vs {func_ty}"
             )
 
-        if self.arg_map and func.name in self.arg_map:
-            self._mark_kernel(llvm_module, ir_function)
-        elif not self.arg_map:
+        kernel_entry = not self.arg_map or func.name in self.arg_map
+        if kernel_entry:
             # SASS-only mode (no ELF -> no KPARAM map): the function takes no
             # IR params (the code reads the captured blob through the
             # @const_mem global), but it must still be a KERNEL (.entry) or
@@ -1262,6 +1331,10 @@ class NVVMLifter(Lifter):
         entry_block = func.block_map[func.blocks[0]]
         builder = self.ir.IRBuilder(entry_block)
         builder.position_at_start(entry_block)
+
+        initialize = kernel_entry and func.name in self._warpgroup_init_functions
+        if initialize or func.name in self._warpgroup_wait_functions:
+            self._prepare_warpgroup_barrier(builder, initialize)
 
         local_array_ty = self.ir.ArrayType(self.ir.IntType(8), 32768)
         self._local_mem = builder.alloca(local_array_ty, name="local_mem")
@@ -4218,7 +4291,7 @@ class NVVMLifter(Lifter):
 
     @lift_for("WARPGROUP")
     def lift_warpgroup(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
-        """WARPGROUP.ARRIVE / WARPGROUP.DEPBAR.LE -> wgmma fence/commit/wait.
+        """Lower the warpgroup rendezvous and WGMMA fence/scoreboard operations.
 
         ptxas compiles the PTX wgmma bracket ops to this SASS pair:
           wgmma.fence.sync.aligned          -> WARPGROUP.ARRIVE
@@ -4228,6 +4301,21 @@ class NVVMLifter(Lifter):
         """
         mods = [t.upper() for t in Inst.opcodes[1:]]
         void_ty = self.ir.FunctionType(self.ir.VoidType(), [])
+        if "WAIT" in mods:
+            # NVJET elects a TMA-store warp after all four warps write shared
+            # memory. The fence and MMA scoreboard alone do not rendezvous them.
+            if self._warpgroup_barrier_base is not None:
+                operation = "barrier.cta.sync $0, 128;"
+            else:
+                operation = ("{ .reg .b64 state; .reg .pred done; "
+                             "mbarrier.arrive.release.cta.shared::cta.b64 state, [$0]; "
+                             "wait_${:uid}: "
+                             "mbarrier.try_wait.acquire.cta.shared::cta.b64 done, [$0], state; "
+                             "@!done bra wait_${:uid}; }")
+            asm = ir.InlineAsm(ir.FunctionType(ir.VoidType(), [ir.IntType(32)]), operation,
+                               "r,~{memory}", side_effect=True)
+            IRBuilder.call(asm, [self._warpgroup_barrier], attrs=("convergent",))
+            return
         if "ARRIVE" in mods:
             asm = self.ir.InlineAsm(void_ty, "wgmma.fence.sync.aligned;", "~{memory}",
                                     side_effect=True)

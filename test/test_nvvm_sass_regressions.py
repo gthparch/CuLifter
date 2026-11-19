@@ -105,6 +105,42 @@ def test_cluster_barriers_survive_around_stas():
     assert re.search(rf"mov\.b32\s+{value}, 1080;", body)
 
 
+def test_warpgroup_wait_orders_shared_stores_before_the_consumer():
+    ptx = lift_ptx([
+        "LDC.64 R2, c[0x0][0x210]", "LDC R4, c[0x0][0x220]",
+        "STS [R4], R4", "WARPGROUP.ARRIVE", "WARPGROUP.WAIT",
+        "LDS R5, [R4]", "STG.E [R2.64], R5",
+    ], 90)
+    wait = re.search(r"barrier\.cta\.sync (%r\d+), 128;", ptx)
+    assert wait
+    assert ptx.index("st.volatile.shared") < ptx.index("wgmma.fence") < wait.start()
+    assert wait.end() < ptx.index("ld.volatile.shared")
+    for reg in ("%tid.x", "%tid.y", "%tid.z", "%ntid.x", "%ntid.y"):
+        assert reg in ptx
+
+
+@pytest.mark.parametrize("source_id,base", [(0, 8), (15, 7)])
+def test_warpgroup_barrier_ids_avoid_existing_named_barriers(source_id, base):
+    ptx = lift_ptx([f"BAR.SYNC {source_id:#x}, 0x80", "WARPGROUP.WAIT"], 90)
+    group = re.search(r"shr\.u32\s+(%r\d+), %r\d+, 7;", ptx)[1]
+    barrier = re.search(r"barrier\.cta\.sync (%r\d+), 128;", ptx)[1]
+    assert re.search(rf"add\.s32\s+{barrier}, {group}, {base};", ptx)
+
+
+@pytest.mark.parametrize("barrier_id", ["R4", "0x8"])
+def test_warpgroup_wait_with_overlapping_named_barriers(barrier_id):
+    ptx = lift_ptx([
+        "LDC R4, c[0x0][0x220]", f"BAR.SYNC {barrier_id}, 0x80",
+        "WARPGROUP.WAIT", "WARPGROUP.WAIT",
+    ], 90)
+    assert "warpgroup_mbarriers[1024]" in ptx
+    assert ptx.index("mbarrier.init") < ptx.index("bar.sync")
+    assert ptx.count("mbarrier.arrive.release") == 2
+    assert ptx.count("mbarrier.try_wait.acquire") == 2
+    labels = re.findall(r"(wait_\d+):", ptx)
+    assert len(set(labels)) == 2
+
+
 @pytest.mark.parametrize("sm,elf_file", [
     (100, "test_call.cubin"), (100, "test_call_sm100.elf"), (120, "test_call_sm120.elf"),
 ])
