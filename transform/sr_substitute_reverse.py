@@ -39,41 +39,38 @@ def process(instructions, offset_to_sr):
     new_instructions = []
 
     for inst in instructions:
-        for operand in inst.operands:
-            if operand.is_arg and operand.offset in offset_to_sr:
-                offset = operand.offset
-
-                if offset not in offset_to_temp_reg:
-                    sr_name = offset_to_sr[offset]
-                    temp_reg_name = f"sr_temp_{hex(offset)}"
-                    offset_to_temp_reg[offset] = temp_reg_name
-
-                    sr_operand = Operand.from_reg(sr_name, sr_name)
-                    temp_operand = Operand.from_reg(temp_reg_name, temp_reg_name)
-
-                    s2r_inst = Instruction(
-                        id=f"s2r_{hex(offset)}",
-                        opcodes=["S2R"],
-                        operands=[temp_operand, sr_operand],
-                        parentBB=inst.parent,
-                    )
-
-                    new_instructions.append(s2r_inst)
-                    count += 1
-
         for idx, operand in enumerate(inst.operands):
-            if operand.is_arg and operand.offset in offset_to_sr:
-                offset = operand.offset
-                temp_reg_name = offset_to_temp_reg[offset]
+            # A register-indexed read can have the same displacement as a
+            # special register while addressing an ordinary constant-bank word.
+            if (not operand.is_arg or (operand.is_reg and not operand.is_rz)
+                    or operand.offset not in offset_to_sr):
+                continue
+            offset = operand.offset
 
-                new_operand = Operand.from_reg(
-                    temp_reg_name,
-                    temp_reg_name,
-                    suffix=operand.suffix,
-                    reuse=operand.reuse,
+            if offset not in offset_to_temp_reg:
+                sr_name = offset_to_sr[offset]
+                temp_reg_name = f"sr_temp_{hex(offset)}"
+                offset_to_temp_reg[offset] = temp_reg_name
+                sr_operand = Operand.from_reg(sr_name, sr_name)
+                temp_operand = Operand.from_reg(temp_reg_name, temp_reg_name)
+                s2r_inst = Instruction(
+                    id=f"s2r_{hex(offset)}",
+                    opcodes=["S2R"],
+                    operands=[temp_operand, sr_operand],
+                    parentBB=inst.parent,
                 )
-                new_operand.set_type_desc(operand.get_type_desc())
-                inst.operands[idx] = new_operand
+                new_instructions.append(s2r_inst)
+                count += 1
+
+            temp_reg_name = offset_to_temp_reg[offset]
+            new_operand = Operand.from_reg(
+                temp_reg_name,
+                temp_reg_name,
+                suffix=operand.suffix,
+                reuse=operand.reuse,
+            )
+            new_operand.set_type_desc(operand.get_type_desc())
+            inst.operands[idx] = new_operand
 
         new_instructions.append(inst)
 
