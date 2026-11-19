@@ -86,7 +86,7 @@ class SaSSParserBase:
         content = line.split(";", 1)[0].lstrip()
         # nvdisasm attaches a BRX destination list to the operand. ResolveBRX
         # reads those destinations from the cubin's constant table.
-        content = re.sub(r'\s*\(\*"BRANCH_TARGETS [^"]*"\*\)\s*$', '', content)
+        content = re.sub(r'\s*\(?\*"BRANCH_TARGETS [^"]*"\*\)?\s*$', '', content)
         opcode, *rest = content.split(maxsplit=1)
         operands = rest[0] if rest else ""
         # Match the whole guard token: P2R and P2R.B1 are instructions.
