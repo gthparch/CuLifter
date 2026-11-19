@@ -4597,8 +4597,7 @@ class Lifter:
         # raw bitcast would integer-negate the packed word and drop the swizzle
         # (e.g. -0x38003800 -> 0xC7FFC800 => lane0 = -8.0 instead of -0.5),
         # corrupting the half-precision compare mask — the same defect that was
-        # fixed in lift_hsetp2. (`HSET2.BF` = boolean OUTPUT format, the inputs
-        # are f16x2, so default <2 x half> is correct.)
+        # fixed in lift_hsetp2. Both output forms compare f16x2 inputs.
         a = self._get_val_half2(IRBuilder, _get_val, ra, "hset2_a")
         b = self._get_val_half2(IRBuilder, _get_val, rb, "hset2_b")
         val3 = _get_val(psrc)
@@ -4620,27 +4619,28 @@ class Lifter:
             val3 = self._insert_type_cast_if_needed(IRBuilder, val3, i32, "hset2_pred_i32")
             val3 = IRBuilder.icmp_unsigned("!=", val3, self.ir.Constant(i32, 0), "hset2_pred")
 
-        cmp_op = Inst.opcodes[2]
-        bool_op_idx = 3
-        if len(Inst.opcodes) > 3 and Inst.opcodes[3] in ("FTZ", "NAN"):
-            bool_op_idx = 4
-        bool_op = Inst.opcodes[bool_op_idx] if len(Inst.opcodes) > bool_op_idx else "AND"
-
         fcmp_map = {
-            "EQ": "==", 
-            "NE": "!=", 
-            "LT": "<", 
-            "LE": "<=", 
-            "GT": ">", 
+            "EQ": "==",
+            "NE": "!=",
+            "LT": "<",
+            "LE": "<=",
+            "GT": ">",
             "GE": ">=",
+            "EQU": "==",
             "NEU": "!=",
             "LTU": "<",
             "LEU": "<=",
             "GTU": ">",
             "GEU": ">=",
+            "NAN": "uno",
+            "NUM": "ord",
         }
+        modifiers = Inst.opcodes[1:]
+        cmp_op = next((modifier for modifier in modifiers if modifier in fcmp_map), None)
+        if cmp_op is None:
+            raise UnsupportedInstructionException(f"Unknown HSET2 comparison: {Inst.opcodes}")
         is_unordered = cmp_op.endswith("U")
-        fcmp_pred = fcmp_map.get(cmp_op, "==")
+        fcmp_pred = fcmp_map[cmp_op]
 
         if is_unordered:
             cmp_result = IRBuilder.fcmp_unordered(fcmp_pred, a, b, "hset2_cmp")
@@ -4650,18 +4650,17 @@ class Lifter:
         i16 = self.ir.IntType(16)
         i32 = self.ir.IntType(32)
         v2i16 = self.ir.VectorType(i16, 2)
-        # BUG-033: HSET2.BF produces bitmask 0xFFFF/0x0000 on GPU hardware,
-        # but GPU FP16 multiply treats 0xFFFF (NaN) as a bitwise AND mask.
-        # On x86 with IEEE-compliant FP, 0xFFFF * x = NaN. Use half(1.0)
-        # = 0x3C00 for true so downstream HFMA2/HMUL2 FP multiply works.
-        mask_true = self.ir.Constant(i16, 0x3C00)  # half 1.0
+        # .BF is the f16x2 output form and yields half(1.0) per true lane.
+        # Unqualified HSET2 gives full per-lane bit masks for uses such as LOP3.
+        mask_true = self.ir.Constant(i16, 0x3C00 if "BF" in modifiers else 0xFFFF)
         mask_false = self.ir.Constant(i16, 0)
 
         cmp0 = IRBuilder.extract_element(cmp_result, self.ir.Constant(i32, 0), "hset2_cmp0")
         cmp1 = IRBuilder.extract_element(cmp_result, self.ir.Constant(i32, 1), "hset2_cmp1")
 
         bool_func_map = {"AND": IRBuilder.and_, "OR": IRBuilder.or_, "XOR": IRBuilder.xor}
-        bool_func = bool_func_map.get(bool_op, IRBuilder.and_)
+        bool_func = next((bool_func_map[modifier] for modifier in modifiers if modifier in bool_func_map),
+                         IRBuilder.and_)
         r0 = bool_func(cmp0, val3, "hset2_r0")
         r1 = bool_func(cmp1, val3, "hset2_r1")
 
