@@ -4488,8 +4488,12 @@ class Lifter:
             b = self._get_val_half2(IRBuilder, _get_val, uses[1], "hfma2_b", is_bf16=is_bf16)
             c = self._get_val_half2(IRBuilder, _get_val, uses[2], "hfma2_c", is_bf16=is_bf16)
 
-        prod = IRBuilder.fmul(a, b, "hfma2_mul")
-        result_v = IRBuilder.fadd(prod, c, "hfma2_res")
+        # Packed HFMA2 rounds once per lane after the multiply-add.
+        intrinsic_name = f"llvm.fma.v2{elem_ty.intrinsic_name}"
+        fma = self.llvm_module.globals.get(intrinsic_name)
+        if fma is None:
+            fma = self.ir.Function(self.llvm_module, self.ir.FunctionType(v2, [v2] * 3), intrinsic_name)
+        result_v = IRBuilder.call(fma, [a, b, c], "hfma2_res")
         result = IRBuilder.bitcast(result_v, self.ir.IntType(32), "hfma2")
         self._set_val(IRBuilder, IRRegs, dest, result)
 
