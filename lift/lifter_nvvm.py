@@ -1,3 +1,4 @@
+import hashlib
 import re
 from functools import partial
 
@@ -78,6 +79,12 @@ class InvalidTypeException(Exception):
 
 
 class NVVMLifter(Lifter):
+    def __init__(self, elf, verbose=False, continue_on_error=False,
+                 const_mem_linkage="external", *, linkable=False):
+        super().__init__(elf, verbose, continue_on_error,
+                         "internal" if linkable else const_mem_linkage)
+        self._linkable = linkable
+
     def _pre_transform_module(self, module):
         # Cross-function CALL-ABI inlining: merge device-helper Functions
         # (separate top-level `.text` sections reached by `CALL.ABS.NOINC 0x0`
@@ -550,23 +557,31 @@ class NVVMLifter(Lifter):
         elf = getattr(self, "elf", None)
         if elf is None:
             return
-        i8 = self.ir.IntType(8)
         init_bytes = getattr(elf, "nv_global_init", b"") or b""
-        if init_bytes:
-            arr_ty = self.ir.ArrayType(i8, len(init_bytes))
-            g = self.ir.GlobalVariable(
-                llvm_module, arr_ty, "__slifter_nv_global_init", 1)
-            g.initializer = self.ir.Constant(arr_ty, bytearray(init_bytes))
-            g.align = 16
-            self._nv_globals[True] = g
         bss_size = getattr(elf, "nv_global_size", 0) or 0
-        if bss_size:
-            arr_ty = self.ir.ArrayType(i8, bss_size)
-            g = self.ir.GlobalVariable(
-                llvm_module, arr_ty, "__slifter_nv_global", 1)
-            g.initializer = self.ir.Constant(arr_ty, None)
+        suffix = ""
+        if self._linkable and (init_bytes or bss_size):
+            # Kernels lifted from the same image address the same mutable device
+            # state. Namespace it by image bytes so an LLVM link can coalesce
+            # those definitions without aliasing the state of different cubins.
+            with elf.path.open("rb") as image:
+                suffix = "_" + hashlib.file_digest(image, "sha256").hexdigest()
+
+        i8 = self.ir.IntType(8)
+        sections = (
+            (True, "__slifter_nv_global_init", len(init_bytes), bytearray(init_bytes)),
+            (False, "__slifter_nv_global", bss_size, None),
+        )
+        for initialized, name, size, initializer in sections:
+            if not size:
+                continue
+            arr_ty = self.ir.ArrayType(i8, size)
+            g = self.ir.GlobalVariable(llvm_module, arr_ty, name + suffix, 1)
+            if suffix:
+                g.linkage = "linkonce_odr"
+            g.initializer = self.ir.Constant(arr_ty, initializer)
             g.align = 16
-            self._nv_globals[False] = g
+            self._nv_globals[initialized] = g
 
     def _nv_global_const4_addr(self, builder, byte_offset, target_ty, name):
         """c[0x4][slot] holds a loader-relocated device-global base (R_CUDA_64).
@@ -3549,8 +3564,11 @@ class NVVMLifter(Lifter):
             else:
                 old_val = IRBuilder.extract_value(cas_result, 0, "atoms_cas_old")
         else:
+            # ATOMS.MIN/MAX default to unsigned. .S32 selects signed comparison.
+            is_signed = "S32" in modifiers
             rmw_ops = {
-                "ADD": "add", "MIN": "min", "MAX": "max",
+                "ADD": "add", "MIN": "min" if is_signed else "umin",
+                "MAX": "max" if is_signed else "umax",
                 "AND": "and", "OR": "or", "XOR": "xor",
                 "EXCH": "xchg", "INC": "add", "DEC": "sub",
             }

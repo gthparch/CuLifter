@@ -64,9 +64,18 @@ def main():
         default="external",
         help="linkage for the @const_mem global.",
     )
+    parser.add_argument(
+        "--linkable-nvvm",
+        action="store_true",
+        help="Allow NVVM IR from separate lifts of SASS and its cubin to be linked. "
+             "Keep constant memory private and share device globals per cubin image.",
+    )
     args = parser.parse_args()
 
     input_paths = args.input_asm
+    if args.linkable_nvvm and (args.lifter != "nvvm" or len(input_paths) != 2):
+        parser.error("--linkable-nvvm requires the NVVM lifter and SASS plus its cubin or ELF")
+
     if len(input_paths) == 1:
         asm_path = pathlib.Path(input_paths[0])
         asm_text = asm_path.read_text()
@@ -112,7 +121,8 @@ def main():
     if args.lifter == "nvvm":
         lifter = NVVMLifter(elf=elf, verbose=verbose_mode,
                             continue_on_error=coe,
-                            const_mem_linkage=cm_linkage)
+                            const_mem_linkage=cm_linkage,
+                            linkable=args.linkable_nvvm)
     elif args.lifter in ("x86", "arm", "x86warp"):
         lifter = CpuLifter(elf=elf, verbose=verbose_mode,
                            continue_on_error=coe,
