@@ -316,6 +316,40 @@ class Lifter:
             byte_offset = int(op.offset_value) if op.offset_value is not None else 0
             return self._load_from_const_mem(builder, bank, byte_offset, target_ty, name)
 
+    def _load_ldg_data(self, inst, builder, ptr, value_type, get_val, name="ldg"):
+        uses = inst.get_uses()
+        guard = uses[1] if inst.opcodes[0] == "LDG" and len(uses) == 2 else None
+        if guard is None or not (guard.is_predicate_reg or guard.is_pt):
+            return builder.load(ptr, name, typ=value_type)
+
+        # A trailing LDG predicate zero-fills the destination on a false
+        # lane. A masked load also skips the potentially invalid address.
+        predicate = get_val(guard, f"{name}_guard")
+        i1, i32 = self.ir.IntType(1), self.ir.IntType(32)
+        enabled = builder.icmp_unsigned("!=", predicate, self.ir.Constant(predicate.type, 0))
+        is_vector = isinstance(value_type, self.ir.VectorType)
+        vector_type = value_type if is_vector else self.ir.VectorType(value_type, 1)
+        mask_type = self.ir.VectorType(i1, vector_type.count)
+        zero_index = self.ir.Constant(i32, 0)
+        undef_mask = self.ir.Constant(mask_type, self.ir.Undefined)
+        mask = builder.insert_element(undef_mask, enabled, zero_index)
+        if vector_type.count > 1:
+            splat_type = self.ir.VectorType(i32, vector_type.count)
+            mask = builder.shuffle_vector(mask, undef_mask, self.ir.Constant(splat_type, None))
+
+        element = vector_type.element
+        alignment = self._ty_kind_bits(element.intrinsic_name, element)[1] // 8
+        intrinsic_name = f"llvm.masked.load.v{vector_type.count}{element.intrinsic_name}.p{ptr.type.addrspace}"
+        intr = builder.module.globals.get(intrinsic_name)
+        if intr is None:
+            # Keep the alignment operand for Vortex's LLVM 20. Newer LLVM
+            # versions upgrade the intrinsic when reading this IR.
+            signature = self.ir.FunctionType(vector_type, [ptr.type, i32, mask_type, vector_type])
+            intr = self.ir.Function(builder.module, signature, intrinsic_name)
+        result = builder.call(intr, [ptr, self.ir.Constant(i32, alignment), mask,
+                                     self.ir.Constant(vector_type, None)], f"{name}_masked")
+        return result if is_vector else builder.extract_element(result, zero_index, name)
+
     def _resolve_descriptor_addr(self, Inst, ptr, addr, IRBuilder, IRRegs, _get_val):
         """Add descriptor base address for SM90 desc[URx][Ry.64] memory ops.
 

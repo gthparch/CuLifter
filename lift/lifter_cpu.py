@@ -1882,7 +1882,7 @@ class CpuLifter(Lifter):
             vec_ty = self.ir.VectorType(self.ir.IntType(32), reg_count)
             ptr_name = f"{ptr.get_ir_name(self)}_addr_ptr" if ptr.is_reg else "ldg_addr_ptr"
             addr_ptr = _as_pointer(addr, vec_ty, ptr_name)
-            vec_val = IRBuilder.load(addr_ptr, "ldg_vec")
+            vec_val = self._load_ldg_data(Inst, IRBuilder, addr_ptr, vec_ty, _get_val, "ldg_vec")
             self._vec_set_val(IRBuilder, IRRegs, dest, vec_val)
         elif load_bits:
             # Sub-32-bit load: load narrow type, then extend to i32
@@ -1892,7 +1892,7 @@ class CpuLifter(Lifter):
                 narrow_ty,
                 f"{ptr.get_ir_name(self)}_addr_ptr" if ptr.is_reg else "ldg_addr_ptr"
             )
-            val = IRBuilder.load(addr_ptr, "ldg", typ=narrow_ty)
+            val = self._load_ldg_data(Inst, IRBuilder, addr_ptr, narrow_ty, _get_val)
             i32 = self.ir.IntType(32)
             if is_signed:
                 val = IRBuilder.sext(val, i32, "ldg_sext")
@@ -1906,7 +1906,7 @@ class CpuLifter(Lifter):
                 pointee_ty,
                 f"{ptr.get_ir_name(self)}_addr_ptr" if ptr.is_reg else "ldg_addr_ptr"
             )
-            val = IRBuilder.load(addr_ptr, "ldg", typ=pointee_ty)
+            val = self._load_ldg_data(Inst, IRBuilder, addr_ptr, pointee_ty, _get_val)
             self._set_val(IRBuilder, IRRegs, dest, val)
 
 
