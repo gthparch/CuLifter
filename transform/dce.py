@@ -71,6 +71,7 @@ class DCE(SaSSTransform):
             "UTCIMMA",
             "UTCATOMSWS",
             "UTCBAR",
+            "UGETNEXTWORKID",
             "VOTE",
             "VOTEU",
             "ATOMS",

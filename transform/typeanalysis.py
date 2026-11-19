@@ -520,6 +520,8 @@ class TypeAnalysis(SaSSTransform):
             "UTMACMDFLUSH": [[], []],
             "UCGABAR_ARV": [[], []],
             "UCGABAR_WAIT": [[], []],
+            "CLUSTERDIM": [[INT32], []],
+            "UGETNEXTWORKID.BROADCAST": [[], [INT32, INT32]],
             "UTCIMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
             "UTCBAR": [[], [INT32, INT32]],
             "UTCBAR.MULTICAST": [[], [INT32, INT32, INT32]],

@@ -20,6 +20,7 @@ from transform.fp_hack import FPHack
 from transform.set_zero import SetZero
 from transform.dce import DCE
 from transform.tmem_alloc import mark_full_tmem_alloc
+from transform.cluster_dims import BlackwellClusterDims
 from transform.mov_eliminate import MovEliminate
 from transform.typeanalysis import TypeAnalysis, FLOAT32, FLOAT64
 from transform.resolve_brx import ResolveBRX
@@ -128,6 +129,7 @@ class NVVMLifter(Lifter):
             # SDIV pseudo-op; lifted faithfully the chain yields off-by-one quotients
             # for divisors like 1024. Needs SSA + def-use for the reaching-defs walk.
             IntDivRecognize(),
+            BlackwellClusterDims(),
             DefUseAnalysis(),
             RegRemap(),
             DefUseAnalysis(),
@@ -1788,6 +1790,8 @@ class NVVMLifter(Lifter):
             val = _call_sreg("nctaid.y", "nctaid_y")
         elif valop.is_grid_dim_z:
             val = _call_sreg("nctaid.z", "nctaid_z")
+        elif valop.name == "SR_VIRTUALSMID":
+            val = _call_sreg("smid", "smid")
         elif valop.is_lane_id:
             val = _call_sreg("laneid", "laneid")
         elif valop.is_warp_id:
@@ -1876,6 +1880,8 @@ class NVVMLifter(Lifter):
             val = _call_sreg("nctaid.y", "s2ur_nctaid_y")
         elif valop.is_grid_dim_z:
             val = _call_sreg("nctaid.z", "s2ur_nctaid_z")
+        elif valop.name == "SR_VIRTUALSMID":
+            val = _call_sreg("smid", "smid")
         elif valop.is_lane_id:
             val = _call_sreg("laneid", "s2ur_laneid")
         elif valop.is_warp_id:
@@ -2274,6 +2280,33 @@ class NVVMLifter(Lifter):
                                 "{ .reg .pred use_d; setp.ne.u32 use_d, $4, 0; " + body + " }",
                                 "r,l,l,r,r,~{memory}", side_effect=True)
         IRBuilder.call(asm, args)
+
+    @lift_for("CLUSTERDIM")
+    def lift_clusterdim(self, Inst, IRBuilder, IRRegs, block_map=None, **kwargs):
+        axis = Inst.opcodes[2].lower()
+        dim = self.run_intrinsic(f"sreg_cluster.nctaid.{axis}", IRBuilder, [], "cluster_dim")
+        if Inst.opcodes[1] == "RECIP":
+            f32 = self.ir.FloatType()
+            inv = IRBuilder.fdiv(self.ir.Constant(f32, 1.0), IRBuilder.uitofp(dim, f32))
+            dim = IRBuilder.bitcast(inv, self.ir.IntType(32))
+        self._set_val(IRBuilder, IRRegs, Inst.get_defs()[0], dim)
+
+    @lift_for("UGETNEXTWORKID")
+    def lift_ugetnextworkid(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        operands = Inst.get_uses()
+        if Inst.opcodes != ["UGETNEXTWORKID", "BROADCAST"] or len(operands) != 2:
+            raise UnsupportedInstructionException("unsupported cluster launch control form")
+        # Both operands are CTA-local shared addresses. The instruction itself
+        # replicates the 16-byte response and signals each cluster CTA's barrier.
+        i32 = self.ir.IntType(32)
+        addresses = []
+        for operand, name in zip(operands, ("cancel_result", "cancel_barrier")):
+            offset = self._insert_type_cast_if_needed(IRBuilder, _get_val(operand, name), i32, name + "_offset")
+            addresses.append(IRBuilder.ptrtoint(self._shared_gep(IRBuilder, offset, name), i32))
+        opcode = "clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes.multicast::cluster::all.b128"
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]),
+                                self._elect_one_wrap(opcode + " [$0], [$1]"), "r,r,~{memory}", side_effect=True)
+        IRBuilder.call(asm, addresses)
 
     @lift_for("UTCBAR")
     def lift_utcbar(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):

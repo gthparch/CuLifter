@@ -32,6 +32,30 @@ ALLOC_FREE = [
 ]
 
 
+@pytest.mark.parametrize("offset,axis,uniform,reciprocal", [
+    ("0x2a0", "x", False, False), ("0x2a8", "z", True, False), ("0x2b4", "y", True, True)])
+def test_cluster_table_reads_are_derived_from_launch_dimensions(offset, axis, uniform, reciprocal):
+    idx = "UR5" if uniform else "R7"
+    program = ["CS2R.32 R7, SR_CgaSize", "IMAD R7, R7, -0xa0, RZ"]
+    if uniform: program.append("R2UR UR5, R7")
+    program += [f"{'LDCU UR6' if uniform else 'LDC R6'}, c[0x0][{idx}+{offset}]",
+                "LDC.64 R2, c[0x0][0x380]", "S2R R8, SR_VIRTUALSMID",
+                "STG.E [R2.64], " + ("UR6" if uniform else "R6"), "STG.E [R2.64+0x4], R8"]
+    ir = str(lift_kernel(program, 100))
+    assert f"llvm.nvvm.read.ptx.sreg.cluster.nctaid.{axis}" in ir
+    assert "llvm.nvvm.read.ptx.sreg.smid" in ir
+    assert ("fdiv float" in ir) == reciprocal
+
+
+def test_work_request_keeps_both_shared_addresses_and_issues_once():
+    module = lift_kernel(["UMOV UR6, 0x180", "UMOV UR7, 0x40",
+                          "UGETNEXTWORKID.BROADCAST [UR6], [UR7]"], 100)
+    ir = str(module)
+    assert ir.count("clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes.multicast::cluster::all.b128") == 1
+    assert "elect.sync" in ir
+    assert "i32 384" in ir and "i32 64" in ir
+
+
 def test_full_tmem_allocation_lowers_both_ends():
     module = lift_kernel(ALLOC_FREE, 100)
     text = str(module)
@@ -82,6 +106,13 @@ def assemble_sm100a(tmp_path):
         run_cmd(["ptxas", "-arch=sm_100a", ptx, "-o", cubin], tmp_path)
         return cubin
     return assemble
+
+
+def test_work_request_round_trip(tmp_path, assemble_sm100a):
+    cubin = assemble_sm100a(["UMOV UR6, 0x180", "UMOV UR7, 0x40",
+                             "UGETNEXTWORKID.BROADCAST [UR6], [UR7]"])
+    sass = run_cmd(["cuobjdump", "-sass", cubin], tmp_path)
+    assert sass.count("UGETNEXTWORKID.BROADCAST") == 1
 
 
 def test_sm100a_tmem_cubin_round_trip(tmp_path, assemble_sm100a):
