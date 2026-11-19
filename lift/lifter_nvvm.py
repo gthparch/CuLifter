@@ -20,6 +20,7 @@ from transform.fp_hack import FPHack
 from transform.set_zero import SetZero
 from transform.dce import DCE
 from transform.tmem_alloc import mark_full_tmem_alloc
+from transform.tmem_pair import recover_tmem_pair
 from transform.cluster_dims import BlackwellClusterDims
 from transform.mov_eliminate import MovEliminate
 from transform.typeanalysis import TypeAnalysis, FLOAT32, FLOAT64
@@ -93,6 +94,16 @@ class NVVMLifter(Lifter):
         # intra-function inline path (HandleCall) can lower them. Runs at the
         # module level before per-function transforms split the Functions apart.
         from transform.cross_func_inline import CrossFuncInline
+        for func in module.functions:
+            if module.isa == "sm_100a":
+                recover_tmem_pair(func)
+            # A uniform ANY branch tests the predicate across all active
+            # lanes. Splitting its guard into a per-lane PBRA before the vote
+            # loses lanes in ptxas's per-request CLC serialization loop.
+            for inst in func.instructions:
+                if inst.opcodes == ["BRA", "U", "ANY"] and inst.pflag and len(inst.operands) == 1:
+                    inst.operands.insert(0, inst.pflag)
+                    inst.pflag = None
         CrossFuncInline().apply(module)
         if module.isa in ("sm_100", "sm_100a"):
             for func in module.functions:
@@ -2216,6 +2227,28 @@ class NVVMLifter(Lifter):
             name,
         )
 
+    @lift_for("TMEMALLOC2")
+    def lift_tmemalloc2(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        i32 = self.ir.IntType(32)
+        dst, columns = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, name), i32, name)
+                        for op, name in zip(Inst.get_uses(), ("pair_dst", "pair_columns"))]
+        ptr = IRBuilder.ptrtoint(self._shared_gep(IRBuilder, dst, "pair_shared"), i32)
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]),
+                                "tcgen05.alloc.cta_group::2.sync.aligned.shared::cta.b32 [$0], $1;",
+                                "r,r,~{memory}", side_effect=True)
+        IRBuilder.call(asm, [ptr, columns], attrs=("convergent",))
+
+    @lift_for("TMEMFREE2")
+    def lift_tmemfree2(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        i32 = self.ir.IntType(32)
+        address, columns = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, name), i32, name)
+                            for op, name in zip(Inst.get_uses(), ("pair_taddr", "pair_columns"))]
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]),
+                                "tcgen05.dealloc.cta_group::2.sync.aligned.b32 $0, $1; "
+                                "tcgen05.relinquish_alloc_permit.cta_group::2.sync.aligned;",
+                                "r,r,~{memory}", side_effect=True)
+        IRBuilder.call(asm, [address, columns], attrs=("convergent",))
+
     @lift_for("UTCATOMSWS")
     def lift_utcatomsws(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         i32 = self.ir.IntType(32)
@@ -2291,22 +2324,34 @@ class NVVMLifter(Lifter):
             dim = IRBuilder.bitcast(inv, self.ir.IntType(32))
         self._set_val(IRBuilder, IRRegs, Inst.get_defs()[0], dim)
 
+    def _branch_predicate(self, inst, builder, get_val):
+        cond = super()._branch_predicate(inst, builder, get_val)
+        if inst.opcodes == ["BRA", "U", "ANY"]:
+            mask = self.run_intrinsic("activemask", builder, [], "branch_mask")
+            cond = self.run_intrinsic("vote_any", builder, [mask, cond], "branch_any")
+        return cond
+
     @lift_for("UGETNEXTWORKID")
     def lift_ugetnextworkid(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         operands = Inst.get_uses()
-        if Inst.opcodes != ["UGETNEXTWORKID", "BROADCAST"] or len(operands) != 2:
+        multicast = Inst.opcodes == ["UGETNEXTWORKID", "BROADCAST"]
+        if (not multicast and Inst.opcodes != ["UGETNEXTWORKID", "SELFCAST"]) or len(operands) != 2:
             raise UnsupportedInstructionException("unsupported cluster launch control form")
-        # Both operands are CTA-local shared addresses. The instruction itself
-        # replicates the 16-byte response and signals each cluster CTA's barrier.
+        if any(op.is_mem_addr and (op.offset or op.index_reg or op.suffix or op.prefix) for op in operands):
+            raise UnsupportedInstructionException("unsupported cluster launch control address modifier")
+        # The base addresses belong to the issuing CTA in both forms.
         i32 = self.ir.IntType(32)
         addresses = []
         for operand, name in zip(operands, ("cancel_result", "cancel_barrier")):
             offset = self._insert_type_cast_if_needed(IRBuilder, _get_val(operand, name), i32, name + "_offset")
             addresses.append(IRBuilder.ptrtoint(self._shared_gep(IRBuilder, offset, name), i32))
-        opcode = "clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes.multicast::cluster::all.b128"
+        opcode = "clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes"
+        if multicast:
+            opcode += ".multicast::cluster::all"
+        opcode += ".b128"
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]),
                                 self._elect_one_wrap(opcode + " [$0], [$1]"), "r,r,~{memory}", side_effect=True)
-        IRBuilder.call(asm, addresses)
+        IRBuilder.call(asm, addresses, attrs=("convergent",))
 
     @lift_for("UTCBAR")
     def lift_utcbar(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):

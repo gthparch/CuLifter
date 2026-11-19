@@ -74,6 +74,13 @@ class SaSSParser:
         raise InvalidISAException
 
     def get_nvdisasm_isa(self, file):
+        # New nvdisasm dumps use .target instead of .headerflags. Keep the
+        # accelerated suffix because it determines the legal Blackwell PTX.
+        for line in file.splitlines():
+            fields = line.split()
+            if len(fields) == 2 and fields[0] == ".target" and fields[1] in (
+                    "sm_100", "sm_100a", "sm_120", "sm_120a"):
+                return fields[1]
         for line in file.split('\n'):
             if "EF_CUDA_SM" in line:
                 parts = line.split("EF_CUDA_SM", 1)

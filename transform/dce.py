@@ -70,6 +70,8 @@ class DCE(SaSSTransform):
             "LDTM",
             "UTCIMMA",
             "UTCATOMSWS",
+            "TMEMALLOC2",
+            "TMEMFREE2",
             "UTCBAR",
             "UGETNEXTWORKID",
             "VOTE",

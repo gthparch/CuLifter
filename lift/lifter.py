@@ -2127,6 +2127,10 @@ class Lifter:
     def lift_bpt(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         self.run_intrinsic("trap", IRBuilder, [], "trap")
 
+    def _branch_predicate(self, inst, builder, get_val):
+        cond = get_val(inst.get_uses()[0], "bra_cond")
+        return self._normalize_i1_in_curr_bb(builder, cond, "bra_cond")
+
     @lift_for("BRA")
     def lift_bra(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         uses = Inst.get_uses()
@@ -2157,11 +2161,7 @@ class Lifter:
 
         if has_pred_operand:
             # Conditional branch: BRA Pred, target
-            cond = _get_val(uses[0], "bra_cond")
-            # cond is a predicate (i1) in SASS, but _get_val may have widened
-            # it to i32 when the source pseudo-register was typed as int.
-            # cbranch requires i1.
-            cond = self._normalize_i1_in_curr_bb(IRBuilder, cond, "bra_cond")
+            cond = self._branch_predicate(Inst, IRBuilder, _get_val)
             # Find fall-through block (the other successor)
             fall_bb = None
             if Inst.parent and getattr(Inst.parent, "succs", None):

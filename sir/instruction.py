@@ -147,7 +147,8 @@ class Instruction:
             self.use_op_start_idx = 1
 
         # FIND_AND_SET writes the success predicate and the group index.
-        elif self.opcodes[:2] == ["UTCATOMSWS", "FIND_AND_SET"]:
+        elif (self.opcodes[:2] == ["UTCATOMSWS", "FIND_AND_SET"]
+               or self.opcodes == ["UTCATOMSWS", "2CTA", "FIND_AND_SET", "ALIGN"]):
             self.use_op_start_idx = 2
 
         # Store and Branch have no def op (UBLKCP: TMA bulk copy writes
@@ -173,8 +174,8 @@ class Instruction:
         # KeyError at lift (FA fwd: UR13's def dropped, SYNCS on the same
         # barrier then read an undefined register).
         elif self.is_branch() or self.opcodes[0] in (
-                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCBAR", "UGETNEXTWORKID",
-                "EXIT"):
+                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCBAR",
+                "UGETNEXTWORKID", "TMEMALLOC2", "TMEMFREE2", "EXIT"):
             self.use_op_start_idx = 0
 
         # ARRIVES.LDGSTSBAR.64.TRANSCNT [URdst+off] — mbarrier arrive-on-cp.async.
