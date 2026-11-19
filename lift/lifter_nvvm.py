@@ -2110,6 +2110,31 @@ class NVVMLifter(Lifter):
             name,
         )
 
+    @lift_for("LDTM")
+    def lift_ldtm(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, **kwargs):
+        count = Inst.ldtm_register_count
+        destinations = Inst.get_defs()
+        sources = Inst.get_uses()
+        if not count or len(destinations) != count or len(sources) != 1:
+            raise UnsupportedInstructionException(f"Unsupported LDTM form: {Inst}")
+        word = self.ir.IntType(32)
+        source = sources[0]
+        if source.is_rz:
+            address = self.ir.Constant(word, source.offset or 0)
+        else:
+            address = self._insert_type_cast_if_needed(IRBuilder, _get_val(source, "ldtm_addr"), word, "ldtm_addr_bits")
+        outputs = ", ".join(f"${index}" for index in range(count))
+        operation = (f"tcgen05.ld.sync.aligned.32x32b.x{count}.b32 {{{outputs}}}, [${count}];\n\t"
+                     "tcgen05.wait::ld.sync.aligned;")
+        result_type = word if count == 1 else self.ir.LiteralStructType([word] * count)
+        signature = self.ir.FunctionType(result_type, [word])
+        constraints = ",".join(["=r"] * count + ["r", "~{memory}"])
+        assembly = self.ir.InlineAsm(signature, operation, constraints, side_effect=True)
+        result = IRBuilder.call(assembly, [address], "ldtm")
+        for index, dest in enumerate(destinations):
+            value = result if count == 1 else IRBuilder.extract_value(result, index)
+            self._set_val(IRBuilder, IRRegs, dest, value)
+
     @lift_for("LDSM")
     def lift_ldsm(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, _as_pointer=None):
         """LDSM.16.[M|MT]88.N -> PTX ldmatrix.sync.aligned.xN.m8n8[.trans].

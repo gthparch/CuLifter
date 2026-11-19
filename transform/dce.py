@@ -67,6 +67,10 @@ class DCE(SaSSTransform):
             # SHFL) silently deletes scan steps — e.g. nvtiff LZW lost ~half its
             # SHFL.UP prefix-scan shuffles, corrupting output positions.
             "SHFL",
+            "LDTM",
+            "UTCIMMA",
+            "UTCATOMSWS",
+            "UTCBAR",
             "VOTE",
             "VOTEU",
             "ATOMS",

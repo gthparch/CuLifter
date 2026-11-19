@@ -169,7 +169,7 @@ class Instruction:
         # KeyError at lift (FA fwd: UR13's def dropped, SYNCS on the same
         # barrier then read an undefined register).
         elif self.is_branch() or self.opcodes[0] in (
-                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG",
+                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCBAR",
                 "EXIT"):
             self.use_op_start_idx = 0
 
@@ -585,6 +585,12 @@ class Instruction:
         # STL.128 [R10+0x100], R87 stores 128-bit from R87, R88, R89, R90
         elif self.opcodes[0] == "STL" and "128" in self.opcodes:
             self.operands[1] = Operand.create_reg_quad(self.operands[1])
+
+        elif self.opcodes[0] == "LDTM" and self.ldtm_register_count:
+            count = self.ldtm_register_count
+            self.use_op_start_idx = count
+            if len(self.operands) == 2 and count > 1 and self.operands[0].is_reg:
+                self.operands[:1] = Operand.create_reg_group(self.operands[0], count).reg_group
 
         # LDSM.16.M88.4 R132, [R99] loads 4 regs from shared memory
         elif self.opcodes[0] == "LDSM":
@@ -1077,8 +1083,17 @@ class Instruction:
 
         return False
 
+    @property
+    def ldtm_register_count(self):
+        modifiers = self.opcodes[1:]
+        if not modifiers:
+            return 1
+        if len(modifiers) == 1 and modifiers[0] in ("x2", "x4", "x8", "x16", "x32", "x64", "x128"):
+            return int(modifiers[0][1:])
+        return 0
+
     def is_load(self):
-        return len(self.opcodes) > 0 and (self.opcodes[0] in ["LDG", "LD", "LDS", "LDC", "ULDC", "LDL", "LDSM"])
+        return len(self.opcodes) > 0 and (self.opcodes[0] in ["LDG", "LD", "LDS", "LDC", "ULDC", "LDL", "LDSM", "LDTM"])
     
     def is_global_load(self):
         return len(self.opcodes) > 0 and (self.opcodes[0] in ["LDG"])

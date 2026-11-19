@@ -789,6 +789,13 @@ class TypeAnalysis(SaSSTransform):
                 self.set_op_type(optypes, op, TOP, inst)
             return
 
+        if opcode == "LDTM" and inst.ldtm_register_count:
+            for operand in inst.get_defs():
+                self.set_op_type(optypes, operand, NUM32, inst)
+            for operand in inst.get_uses():
+                self.set_op_type(optypes, operand, INT32, inst)
+            return
+
         # Phi, switch(pseudo-inst) can have any number of operands, all same type
         if opcode == "PHI" or opcode == "PHI64" or opcode == "SWITCH":
             if opcode == "PHI64":
