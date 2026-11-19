@@ -47,16 +47,17 @@ Final console output of a full run:
 
 ```
 ==================== SUMMARY (CPU backend, sm90) ====================
-suite                checked units   LLVM definitions
-hecbench                   229/229            770/770
-cublas                     177/177          4137/4137
-cutlass                    105/105            641/641
-flash_attention              63/63              63/63
-cudnn_cnn                      7/7              46/46
-cudnn_ops                    20/20          2283/2283
-cudnn_adv                    30/30          4018/4018
-cuda_sdk                     19/19              19/19
+suite                checked units   LLVM definitions    paper kernels
+hecbench                   229/229            770/770     229/229 PASS
+cublas                     177/177          4137/4137     972/972 PASS
+cutlass                    105/105            641/641     105/105 PASS
+flash_attention              63/63              63/63       63/63 PASS
+cudnn_cnn                      7/7              46/46         7/7 PASS
+cudnn_ops                    20/20          2283/2283     256/256 PASS
+cudnn_adv                    30/30          4018/4018       30/30 PASS
+cuda_sdk                     19/19              19/19       19/19 PASS
 
+Published lifting result: 1681/1681 kernels PASS (650/650 units; 11977/11977 required LLVM definitions)
 units lifted and verified: 650; LLVM definitions emitted: 11977
 per-artifact LLVM IR, logs, and summary.csv: reproduce/results/lift_<timestamp>
 total failures: 0

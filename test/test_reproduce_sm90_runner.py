@@ -205,3 +205,29 @@ def test_full_mode_reports_paper_claim(real_manifest: dict) -> None:
     assert runner.suite_paper_result(
         failed_units=1, paper_kernels_passed=""
     ) == "NOT REPRODUCED"
+    assert runner.suite_paper_result(
+        failed_units=0, paper_kernels_passed=""
+    ) == "NOT REPRODUCED"
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"suite": "hecbench"},
+        {"total_failures": 1},
+        {"total_kernels": 1680},
+        {"total_passed_units": 649},
+        {"total_validated_definitions": 11976},
+    ],
+)
+def test_paper_claim_requires_a_complete_run(real_manifest: dict, override: dict) -> None:
+    counts = dict(
+        suite="all",
+        total_failures=0,
+        total_kernels=1681,
+        total_passed_units=650,
+        total_validated_definitions=11977,
+    )
+    counts.update(override)
+
+    assert runner.final_paper_claim(document=real_manifest, **counts) == ""

@@ -681,6 +681,33 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+def suite_paper_result(*, failed_units: int, paper_kernels_passed: int | str) -> str:
+    if failed_units or paper_kernels_passed == "":
+        return "NOT REPRODUCED"
+    return f"{paper_kernels_passed}/{paper_kernels_passed} PASS"
+
+
+def final_paper_claim(
+    *,
+    suite: str,
+    total_failures: int,
+    total_kernels: int,
+    total_passed_units: int,
+    total_validated_definitions: int,
+    document: dict[str, Any],
+) -> str:
+    totals = document["totals"]
+    verified = (total_kernels, total_passed_units, total_validated_definitions)
+    expected = (totals["paper_kernels"], totals["paper_units"], totals["required_llvm_definitions"])
+    if suite != "all" or total_failures or verified != expected:
+        return ""
+    return (
+        f"Published lifting result: {total_kernels}/{totals['paper_kernels']} kernels PASS "
+        f"({total_passed_units}/{totals['paper_units']} units; "
+        f"{total_validated_definitions}/{totals['required_llvm_definitions']} required LLVM definitions)"
+    )
+
+
 def main() -> int:
     args = parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -759,11 +786,15 @@ def main() -> int:
         )
         total_failures += failures
         paper_kernels_passed: int | str = ""
-        if failures == 0:
+        if (
+            failures == 0
+            and passed == metadata["stored_units"]
+            and passed_definitions == metadata["required_llvm_definitions"]
+        ):
             paper_kernels_passed = metadata["paper_kernels"]
             total_kernels += metadata["paper_kernels"]
-            total_passed_units += passed
-            total_validated_definitions += passed_definitions
+        total_passed_units += passed
+        total_validated_definitions += passed_definitions
         summary_rows.append(
             {
                 "suite": suite,
@@ -790,19 +821,33 @@ def main() -> int:
     print("\n==================== SUMMARY (CPU backend, sm90) ====================")
     print(
         f"{'suite':<18} {'checked units':>15} "
-        f"{'LLVM definitions':>18}"
+        f"{'LLVM definitions':>18} {'paper kernels':>16}"
     )
     for row in summary_rows:
         checked = f"{row['passed_units']}/{row['checked_units']}"
         definitions = (
             f"{row['passed_definitions']}/{row['checked_definitions']}"
         )
+        paper_result = suite_paper_result(
+            failed_units=row["failed_units"],
+            paper_kernels_passed=row["paper_kernels_passed"],
+        )
         print(
             f"{row['suite']:<18} {checked:>15} "
-            f"{definitions:>18}"
+            f"{definitions:>18} {paper_result:>16}"
         )
 
     print()
+    claim = final_paper_claim(
+        suite=args.suite,
+        total_failures=total_failures,
+        total_kernels=total_kernels,
+        total_passed_units=total_passed_units,
+        total_validated_definitions=total_validated_definitions,
+        document=document,
+    )
+    if claim:
+        print(claim)
     print(
         f"units lifted and verified: {total_passed_units}; "
         f"LLVM definitions emitted: {total_validated_definitions}"
