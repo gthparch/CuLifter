@@ -904,4 +904,8 @@ class Operand:
         cloned.ir_type = self.ir_type
         cloned.ir_reg_name = self.ir_reg_name
         cloned.defining_insts = set(self.defining_insts)
+        for name in ("desc_hi", "desc_a_hi", "desc_b_hi", "wgmma_a_frag", "wgmma_neg_a",
+                     "wgmma_sparse_meta", "wgmma_sparse_selector"):
+            if hasattr(self, name):
+                setattr(cloned, name, getattr(self, name))
         return cloned

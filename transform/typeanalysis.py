@@ -822,7 +822,7 @@ class TypeAnalysis(SaSSTransform):
         if opcode in ("HGMMA", "WGMMA", "QGMMA"):
             defs = inst.get_defs()
             uses = inst.get_uses()
-            accum = inst.opcodes[2] if len(inst.opcodes) > 2 else "F32"
+            _, accum = inst.wgmma_shape_accum()
             if accum.startswith("F16"):
                 def_types = [FLOAT16] * len(defs)
                 use_types = [FLOAT16] * len(uses)
@@ -832,7 +832,8 @@ class TypeAnalysis(SaSSTransform):
             for i, def_op in enumerate(defs):
                 self.set_op_type(optypes, def_op, def_types[i], inst)
             for i, use_op in enumerate(uses):
-                self.set_op_type(optypes, use_op, use_types[i], inst)
+                typ = INT32 if getattr(use_op, "wgmma_sparse_meta", False) else use_types[i]
+                self.set_op_type(optypes, use_op, typ, inst)
             return
 
         curr_type_table = self._find_type_table(inst.opcodes)

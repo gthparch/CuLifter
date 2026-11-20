@@ -8,10 +8,9 @@ class DCE(SaSSTransform):
         super().__init__(name=name)
         # Backend-scoped extra opcodes to treat as side-effecting (kept live).
         # Default empty -> DCE behaves exactly as before for every existing
-        # caller (x86/x86warp/HeCBench are bit-for-bit unchanged). NVVMLifter
-        # passes the SM90 cluster-barrier opcodes (UCGABAR_ARV/UCGABAR_WAIT)
-        # so they survive to lift_ucgabar; they define no register and would
-        # otherwise be pruned before ever reaching the lifter.
+        # caller. NVVMLifter uses this for SM90 cluster barriers and warpgroup
+        # MMA instructions, which can change synchronization state even when
+        # their register results are unused.
         self._extra_side_effect = frozenset(extra_side_effect or ())
 
     def apply(self, module):
@@ -104,7 +103,7 @@ class DCE(SaSSTransform):
             # as a live anchor for consistency with the other mbarrier/async ops.
             "ARRIVES",
             # SM90 warpgroup-MMA bracket ops: WARPGROUP.ARRIVE -> wgmma.fence,
-            # WARPGROUP.DEPBAR.LE -> wgmma.commit_group + wait_group N. No
+            # WARPGROUP.DEPBAR.LE -> scoreboard wait. No
             # defs, no reg uses — DCE silently deleted every one, leaving the
             # lifted PTX with ZERO wgmma fences/waits: the async MMA unit read
             # A/accumulator registers unfenced (FA3 P@V produced deterministic

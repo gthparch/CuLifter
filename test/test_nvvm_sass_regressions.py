@@ -8,6 +8,7 @@ from llvmlite import binding as llvm
 
 from lift.lifter_nvvm import NVVMLifter
 from parse.parser import SaSSParser
+from sir.instruction import Instruction
 from sir.module import Module
 from transform.build_cfg import BuildCFG
 from transform.desc_const_map import RecordDescriptorConsts
@@ -117,6 +118,69 @@ def test_warpgroup_wait_orders_shared_stores_before_the_consumer():
     assert wait.end() < ptx.index("ld.volatile.shared")
     for reg in ("%tid.x", "%tid.y", "%tid.z", "%ntid.x", "%ntid.y"):
         assert reg in ptx
+
+
+def test_wgmma_scoreboard_commit_boundaries_and_partial_waits():
+    compiled = lift_kernel([
+        "UMOV UR4, 0x0", "UMOV UR5, 0x10", "UMOV UR6, 0x20", "UMOV UR7, 0x10",
+        "WARPGROUP.ARRIVE",
+        "HGMMA.64x8x16.F32 R24, gdesc[UR4], RZ, !UPT",
+        "HGMMA.64x8x16.F32 R28, gdesc[UR4], RZ, !UPT, gsb2",
+        "HGMMA.64x8x16.F16 RZ, gdesc[URZ], RZ, !UPT, gsb0",
+        "WARPGROUP.DEPBAR.LE gsb2, 0x1",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x0",
+        "WARPGROUP.DEPBAR.LE gsb2, 0x0",
+    ], 90)
+    lines = str(compiled).splitlines()
+    metadata = {}
+    for line in lines:
+        if match := re.fullmatch(r"!(\d+) = !\{i32 ([0-7])(?:, i32 ([0-7]))?\}", line):
+            metadata[match[1]] = tuple(int(value) for value in match.groups()[1:] if value is not None)
+    wgmma = []
+    for line in lines:
+        if op := re.search(r'asm sideeffect "wgmma\.([a-z_]+)\.', line):
+            node = re.search(r"!cupbop\.wgmma\.gsb !(\d+)", line)
+            wgmma.append((op[1], metadata[node[1]] if node else ()))
+    assert wgmma == [
+        ("fence", ()),
+        ("mma_async", ()),
+        ("mma_async", ()),
+        ("commit_group", (2,)),
+        ("commit_group", (0,)),
+        ("wait_group", (2, 1)),
+        ("wait_group", (0, 0)),
+        ("wait_group", (2, 0)),
+    ]
+
+
+@pytest.mark.parametrize("n, bf16, register_a, selector", [
+    (8, False, False, 0), (24, True, False, 1),
+    (8, True, True, 1), (24, False, True, 0),
+])
+def test_lift_sparse_wgmma_preserves_operand_encoding(n, bf16, register_a, selector, monkeypatch):
+    monkeypatch.setattr(Instruction, "SYNTH_DESC_B_HI", True)
+    opcode = f"HGMMA.SP.64x{n}x32.F32" + (".BF16" if bf16 else "")
+    a_reset = "-R48, gdesc[UR4]" if register_a else "gdesc[UR4].negA"
+    a_add = "R48, gdesc[UR4].negB" if register_a else "gdesc[UR4].negB"
+    compiled = lift_kernel([
+        "UMOV UR4, 0x0", "UMOV UR5, 0x10", "UMOV UR6, 0x20", "UMOV UR7, 0x20",
+        "MOV R56, 0x984e4e98",
+        "MOV R48, 0x40003c00", "MOV R49, 0x4200bc00", "MOV R50, 0xbc004000", "MOV R51, 0x42003c00",
+        "WARPGROUP.ARRIVE",
+        f"{opcode} R24, {a_reset}, RZ, !UPT, R56, {selector:#x}, gsb0",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x0",
+        f"{opcode} R24, {a_add}, R24, R56, {selector:#x}, gsb0",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x0",
+    ], 90)
+    ir = str(compiled)
+    dtype = "bf16" if bf16 else "f16"
+    pattern = rf'asm sideeffect "wgmma\.mma_async\.sp\.sync\.aligned\.m64n{n}k32\.f32\.{dtype}\.{dtype} ([^"]+)"'
+    reset, add = re.findall(pattern, ir)
+    transpose = "0;" if register_a else "0, 0;"
+    assert reset.endswith(f", {selector}, 0, -1, 1, {transpose}")
+    assert add.endswith(f", {selector}, 1, 1, -1, {transpose}")
+    assert len(reset.split("}, ", 1)[0][1:].split(",")) == n // 2
+    assert ir.count("!cupbop.wgmma.gsb") == 4
 
 
 @pytest.mark.parametrize("source_id,base", [(0, 8), (15, 7)])

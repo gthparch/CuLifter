@@ -110,7 +110,7 @@ class NVVMLifter(Lifter):
                 mark_full_tmem_alloc(func)
 
     def get_transform_passes(self):
-        cluster_barriers = ("UCGABAR_ARV", "UCGABAR_WAIT")
+        gpu_collectives = ("UCGABAR_ARV", "UCGABAR_WAIT", "HGMMA", "WGMMA", "QGMMA")
         return [
             BuildCFG(),
             # Restore warp-synchronous semantics broken by PBRA branch-splitting
@@ -151,13 +151,13 @@ class NVVMLifter(Lifter):
             DefUseAnalysis(),
             MovEliminate(),
             DefUseAnalysis(),
-            DCE(extra_side_effect=cluster_barriers),
+            DCE(extra_side_effect=gpu_collectives),
             CFGSimplify(),
             DefUseAnalysis(),
             # OperAggregate(),  # Temporarily disabled
             RegRemap(),
             DefUseAnalysis(),
-            DCE(extra_side_effect=cluster_barriers),
+            DCE(extra_side_effect=gpu_collectives),
             CFGSimplify(),
             DefUseAnalysis(),
             TypeAnalysis(),
@@ -3873,6 +3873,21 @@ class NVVMLifter(Lifter):
             return
         # CCTL.IV / RLSE / other cache-control hints: NOP.
 
+    @staticmethod
+    def _wgmma_scoreboard(op):
+        name = (op.name or "").lower()
+        if not re.fullmatch(r"gsb[0-7]", name):
+            raise UnsupportedInstructionException(f"Unsupported WGMMA scoreboard: {op.name}")
+        return int(name[-1])
+
+    @staticmethod
+    def _emit_wgmma_group(builder, operation, *scoreboard):
+        asm = ir.InlineAsm(ir.FunctionType(ir.VoidType(), []), operation, "~{memory}", side_effect=True)
+        call = builder.call(asm, [], attrs=("convergent",))
+        if scoreboard:
+            metadata = builder.module.add_metadata([ir.Constant(ir.IntType(32), value) for value in scoreboard])
+            call.set_metadata("cupbop.wgmma.gsb", metadata)
+
     @lift_for("HGMMA", "WGMMA", "QGMMA")
     def lift_wgmma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         """SM90 HGMMA/WGMMA (SS descriptor form) -> PTX wgmma.mma_async.
@@ -3891,11 +3906,30 @@ class NVVMLifter(Lifter):
         the accumulator operands (D = A*B + D).
         """
         opc = Inst.opcodes
-        shape = opc[1] if len(opc) > 1 else "64x8x16"
+        sparse = "SP" in opc
+        shape, accum = Inst.wgmma_shape_accum()
+        if sparse and (opc[1] != "SP" or not re.fullmatch(r"64x\d+x32", shape)):
+            raise UnsupportedInstructionException(f"Unsupported sparse WGMMA shape: {Inst}")
+        if not shape:
+            shape = "64x8x16"
         parts = shape.split("x")
         n_dim = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 8
         k_dim = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 16
-        accum = opc[2] if len(opc) > 2 else "F32"
+        tags = [op for op in Inst.operands if (op.name or "").lower().startswith("gsb")]
+        if any((op.name or "").upper().startswith("INVALID") for op in Inst.operands):
+            raise UnsupportedInstructionException(f"Invalid WGMMA opcode operand: {Inst}")
+        if len(tags) > 1:
+            raise UnsupportedInstructionException(f"Multiple WGMMA scoreboards: {Inst}")
+        scoreboard = self._wgmma_scoreboard(tags[0]) if tags else None
+        defs = Inst.get_defs()
+        commit = "wgmma.commit_group.sync.aligned;"
+        if defs and all(d.is_rz for d in defs):
+            if scoreboard is None or not any(op.name == "gdesc[URZ]" for op in Inst.get_uses()):
+                raise UnsupportedInstructionException(f"Unsupported zero-destination WGMMA: {Inst}")
+            # ptxas lowers a commit with no preceding matrix operations to a
+            # zero-destination HGMMA. It still increments the tagged scoreboard.
+            self._emit_wgmma_group(IRBuilder, commit, scoreboard)
+            return
         # Input type from the trailing opcode tokens: HGMMA carries F32[.BF16]
         # (F16 implied), QGMMA (fp8) spells both operand types, e.g.
         # QGMMA.64x128x32.F32.E4M3.E4M3.
@@ -3904,7 +3938,7 @@ class NVVMLifter(Lifter):
         # (57_hopper_grouped: QGMMA.64x128x32.F32.E4M3.E5M2 — A=e4m3,
         # B=e5m2); collect in order.
         tys = []
-        for tok in opc[3:]:
+        for tok in opc[4 if sparse else 3:]:
             t = tok.upper()
             if t.startswith("BF16"):
                 tys.append("bf16")
@@ -3916,21 +3950,20 @@ class NVVMLifter(Lifter):
                 tys.append("tf32")
         in_ty_a = tys[0] if tys else "f16"
         in_ty_b = tys[1] if len(tys) > 1 else in_ty_a
-        in_ty = in_ty_a  # kept for messages
         # fp8 AND tf32 wgmma take no imm-trans operands (K-major only).
         is_fp8 = in_ty_a in ("e4m3", "e5m2", "tf32")
+        if sparse and (opc[0] != "HGMMA" or n_dim < 8 or n_dim > 256 or n_dim % 8 or
+                       in_ty_a not in ("f16", "bf16") or in_ty_b != in_ty_a):
+            raise UnsupportedInstructionException(f"Unsupported sparse WGMMA datatype or shape: {Inst}")
         if not accum.startswith("F32"):
             raise UnsupportedInstructionException(
                 f"WGMMA accumulator {accum} not supported on nvvm yet: {opc}")
         d_count = max(n_dim // 2, 4)
 
-        defs = Inst.get_defs()
         uses = Inst.get_uses()
         if len(defs) < d_count:
             raise UnsupportedInstructionException(
                 f"WGMMA def group short: {len(defs)} < {d_count}: {opc}")
-        if all(getattr(d, "reg", None) == "RZ" for d in defs):
-            return  # RZ dest: barrier form, no-op
 
         i32 = self.ir.IntType(32)
         i64 = self.ir.IntType(64)
@@ -3944,8 +3977,13 @@ class NVVMLifter(Lifter):
         d_lo = d_ahi = d_blo = d_bhi = None
         a_frag = []
         c_regs = []
+        metadata = selector = None
         for u in uses:
-            if getattr(u, "wgmma_a_frag", False):
+            if getattr(u, "wgmma_sparse_meta", False):
+                metadata = u
+            elif getattr(u, "wgmma_sparse_selector", False):
+                selector = u.immediate_value
+            elif getattr(u, "wgmma_a_frag", False):
                 a_frag.append(u)
             elif getattr(u, "desc_b_hi", False):
                 d_bhi = u
@@ -3955,7 +3993,7 @@ class NVVMLifter(Lifter):
                 d_blo = u
             elif getattr(u, "desc_reg", None) or (u.name and "gdesc" in str(u.name)):
                 d_lo = u
-            elif u.is_reg and not u.is_predicate_reg:
+            elif u.is_reg and not (u.is_predicate_reg or u.is_pt):
                 c_regs.append(u)
         is_rs = bool(a_frag)
         if d_lo is None or d_blo is None:
@@ -4018,77 +4056,69 @@ class NVVMLifter(Lifter):
             desc_a = IRBuilder.add(desc_a, sm_base16, "wgmma_desc_a_reb")
         desc_b = IRBuilder.add(desc_b, sm_base16, "wgmma_desc_b_reb")
 
-        # scale-d: 0 when C is the RZ,!UPT zero-init form.
-        c_is_rz = (not c_regs) or all(getattr(c, "reg", None) == "RZ"
-                                      for c in c_regs[:d_count])
-        # trans a/b from gdesc modifiers (K-major default = 0).
-        dname = str(getattr(d_lo, "name", "") or "")
-        t_a = 1 if "tnspA" in dname else 0
-        t_b = 1 if "tnspB" in dname else 0
+        c_is_rz = not c_regs or all(c.is_rz for c in c_regs[:d_count])
+        scale_d = 0 if c_is_rz else 1
+        if sparse:
+            if metadata is None or selector not in (0, 1):
+                raise UnsupportedInstructionException(f"Missing or unsupported sparse WGMMA metadata/selector: {Inst}")
+            for pred in (u for u in uses if u.is_predicate_reg or u.is_pt):
+                if not pred.is_pt:
+                    raise UnsupportedInstructionException(f"Unsupported sparse WGMMA scale-D predicate: {Inst}")
+                if pred.is_not_reg:
+                    scale_d = 0
+
+        dname = d_lo.name or ""
+        t_a = 1 if ".tnspA" in dname else 0
+        t_b = 1 if ".tnspB" in dname else 0
+        neg_a = ".negA" in dname or (is_rs and getattr(a_frag[0], "wgmma_neg_a", False))
+        scale_a = -1 if neg_a else 1
+        scale_b = -1 if ".negB" in dname else 1
 
         regs = "{" + ",".join(f"${i}" for i in range(d_count)) + "}"
-        ret_ty = self.ir.LiteralStructType([f32] * d_count)
+        constraints = ["=f"] * d_count
+        args = []
         if is_rs:
-            # RS form: A = 4 packed-f16x2 .b32 regs from the fragment; only B
-            # has a descriptor and only imm-trans-b applies.
-            a_vals = []
-            for a in a_frag[:4]:
+            if len(a_frag) != 4:
+                raise UnsupportedInstructionException(f"WGMMA requires four packed A registers: {Inst}")
+            for a in a_frag:
                 v = _get_val(a, "wgmma_a")
-                v = self._insert_type_cast_if_needed(IRBuilder, v, i32, "wgmma_a32")
-                a_vals.append(v)
-            while len(a_vals) < 4:
-                a_vals.append(self.ir.Constant(i32, 0))
+                args.append(self._insert_type_cast_if_needed(IRBuilder, v, i32, "wgmma_a32"))
+            constraints += ["r"] * 4 + ["l"]
+            args.append(desc_b)
             abrace = "{" + ",".join(f"${d_count + i}" for i in range(4)) + "}"
-            if c_is_rz:
-                trs = "" if is_fp8 else f", {t_b}"
-                asm_str = (f"wgmma.mma_async.sync.aligned.m64n{n_dim}k{k_dim}.f32.{in_ty_a}.{in_ty_b} "
-                           f"{regs}, {abrace}, ${d_count + 4}, 0, 1, 1{trs};")
-                cons = ",".join(["=f"] * d_count) + ",r,r,r,r,l,~{memory}"
-                fn_ty = self.ir.FunctionType(ret_ty, [i32] * 4 + [i64])
-                asm = self.ir.InlineAsm(fn_ty, asm_str, cons, side_effect=True)
-                res = IRBuilder.call(asm, a_vals + [desc_b], "wgmma_rs")
-            else:
-                trs = "" if is_fp8 else f", {t_b}"
-                asm_str = (f"wgmma.mma_async.sync.aligned.m64n{n_dim}k{k_dim}.f32.{in_ty_a}.{in_ty_b} "
-                           f"{regs}, {abrace}, ${d_count + 4}, 1, 1, 1{trs};")
-                cons = ",".join(["=f"] * d_count) + ",r,r,r,r,l," + \
-                       ",".join(str(i) for i in range(d_count))
-                c_vals = []
-                for c in c_regs[:d_count]:
-                    v = _get_val(c, "wgmma_c")
-                    v = self._insert_type_cast_if_needed(IRBuilder, v, f32, "wgmma_c32")
-                    c_vals.append(v)
-                while len(c_vals) < d_count:
-                    c_vals.append(self.ir.Constant(f32, 0))
-                fn_ty = self.ir.FunctionType(ret_ty, [i32] * 4 + [i64] + [f32] * d_count)
-                asm = self.ir.InlineAsm(fn_ty, asm_str, cons, side_effect=True)
-                res = IRBuilder.call(asm, a_vals + [desc_b] + c_vals, "wgmma_rs")
-        elif c_is_rz:
-            trs = "" if is_fp8 else f", {t_a}, {t_b}"
-            asm_str = (f"wgmma.mma_async.sync.aligned.m64n{n_dim}k{k_dim}.f32.{in_ty_a}.{in_ty_b} "
-                       f"{regs}, ${d_count}, ${d_count + 1}, 0, 1, 1{trs};")
-            cons = ",".join(["=f"] * d_count) + ",l,l,~{memory}"
-            fn_ty = self.ir.FunctionType(ret_ty, [i64, i64])
-            asm = self.ir.InlineAsm(fn_ty, asm_str, cons, side_effect=True)
-            res = IRBuilder.call(asm, [desc_a, desc_b], "wgmma")
+            operands = [regs, abrace, f"${d_count + 4}"]
         else:
-            # Accumulate: tie each C value read-write into its D slot.
-            trs = "" if is_fp8 else f", {t_a}, {t_b}"
-            asm_str = (f"wgmma.mma_async.sync.aligned.m64n{n_dim}k{k_dim}.f32.{in_ty_a}.{in_ty_b} "
-                       f"{regs}, ${d_count}, ${d_count + 1}, 1, 1, 1{trs};")
-            cons = ",".join(["=f"] * d_count) + ",l,l," + \
-                   ",".join(str(i) for i in range(d_count))
-            c_vals = []
-            for c in c_regs[:d_count]:
-                v = _get_val(c, "wgmma_c")
-                v = self._insert_type_cast_if_needed(IRBuilder, v, f32, "wgmma_c32")
-                c_vals.append(v)
-            while len(c_vals) < d_count:
-                c_vals.append(self.ir.Constant(f32, 0))
-            fn_ty = self.ir.FunctionType(ret_ty, [i64, i64] + [f32] * d_count)
-            asm = self.ir.InlineAsm(fn_ty, asm_str, cons, side_effect=True)
-            res = IRBuilder.call(asm, [desc_a, desc_b] + c_vals, "wgmma")
+            args.extend((desc_a, desc_b))
+            constraints += ["l", "l"]
+            operands = [regs, f"${d_count}", f"${d_count + 1}"]
+        if sparse:
+            operands.extend((f"${d_count + len(args)}", str(selector)))
+            value = _get_val(metadata, "wgmma_metadata")
+            args.append(self._insert_type_cast_if_needed(IRBuilder, value, i32, "wgmma_metadata32"))
+            constraints.append("r")
+        operands.extend((str(scale_d), str(scale_a), str(scale_b)))
+        if not is_fp8:
+            if not is_rs:
+                operands.append(str(t_a))
+            operands.append(str(t_b))
 
+        if scale_d:
+            for c in c_regs[:d_count]:
+                value = _get_val(c, "wgmma_c")
+                args.append(self._insert_type_cast_if_needed(IRBuilder, value, f32, "wgmma_c32"))
+            args.extend([self.ir.Constant(f32, 0)] * (d_count - len(c_regs)))
+            constraints += [str(i) for i in range(d_count)]
+
+        mode = ".sp" if sparse else ""
+        asm_str = (f"wgmma.mma_async{mode}.sync.aligned.m64n{n_dim}k{k_dim}.f32.{in_ty_a}.{in_ty_b} "
+                   + ", ".join(operands) + ";")
+        ret_ty = self.ir.LiteralStructType([f32] * d_count)
+        fn_ty = self.ir.FunctionType(ret_ty, [arg.type for arg in args])
+        asm = self.ir.InlineAsm(fn_ty, asm_str, ",".join([*constraints, "~{memory}"]), side_effect=True)
+        res = IRBuilder.call(asm, args, "wgmma_rs" if is_rs else "wgmma", attrs=("convergent",))
+
+        if scoreboard is not None:
+            self._emit_wgmma_group(IRBuilder, commit, scoreboard)
         for i, d in enumerate(defs[:d_count]):
             if getattr(d, "reg", None) == "RZ":
                 continue
@@ -4488,16 +4518,8 @@ class NVVMLifter(Lifter):
 
     @lift_for("WARPGROUP")
     def lift_warpgroup(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
-        """Lower the warpgroup rendezvous and WGMMA fence/scoreboard operations.
-
-        ptxas compiles the PTX wgmma bracket ops to this SASS pair:
-          wgmma.fence.sync.aligned          -> WARPGROUP.ARRIVE
-          wgmma.commit_group + wait_group N -> WARPGROUP.DEPBAR.LE gsbK, N
-        Reverse them 1:1; the commit is folded into DEPBAR (SASS has no separate
-        commit — group closure is implicit at the dependency barrier).
-        """
+        """Lower the warpgroup rendezvous and WGMMA fence/scoreboard waits."""
         mods = [t.upper() for t in Inst.opcodes[1:]]
-        void_ty = self.ir.FunctionType(self.ir.VoidType(), [])
         if "WAIT" in mods:
             # NVJET elects a TMA-store warp after all four warps write shared
             # memory. The fence and MMA scoreboard alone do not rendezvous them.
@@ -4514,25 +4536,19 @@ class NVVMLifter(Lifter):
             IRBuilder.call(asm, [self._warpgroup_barrier], attrs=("convergent",))
             return
         if "ARRIVE" in mods:
-            asm = self.ir.InlineAsm(void_ty, "wgmma.fence.sync.aligned;", "~{memory}",
-                                    side_effect=True)
-            IRBuilder.call(asm, [], "")
+            self._emit_wgmma_group(IRBuilder, "wgmma.fence.sync.aligned;")
             return
         if "DEPBAR" in mods:
-            # SASS DEPBAR.LE gsbK, N waits on ONE of four wgmma scoreboards
-            # (each HGMMA is tagged gsb0-3); PTX wait_group N counts a SINGLE
-            # per-warpgroup commit queue. With several concurrent gemm chains
-            # on different scoreboards (FA3 bwd hdim96: S/dP/dK/dQ), carrying
-            # N over lets the group the SASS was waiting for stay in flight —
-            # the dQ STS.128 read unretired accumulators and stored another
-            # chain's stale register content (exact-values-at-wrong-places
-            # dQaccum signature, dQ off by 8e-2). Waiting for ALL outstanding
-            # groups (N=0) is the only sound flattening of per-scoreboard
-            # waits onto the single PTX queue.
-            asm = self.ir.InlineAsm(
-                void_ty,
-                "wgmma.commit_group.sync.aligned; wgmma.wait_group.sync.aligned 0;",
-                "~{memory}", side_effect=True)
-            IRBuilder.call(asm, [], "")
+            if mods != ["DEPBAR", "LE"] or len(Inst.operands) != 2:
+                raise UnsupportedInstructionException(f"Unsupported WGMMA dependency barrier: {Inst}")
+            board, count = Inst.operands
+            n = count.immediate_value
+            if not isinstance(n, int) or not 0 <= n <= 7:
+                raise UnsupportedInstructionException(f"Unsupported WGMMA dependency count: {count.name}")
+            # CuPBoP reads the exact scoreboard and partial count. Plain PTX
+            # exposes a single queue, so its standalone fallback waits on all
+            # committed groups. Only a tagged HGMMA closes the open group.
+            self._emit_wgmma_group(IRBuilder, "wgmma.wait_group.sync.aligned 0;",
+                                   self._wgmma_scoreboard(board), n)
             return
         # Other WARPGROUP forms: NOP.

@@ -62,8 +62,7 @@ class Instruction:
         # descriptor/register operand layout as HGMMA (D count = N/2 for F32),
         # only the input element type (1-byte fp8) and K-step (32) differ.
         elif len(self.opcodes) > 1 and self.opcodes[0] in ("HGMMA", "WGMMA", "QGMMA"):
-            shape_str = self.opcodes[1]  # e.g. "64x8x16"
-            accum = self.opcodes[2] if len(self.opcodes) > 2 else "F32"
+            shape_str, accum = self.wgmma_shape_accum()
             d_count = self._wgmma_d_reg_count(shape_str, accum)
             self.use_op_start_idx = d_count
 
@@ -823,8 +822,7 @@ class Instruction:
         # Descriptor form:  HGMMA.<shape>.<accum> D, gdesc[URx].tnspA.tnspB, C [, !UPT, gsb0]
         # QGMMA (FP8) shares the identical operand layout — only opcode tokens differ.
         elif len(self.opcodes) > 1 and self.opcodes[0] in ("HGMMA", "WGMMA", "QGMMA"):
-            shape_str = self.opcodes[1]  # e.g. "64x8x16"
-            accum = self.opcodes[2] if len(self.opcodes) > 2 else "F32"
+            shape_str, accum = self.wgmma_shape_accum()
             d_count = self._wgmma_d_reg_count(shape_str, accum)
             c_count = d_count  # C has same register count as D
 
@@ -931,6 +929,7 @@ class Instruction:
                     a_ops = Operand.create_reg_group(self.operands[1], 4).reg_group
                     for a_op in a_ops:
                         a_op.wgmma_a_frag = True
+                    a_ops[0].wgmma_neg_a = self.operands[1].prefix == "-"
 
                 # Trailing operands after the descriptor: the C accumulator
                 # (first register) followed by non-register flags (!UPT, gsb0).
@@ -942,6 +941,13 @@ class Instruction:
                         c_op = op
                     else:
                         extra_ops.append(op)
+                if self.opcodes[1] == "SP":
+                    sparse_ops = [op for op in extra_ops if not (op.is_predicate_reg or op.is_pt)
+                                  and not (op.name or "").lower().startswith("gsb")]
+                    if (len(sparse_ops) == 2 and sparse_ops[0].is_reg
+                            and sparse_ops[1].is_immediate):
+                        sparse_ops[0].wgmma_sparse_meta = True
+                        sparse_ops[1].wgmma_sparse_selector = True
 
                 if c_op is not None and c_op.reg != "RZ":
                     CRegs = Operand.create_reg_group(c_op, c_count).reg_group
@@ -1029,6 +1035,12 @@ class Instruction:
         cloned_inst.inst_content = self.inst_content
         cloned_inst.ctl_code = self.ctl_code
         return cloned_inst
+
+    def wgmma_shape_accum(self):
+        shape_idx = 2 if self.opcodes[1:2] == ["SP"] else 1
+        shape = self.opcodes[shape_idx] if len(self.opcodes) > shape_idx else ""
+        accum = self.opcodes[shape_idx + 1] if len(self.opcodes) > shape_idx + 1 else "F32"
+        return shape, accum
 
     @staticmethod
     def _wgmma_d_reg_count(shape_str, accum):

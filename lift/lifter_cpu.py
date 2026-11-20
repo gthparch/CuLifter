@@ -5441,6 +5441,8 @@ class CpuLifter(Lifter):
 
         Unsupported forms raise UnsupportedInstructionException.
         """
+        if "SP" in Inst.opcodes:
+            raise UnsupportedInstructionException(f"Sparse warpgroup MMA requires the NVVM lifter: {Inst}")
         shape_str = Inst.opcodes[1] if len(Inst.opcodes) > 1 else ""
         accum_type = Inst.opcodes[2] if len(Inst.opcodes) > 2 else "F32"
 
