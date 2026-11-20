@@ -10,6 +10,15 @@ class Instruction:
     # path keeps it False to preserve its verified SSA numbering.
     SYNTH_DESC_B_HI = False
 
+    _SPARSE_WARP_HMMA_FORMS = {
+        ("HMMA", "SP", "16832", "F32"): ("m16n8k32", "f16"),
+        ("HMMA", "SP", "16832", "F32", "BF16"): ("m16n8k32", "bf16"),
+        ("HMMA", "SP", "16816", "F32", "TF32"): ("m16n8k16", "tf32"),
+    }
+
+    def sparse_warp_hmma_form(self):
+        return self._SPARSE_WARP_HMMA_FORMS.get(tuple(self.opcodes))
+
     def __init__(self, id, opcodes, operands, parentBB=None, pflag=None, encoding=None):
         self.id = id
         self.opcodes = opcodes
@@ -699,7 +708,7 @@ class Instruction:
             shape = self.opcodes[1] if len(self.opcodes) > 1 else ""
             accum = self.opcodes[2] if len(self.opcodes) > 2 else ""
 
-            if self.opcodes == ["HMMA", "SP", "16816", "F32", "TF32"]:
+            if self.sparse_warp_hmma_form() is not None:
                 d_count, a_count, b_count, c_count = 4, 4, 4, 4
             elif shape == "884":
                 d_count, a_count, b_count, c_count = 2, 2, 2, 2
@@ -1331,7 +1340,8 @@ class Instruction:
             shape = self.opcodes[1] if len(self.opcodes) > 1 else ""
             accum = self.opcodes[2] if len(self.opcodes) > 2 else ""
             sparse = shape == "SP"
-            if self.opcodes == ["HMMA", "SP", "16816", "F32", "TF32"]:
+            sparse_form = self.sparse_warp_hmma_form()
+            if sparse_form is not None:
                 a_count, b_count = 4, 4
             elif shape == "16816":
                 a_count = 4
@@ -1345,7 +1355,7 @@ class Instruction:
             c_idx = a_count + b_count
             if defs and len(uses) > c_idx and not sparse:
                 operands = [defs[0], uses[0], uses[a_count], uses[c_idx]]
-            elif defs and self.opcodes == ["HMMA", "SP", "16816", "F32", "TF32"] and len(uses) == 14:
+            elif defs and sparse_form is not None and len(uses) == 14:
                 operands = [defs[0], uses[0], uses[a_count], uses[c_idx], *uses[12:]]
 
         pred_prefix = f"@{self.pflag} " if self.pflag else ""

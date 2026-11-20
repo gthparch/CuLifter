@@ -18,20 +18,25 @@ from utils.elf import Elf
 FIXTURES = Path(__file__).parent / "sm100_optest"
 
 
-def test_lift_sparse_warp_tf32_from_sm80_cubin():
-    fixture = Path(__file__).parent / "warp_sparse_tf32"
+@pytest.mark.parametrize("directory,shape,dtypes", [
+    ("warp_sparse_tf32", "m16n8k16", ("tf32",)),
+    ("warp_sparse_fp16_bf16", "m16n8k32", ("f16", "bf16")),
+])
+def test_lift_sparse_warp_hmma_from_sm80_cubin(directory, shape, dtypes):
+    fixture = Path(__file__).parent / directory
     elf = Elf(fixture / "kernel.cubin")
-    module = Module("sparse_warp_tf32", SaSSParser((fixture / "kernel.sass").read_text(), elf))
+    module = Module("sparse_warp_hmma", SaSSParser((fixture / "kernel.sass").read_text(), elf))
     output = io.StringIO()
     lifter = NVVMLifter(elf)
     lifter.lift_module(module, output)
     assert not lifter.placeholder_log
     compiled = llvm.parse_assembly(output.getvalue())
     compiled.verify()
-    inputs = re.findall(
-        r'asm sideeffect "mma\.sp\.sync\.aligned\.m16n8k16\.row\.col\.f32\.tf32\.tf32\.f32 '
-        r'[^\n]+\$16, ([01]);", "=f,=f,=f,=f,r,r,r,r,r,r,r,r,f,f,f,f,r"', str(compiled))
-    assert inputs == ["0", "1"]
+    for dtype in dtypes:
+        selectors = re.findall(
+            rf'asm sideeffect "mma\.sp\.sync\.aligned\.{shape}\.row\.col\.f32\.{dtype}\.{dtype}\.f32 '
+            r'[^\n]+\$16, ([01]);", "=f,=f,=f,=f,r,r,r,r,r,r,r,r,f,f,f,f,r"', str(compiled))
+        assert selectors == ["0", "1"]
 
 
 def parse_kernel(lines, sm, name, elf):
