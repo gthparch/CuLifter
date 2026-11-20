@@ -183,6 +183,40 @@ def test_lift_sparse_wgmma_preserves_operand_encoding(n, bf16, register_a, selec
     assert ir.count("!cupbop.wgmma.gsb") == 4
 
 
+@pytest.mark.parametrize("opcode, ptx_type, selector, accumulator", [
+    ("HGMMA.SP.64x8x16.F32.TF32", "k16.f32.tf32.tf32", ", 0x1", "float"),
+    ("HGMMA.SP.64x8x32.F16", "k32.f16.f16.f16", ", 0x0", "i32"),
+    ("QGMMA.SP.64x8x64.F32.E4M3.E5M2", "k64.f32.e4m3.e5m2", "", "float"),
+    ("QGMMA.SP.64x8x64.F16.E5M2.E4M3", "k64.f16.e5m2.e4m3", "", "i32"),
+    ("IGMMA.SP.64x8x64.S8.S8.SAT", "k64.satfinite.s32.s8.s8", "", "i32"),
+    ("IGMMA.SP.64x8x64.S8.U8", "k64.s32.s8.u8", "", "i32"),
+    ("IGMMA.SP.64x8x64.U8.S8", "k64.s32.u8.s8", "", "i32"),
+    ("IGMMA.SP.64x8x64.U8.U8", "k64.s32.u8.u8", "", "i32"),
+])
+def test_lift_sparse_wgmma_types(opcode, ptx_type, selector, accumulator, monkeypatch):
+    monkeypatch.setattr(Instruction, "SYNTH_DESC_B_HI", True)
+    compiled = lift_kernel([
+        "UMOV UR4, 0x0", "UMOV UR5, 0x10", "UMOV UR6, 0x20", "UMOV UR7, 0x20",
+        "MOV R56, 0x984e4e98",
+        "WARPGROUP.ARRIVE",
+        f"{opcode} R24, gdesc[UR4], RZ, !UPT, R56{selector}, gsb0",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x0",
+        f"{opcode} R24, gdesc[UR4], R24, R56{selector}, gsb0",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x0",
+    ], 90)
+    ir = str(compiled)
+    asm = re.escape(f"wgmma.mma_async.sp.sync.aligned.m64n8{ptx_type}")
+    count = 2 if ".f16." in ptx_type and not ".f32." in ptx_type else 4
+    types = "{ " + ", ".join([accumulator] * count) + " }"
+    assert len(re.findall(rf'call {re.escape(types)} asm sideeffect "{asm} ', ir)) == 2
+    args = [selector[-1:] or "0", "1"]
+    if not opcode.startswith("IGMMA"):
+        args += ["1", "1"]
+    if ptx_type == "k32.f16.f16.f16":
+        args += ["0", "0"]
+    assert f", {', '.join(args)};" in ir
+
+
 @pytest.mark.parametrize("source_id,base", [(0, 8), (15, 7)])
 def test_warpgroup_barrier_ids_avoid_existing_named_barriers(source_id, base):
     ptx = lift_ptx([f"BAR.SYNC {source_id:#x}, 0x80", "WARPGROUP.WAIT"], 90)

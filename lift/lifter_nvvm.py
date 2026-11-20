@@ -110,7 +110,7 @@ class NVVMLifter(Lifter):
                 mark_full_tmem_alloc(func)
 
     def get_transform_passes(self):
-        gpu_collectives = ("UCGABAR_ARV", "UCGABAR_WAIT", "HGMMA", "WGMMA", "QGMMA")
+        gpu_collectives = ("UCGABAR_ARV", "UCGABAR_WAIT", "HGMMA", "WGMMA", "QGMMA", "IGMMA")
         return [
             BuildCFG(),
             # Restore warp-synchronous semantics broken by PBRA branch-splitting
@@ -3888,7 +3888,7 @@ class NVVMLifter(Lifter):
             metadata = builder.module.add_metadata([ir.Constant(ir.IntType(32), value) for value in scoreboard])
             call.set_metadata("cupbop.wgmma.gsb", metadata)
 
-    @lift_for("HGMMA", "WGMMA", "QGMMA")
+    @lift_for("HGMMA", "WGMMA", "QGMMA", "IGMMA")
     def lift_wgmma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         """SM90 HGMMA/WGMMA (SS descriptor form) -> PTX wgmma.mma_async.
 
@@ -3908,7 +3908,7 @@ class NVVMLifter(Lifter):
         opc = Inst.opcodes
         sparse = "SP" in opc
         shape, accum = Inst.wgmma_shape_accum()
-        if sparse and (opc[1] != "SP" or not re.fullmatch(r"64x\d+x32", shape)):
+        if sparse and (opc[1] != "SP" or not re.fullmatch(r"64x\d+x(16|32|64)", shape)):
             raise UnsupportedInstructionException(f"Unsupported sparse WGMMA shape: {Inst}")
         if not shape:
             shape = "64x8x16"
@@ -3929,16 +3929,23 @@ class NVVMLifter(Lifter):
             # ptxas lowers a commit with no preceding matrix operations to a
             # zero-destination HGMMA. It still increments the tagged scoreboard.
             self._emit_wgmma_group(IRBuilder, commit, scoreboard)
+        integer = opc[0] == "IGMMA"
             return
         # Input type from the trailing opcode tokens: HGMMA carries F32[.BF16]
         # (F16 implied), QGMMA (fp8) spells both operand types, e.g.
+        if integer and not sparse:
+            raise UnsupportedInstructionException(f"Dense IGMMA is not supported by the NVVM lifter: {Inst}")
         # QGMMA.64x128x32.F32.E4M3.E4M3.
         # Input types from trailing opcode tokens. HGMMA: F32[.BF16|.TF32]
         # (F16 implied). QGMMA spells BOTH operand types and they can DIFFER
         # (57_hopper_grouped: QGMMA.64x128x32.F32.E4M3.E5M2 — A=e4m3,
         # B=e5m2); collect in order.
         tys = []
-        for tok in opc[4 if sparse else 3:]:
+        type_tokens = opc[(3 if integer else 4 if sparse else 3):]
+        saturate = integer and type_tokens[-1:] == ["SAT"]
+        if saturate:
+            type_tokens = type_tokens[:-1]
+        for tok in type_tokens:
             t = tok.upper()
             if t.startswith("BF16"):
                 tys.append("bf16")
@@ -3950,15 +3957,23 @@ class NVVMLifter(Lifter):
                 tys.append("tf32")
         in_ty_a = tys[0] if tys else "f16"
         in_ty_b = tys[1] if len(tys) > 1 else in_ty_a
-        # fp8 AND tf32 wgmma take no imm-trans operands (K-major only).
-        is_fp8 = in_ty_a in ("e4m3", "e5m2", "tf32")
-        if sparse and (opc[0] != "HGMMA" or n_dim < 8 or n_dim > 256 or n_dim % 8 or
-                       in_ty_a not in ("f16", "bf16") or in_ty_b != in_ty_a):
-            raise UnsupportedInstructionException(f"Unsupported sparse WGMMA datatype or shape: {Inst}")
-        if not accum.startswith("F32"):
+        has_transpose = in_ty_a in ("f16", "bf16")
+        has_selector = opc[0] == "HGMMA"
+        if sparse:
+            half_inputs = (opc[0] == "HGMMA" and k_dim == 32 and
+                           (type_tokens in ([], ["BF16"])) and
+                           (accum == "F32" or (accum == "F16" and in_ty_a == "f16")))
+            tf32_inputs = opc[0] == "HGMMA" and k_dim == 16 and accum == "F32" and type_tokens == ["TF32"]
+            fp8_inputs = (opc[0] == "QGMMA" and k_dim == 64 and accum in ("F16", "F32") and
+                          len(type_tokens) == 2 and all(t in ("E4M3", "E5M2") for t in type_tokens))
+            int_inputs = (integer and k_dim == 64 and n_dim <= 224 and (n_dim <= 32 or n_dim % 16 == 0) and
+                          len(type_tokens) == 2 and all(t in ("S8", "U8") for t in type_tokens))
+            if n_dim < 8 or n_dim > 256 or n_dim % 8 or not (half_inputs or tf32_inputs or fp8_inputs or int_inputs):
+                raise UnsupportedInstructionException(f"Unsupported sparse WGMMA datatype or shape: {Inst}")
+        elif not accum.startswith("F32"):
             raise UnsupportedInstructionException(
                 f"WGMMA accumulator {accum} not supported on nvvm yet: {opc}")
-        d_count = max(n_dim // 2, 4)
+        d_count = Inst._wgmma_d_reg_count(shape, accum)
 
         uses = Inst.get_uses()
         if len(defs) < d_count:
@@ -3967,9 +3982,11 @@ class NVVMLifter(Lifter):
 
         i32 = self.ir.IntType(32)
         i64 = self.ir.IntType(64)
-        f32 = self.ir.FloatType()
+        acc_ty = self.ir.FloatType() if accum == "F32" else i32
 
         # Descriptor words by parser tag. RS form (A from registers): the
+            elif t in ("S8", "U8"):
+                tys.append(t.lower())
         # parser tags the 4-reg A fragment `wgmma_a_frag` and resolves the
         # B-descriptor UR pair by convention — {URn+2, URn+3} for .tnspB RS
         # (same window as SS), {URn, URn+1} for plain RS (the encoded pair
@@ -4059,7 +4076,9 @@ class NVVMLifter(Lifter):
         c_is_rz = not c_regs or all(c.is_rz for c in c_regs[:d_count])
         scale_d = 0 if c_is_rz else 1
         if sparse:
-            if metadata is None or selector not in (0, 1):
+            if not has_selector and selector is None:
+                selector = 0
+            if metadata is None or selector not in ((0, 1) if has_selector else (0,)):
                 raise UnsupportedInstructionException(f"Missing or unsupported sparse WGMMA metadata/selector: {Inst}")
             for pred in (u for u in uses if u.is_predicate_reg or u.is_pt):
                 if not pred.is_pt:
@@ -4075,7 +4094,7 @@ class NVVMLifter(Lifter):
         scale_b = -1 if ".negB" in dname else 1
 
         regs = "{" + ",".join(f"${i}" for i in range(d_count)) + "}"
-        constraints = ["=f"] * d_count
+        constraints = ["=f" if accum == "F32" else "=r"] * d_count
         args = []
         if is_rs:
             if len(a_frag) != 4:
@@ -4095,9 +4114,13 @@ class NVVMLifter(Lifter):
             operands.extend((f"${d_count + len(args)}", str(selector)))
             value = _get_val(metadata, "wgmma_metadata")
             args.append(self._insert_type_cast_if_needed(IRBuilder, value, i32, "wgmma_metadata32"))
+        if integer and (scale_a != 1 or scale_b != 1 or t_a or t_b):
+            raise UnsupportedInstructionException(f"Unexpected scale or transpose in integer sparse WGMMA: {Inst}")
             constraints.append("r")
-        operands.extend((str(scale_d), str(scale_a), str(scale_b)))
-        if not is_fp8:
+        operands.append(str(scale_d))
+        if not integer:
+            operands.extend((str(scale_a), str(scale_b)))
+        if has_transpose:
             if not is_rs:
                 operands.append(str(t_a))
             operands.append(str(t_b))
@@ -4105,14 +4128,15 @@ class NVVMLifter(Lifter):
         if scale_d:
             for c in c_regs[:d_count]:
                 value = _get_val(c, "wgmma_c")
-                args.append(self._insert_type_cast_if_needed(IRBuilder, value, f32, "wgmma_c32"))
-            args.extend([self.ir.Constant(f32, 0)] * (d_count - len(c_regs)))
+                args.append(self._insert_type_cast_if_needed(IRBuilder, value, acc_ty, "wgmma_c32"))
+            args.extend([self.ir.Constant(acc_ty, 0)] * (d_count - len(c_regs)))
             constraints += [str(i) for i in range(d_count)]
 
         mode = ".sp" if sparse else ""
-        asm_str = (f"wgmma.mma_async{mode}.sync.aligned.m64n{n_dim}k{k_dim}.f32.{in_ty_a}.{in_ty_b} "
+        sat = ".satfinite" if saturate else ""
+        asm_str = (f"wgmma.mma_async{mode}.sync.aligned.m64n{n_dim}k{k_dim}{sat}.{accum.lower()}.{in_ty_a}.{in_ty_b} "
                    + ", ".join(operands) + ";")
-        ret_ty = self.ir.LiteralStructType([f32] * d_count)
+        ret_ty = self.ir.LiteralStructType([acc_ty] * d_count)
         fn_ty = self.ir.FunctionType(ret_ty, [arg.type for arg in args])
         asm = self.ir.InlineAsm(fn_ty, asm_str, ",".join([*constraints, "~{memory}"]), side_effect=True)
         res = IRBuilder.call(asm, args, "wgmma_rs" if is_rs else "wgmma", attrs=("convergent",))

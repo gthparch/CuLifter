@@ -819,20 +819,20 @@ class TypeAnalysis(SaSSTransform):
         
         # HGMMA/WGMMA/QGMMA: dynamic type table based on actual operand count
         # (the static table may not match the actual register count for large shapes)
-        if opcode in ("HGMMA", "WGMMA", "QGMMA"):
+        if opcode in ("HGMMA", "WGMMA", "QGMMA", "IGMMA"):
             defs = inst.get_defs()
             uses = inst.get_uses()
             _, accum = inst.wgmma_shape_accum()
-            if accum.startswith("F16"):
-                def_types = [FLOAT16] * len(defs)
-                use_types = [FLOAT16] * len(uses)
+            if accum == "S32" or (inst.opcodes[1:2] == ["SP"] and accum == "F16"):
+                packed_type = INT32
+            elif accum.startswith("F16"):
+                packed_type = FLOAT16
             else:
-                def_types = [FLOAT32] * len(defs)
-                use_types = [FLOAT32] * len(uses)
-            for i, def_op in enumerate(defs):
-                self.set_op_type(optypes, def_op, def_types[i], inst)
-            for i, use_op in enumerate(uses):
-                typ = INT32 if getattr(use_op, "wgmma_sparse_meta", False) else use_types[i]
+                packed_type = FLOAT32
+            for def_op in defs:
+                self.set_op_type(optypes, def_op, packed_type, inst)
+            for use_op in uses:
+                typ = INT32 if getattr(use_op, "wgmma_sparse_meta", False) else packed_type
                 self.set_op_type(optypes, use_op, typ, inst)
             return
 
