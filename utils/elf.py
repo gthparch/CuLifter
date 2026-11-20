@@ -28,6 +28,7 @@ class Elf:
         self.path = Path(path)
         self.blackwell_param_abi = False
         self.arg_map = {}
+        self.param_cbank_base = {}
         self.const_data = {}
         # Shared constant banks (`.nv.constant<N>` with NO `.<kernel>` suffix):
         # module-wide tables — e.g. nvjpeg's IDCT zigzag in bank 3 — that every
@@ -337,6 +338,7 @@ class Elf:
                     elif attr == 0x0a and len(payload) >= 8:  # PARAM_CBANK
                         word = struct.unpack_from('<I', payload, 4)[0]
                         param_base = word & 0xffff
+                        self.param_cbank_base[kernel] = param_base
                     elif attr == 0x05 and len(payload) >= 12:  # MAX_THREADS
                         self.max_threads[kernel] = struct.unpack_from(
                             '<3I', payload)
@@ -639,6 +641,7 @@ class Elf:
             if cbank_match:
                 full_val = int(cbank_match.group(1), 16)
                 param_base = full_val & 0xFFFF
+                self.param_cbank_base[kernel] = param_base
 
             pairs = []
             for om in re.finditer(

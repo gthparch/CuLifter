@@ -93,12 +93,14 @@ def test_ampere_uldc64_reads_parameter_value_at_0x198():
     assert result.value == 0xFEDCBA9876543210
 
 
-def test_hopper_uldc64_materializes_parameter_address_at_0x198():
+@pytest.mark.parametrize("first_offset", [0, 0x30, 0x70])
+def test_hopper_uldc64_materializes_parameter_address_at_0x198(first_offset):
+    arg0 = 0x210 + first_offset
     compiled = lift_const_bank_kernel([
-        "LDC.64 R2, c[0x0][0x210]",
+        f"LDC.64 R2, c[0x0][{arg0:#x}]",
         "ULDC.64 UR4, c[0x0][0x198]",
         "STG.E [R2.64], UR4", "STG.E [R2.64+0x4], UR5",
-    ], 90, [(0x210, 8)])
+    ], 90, [(arg0, 8)])
     ir = str(compiled.get_function("test_call"))
     assert "cvta.param.u64" in ir
-    assert re.search(r"sub i64 .*?, 48", ir)
+    assert re.search(rf"sub i64 .*?, {first_offset}\b", ir)

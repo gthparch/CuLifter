@@ -221,7 +221,7 @@ def test_lift_sparse_wgmma_preserves_operand_encoding(n, bf16, register_a, selec
     assert reset.endswith(f", {selector}, 0, -1, 1, {transpose}")
     assert add.endswith(f", {selector}, 1, 1, -1, {transpose}")
     assert len(reset.split("}, ", 1)[0][1:].split(",")) == n // 2
-    assert ir.count("!cupbop.wgmma.gsb") == 4
+    assert ir.count("!cupbop.wgmma.gsb") == 6  # two tagged issues, commits and waits
 
 
 @pytest.mark.parametrize("opcode, ptx_type, selector, accumulator", [

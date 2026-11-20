@@ -722,13 +722,17 @@ class NVVMLifter(Lifter):
     def _load_from_const_mem(self, builder, bank, byte_offset, target_ty, name=""):
         # sm_90 driver slot c[0x0][0x198]: the GENERIC ADDRESS of the kernel's
         # grid-constant param buffer (nvcc's cvta.param materialization; TMA
-        # descriptor chains are rooted here: desc = c[0x198] + 0x30 + off).
-        # The original module's slot value is meaningless under our launch —
-        # substitute cvta.param of OUR param_0 minus the fixed 0x30 ABI bias so
-        # downstream arithmetic lands on our own (identical-layout) params.
+        # descriptor chains add the KPARAM_INFO offset to this address).
+        # ptxas can place argument zero at e.g. 0x30 or 0x70 in that buffer.
+        # Rebase the original address arithmetic onto the lifted parameter.
         fn_name = builder.function.name
         hopper = self.sir_module.isa in ("sm_90", "sm_90a")
         param_bias = 0x30 if hopper and byte_offset == 0x198 else None
+        if param_bias is not None:
+            bank_base = getattr(self.elf, "param_cbank_base", {}).get(fn_name)
+            params = (self.arg_map or {}).get(fn_name)
+            if bank_base is not None and params and params[0]:
+                param_bias = params[0][0] - bank_base
         if bank == 0 and byte_offset == 0x36c and getattr(self.elf, "blackwell_param_abi", False) and target_ty == self.ir.IntType(32):
             # Verified with mov.pred %is_explicit_cluster on sm_100a/sm_120.
             read_cluster = self.ir.InlineAsm(self.ir.FunctionType(target_ty, []),
@@ -1357,11 +1361,11 @@ class NVVMLifter(Lifter):
             )
 
         kernel_entry = not self.arg_map or func.name in self.arg_map
+        self._native_wgmma_board = self._single_wgmma_board(func) if kernel_entry else None
         if kernel_entry:
             # SASS-only mode (no ELF -> no KPARAM map): the function takes no
             # IR params (the code reads the captured blob through the
             # @const_mem global), but it must still be a KERNEL (.entry) or
-        self._native_wgmma_board = self._single_wgmma_board(func) if kernel_entry else None
             # cuModuleGetFunction can't find it and the GPU-launch drivers
             # (test/common/kernel_wrapper_cuda.h, cuDNN CD_* benches) fail.
             self._mark_kernel(llvm_module, ir_function)
@@ -2996,12 +3000,12 @@ class NVVMLifter(Lifter):
         form = Inst.sparse_warp_hmma_form()
         if form is None or len(uses) != 14 or len(dests) != 4 or selector not in (0, 1):
             raise ValueError(f"Unsupported NVVM sparse HMMA form: {Inst}")
+        shape, dtype = form
 
         i32, f32 = self.ir.IntType(32), self.ir.FloatType()
         types = [i32] * 8 + [f32] * 4 + [i32]
         args = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "hmma_sp_arg"), ty, "hmma_sp_arg")
                 for op, ty in zip(uses, types)]
-        shape, dtype = form
         signature = self.ir.FunctionType(self.ir.LiteralStructType([f32] * 4), types)
         asm = self.ir.InlineAsm(
             signature,
@@ -3930,10 +3934,6 @@ class NVVMLifter(Lifter):
             raise UnsupportedInstructionException(f"Unsupported WGMMA scoreboard: {op.name}")
         return int(name[-1])
 
-    @staticmethod
-    def _emit_wgmma_group(builder, operation, *scoreboard):
-        asm = ir.InlineAsm(ir.FunctionType(ir.VoidType(), []), operation, "~{memory}", side_effect=True)
-        call = builder.call(asm, [], attrs=("convergent",))
     def _single_wgmma_board(self, func):
         """Prove the function's committed groups fit the one PTX queue."""
         if not func.blocks:
@@ -3987,6 +3987,10 @@ class NVVMLifter(Lifter):
             work.extend((succ, pending) for succ in block.succs)
         return next(iter(boards))
 
+    @staticmethod
+    def _emit_wgmma_group(builder, operation, *scoreboard):
+        asm = ir.InlineAsm(ir.FunctionType(ir.VoidType(), []), operation, "~{memory}", side_effect=True)
+        call = builder.call(asm, [], attrs=("convergent",))
         if scoreboard:
             metadata = builder.module.add_metadata([ir.Constant(ir.IntType(32), value) for value in scoreboard])
             call.set_metadata("cupbop.wgmma.gsb", metadata)
@@ -4247,8 +4251,7 @@ class NVVMLifter(Lifter):
 
         if scoreboard is not None:
             metadata = self._emit_wgmma_group(IRBuilder, commit, scoreboard)
-            if not sparse and not is_rs and in_ty_a == in_ty_b and in_ty_a in ("f16", "bf16"):
-                res.set_metadata("cupbop.wgmma.gsb", metadata)
+            res.set_metadata("cupbop.wgmma.gsb", metadata)
         for i, d in enumerate(defs[:d_count]):
             if getattr(d, "reg", None) == "RZ":
                 continue
