@@ -1791,7 +1791,8 @@ class Lifter:
         # (~2-3x register pressure) that tanks occupancy on hot atomic/mem loops
         # (filter, atomicPerf, threadfence, ... timeout cluster).
         dest_ty = dest.get_ir_type(self)
-        if cout1 is None and getattr(dest_ty, "width", None) == 32:
+        if (all(op is None or op.is_pt for op in (cout1, cout2))
+                and getattr(dest_ty, "width", None) == 32):
             v1 = self._iadd3_operand_narrow(IRBuilder, _get_val, uses[0], dest_ty, "iadd3_o1")
             v2 = self._iadd3_operand_narrow(IRBuilder, _get_val, uses[1], dest_ty, "iadd3_o2")
             v3 = self._iadd3_operand_narrow(IRBuilder, _get_val, uses[2], dest_ty, "iadd3_o3")

@@ -104,6 +104,11 @@ class NVVMLifter(Lifter):
                 if inst.opcodes == ["BRA", "U", "ANY"] and inst.pflag and len(inst.operands) == 1:
                     inst.operands.insert(0, inst.pflag)
                     inst.pflag = None
+                elif inst.opcodes == ["R2UR", "BROADCAST"] and inst.pflag:
+                    # The elected writer updates the uniform register for every
+                    # active lane. A per-lane PBRA would hide that write from its peers.
+                    inst.operands.extend([inst.pflag, inst.operands[0].clone()])
+                    inst.pflag = None
         CrossFuncInline().apply(module)
         if module.isa in ("sm_100", "sm_100a"):
             for func in module.functions:
@@ -701,6 +706,21 @@ class NVVMLifter(Lifter):
 
     @lift_for("MOV", "MOV64", "UMOV", "R2UR")
     def lift_mov(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        if Inst.opcodes == ["R2UR", "BROADCAST"] and len(Inst.get_uses()) == 3:
+            source, predicate, previous = Inst.get_uses()
+            i32 = self.ir.IntType(32)
+            mask = self.run_intrinsic("activemask", IRBuilder, [], "broadcast_mask")
+            writer = self._insert_type_cast_if_needed(IRBuilder, _get_val(predicate, "writer"),
+                                                      self.ir.IntType(1), "writer_p")
+            writers = self.run_intrinsic("vote_ballot", IRBuilder, [mask, writer], "writers")
+            lane = IRBuilder.cttz(writers, self.ir.Constant(self.ir.IntType(1), 0), "writer_lane")
+            bits = self._insert_type_cast_if_needed(IRBuilder, _get_val(source, "broadcast_src"), i32, "src_bits")
+            value = self.run_intrinsic("shfl_idx_i32", IRBuilder, [mask, bits, lane, self.ir.Constant(i32, 31)],
+                                       "broadcast_value")
+            old = self._insert_type_cast_if_needed(IRBuilder, _get_val(previous, "previous"), i32, "old_bits")
+            any_writer = IRBuilder.icmp_unsigned("!=", writers, self.ir.Constant(i32, 0))
+            self._set_val(IRBuilder, IRRegs, Inst.get_defs()[0], IRBuilder.select(any_writer, value, old))
+            return
         half = self._abs32_addr_half(Inst, IRBuilder)
         if half is not None:
             self._set_val(IRBuilder, IRRegs, Inst.get_defs()[0], half)
@@ -720,6 +740,21 @@ class NVVMLifter(Lifter):
         return stack_size
 
     def _load_from_const_mem(self, builder, bank, byte_offset, target_ty, name=""):
+        if bank == 0 and getattr(self.elf, "blackwell_param_abi", False):
+            # Blackwell ABI 6 stores block and grid dimensions in its launch
+            # descriptor. A packed LDC.64 may read the adjacent X/Y components.
+            for base, sreg in ((0x360, "ntid"), (0x370, "nctaid")):
+                offset = byte_offset - base
+                width = getattr(target_ty, "width", None)
+                if width not in (32, 64) or offset < 0 or offset % 4 or offset + width // 8 > 12:
+                    continue
+                axis = offset // 4
+                low = self.run_intrinsic(f"sreg_{sreg}.{'xyz'[axis]}", builder, [], sreg)
+                if width == 32:
+                    return low
+                high = self.run_intrinsic(f"sreg_{sreg}.{'xyz'[axis + 1]}", builder, [], sreg)
+                return builder.or_(builder.zext(low, target_ty),
+                                   builder.shl(builder.zext(high, target_ty), self.ir.Constant(target_ty, 32)))
         # sm_90 driver slot c[0x0][0x198]: the GENERIC ADDRESS of the kernel's
         # grid-constant param buffer (nvcc's cvta.param materialization; TMA
         # descriptor chains add the KPARAM_INFO offset to this address).
@@ -1062,6 +1097,9 @@ class NVVMLifter(Lifter):
             # call, which ptxas rejects).
             func_ty = self.ir.FunctionType(i32, [], False)
             func = self.ir.Function(self.llvm_module, func_ty, "llvm.nvvm.activemask")
+        elif name == "elect_sync":
+            func_ty = self.ir.FunctionType(self.ir.LiteralStructType([i32, i1]), [i32])
+            func = self.ir.Function(self.llvm_module, func_ty, "llvm.nvvm.elect.sync")
         elif name.startswith("vote_"):
             vote_map = {
                 "vote_any": ("llvm.nvvm.vote.any.sync", i1, [i32, i1]),
@@ -2350,7 +2388,7 @@ class NVVMLifter(Lifter):
         for operand, name in zip(operands, ("cancel_result", "cancel_barrier")):
             offset = self._insert_type_cast_if_needed(IRBuilder, _get_val(operand, name), i32, name + "_offset")
             addresses.append(IRBuilder.ptrtoint(self._shared_gep(IRBuilder, offset, name), i32))
-        opcode = "clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes"
+        opcode = "clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes"
         if multicast:
             opcode += ".multicast::cluster::all"
         opcode += ".b128"
@@ -4598,27 +4636,13 @@ class NVVMLifter(Lifter):
 
     @lift_for("ELECT")
     def lift_elect(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
-        """ELECT Pd, URd, mask -> elect.sync (one leader lane per warp).
-
-        Writes the leader predicate; the elected-laneid UR dest (usually URZ)
-        is dropped when URZ."""
-        # PTX elect.sync REQUIRES membermask == the current active set (the
-        # SASS op implicitly intersects with active lanes; PTX is UB -> hangs
-        # when predicated-off lanes are named). Read %activemask at the site.
-        i32 = self.ir.IntType(32)
-        asm_ty = self.ir.FunctionType(i32, [])
-        asm = self.ir.InlineAsm(
-            asm_ty,
-            "{.reg .pred p; .reg .b32 m; activemask.b32 m; "
-            "elect.sync _|p, m; selp.u32 $0, 1, 0, p;}",
-            "=r,~{memory}", side_effect=True)
-        leader = IRBuilder.call(asm, [], "elect")
-        pred = IRBuilder.icmp_unsigned(
-            "!=", leader, self.ir.Constant(i32, 0), "elect_p")
-        for d in Inst.get_defs():
-            if d.is_predicate_reg and not d.is_pt:
-                self._set_val(IRBuilder, IRRegs, d, pred)
-                break
+        pred, lane = Inst.get_defs()
+        mask = self.run_intrinsic("activemask", IRBuilder, [], "elect_mask")
+        election = self.run_intrinsic("elect_sync", IRBuilder, [mask], "election")
+        if not lane.is_rz:
+            self._set_val(IRBuilder, IRRegs, lane, IRBuilder.extract_value(election, 0, "leader_lane"))
+        if not pred.is_pt:
+            self._set_val(IRBuilder, IRRegs, pred, IRBuilder.extract_value(election, 1, "elect_p"))
 
     @lift_for("USETMAXREG")
     def lift_usetmaxreg(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):

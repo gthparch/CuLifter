@@ -52,7 +52,7 @@ def test_work_request_keeps_both_shared_addresses_and_issues_once(mode, scope):
     module = lift_kernel(["UMOV UR6, 0x180", "UMOV UR7, 0x40",
                           f"UGETNEXTWORKID.{mode} [UR6], [UR7]"], 100)
     ir = str(module)
-    assert ir.count(f"clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes{scope}.b128") == 1
+    assert ir.count(f"clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes{scope}.b128") == 1
     assert "elect.sync" in ir
     assert "i32 384" in ir and "i32 64" in ir
 

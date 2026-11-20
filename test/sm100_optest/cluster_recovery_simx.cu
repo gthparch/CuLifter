@@ -53,9 +53,30 @@ static bool check_pair() {
   return true;
 }
 
+static bool check_lanes() {
+  uint8_t bank[LIFT_CBANK] = {};
+  uint32_t words[32];
+  for (auto &word : words) word = UINT32_MAX;
+  void *buf = lift_dev(words, sizeof(words));
+  lift_put<void *>(bank, 896, buf);
+  lift_launch("probe", dim3(1), dim3(32), 64, "896:8 904:4 908:4", bank);
+  LIFT_CHECK(cudaMemcpy(words, buf, sizeof(words), cudaMemcpyDeviceToHost));
+  LIFT_CHECK(cudaFree(buf));
+  for (unsigned lane = 0; lane < 32; ++lane) {
+    // One launched block exhausts the grid. Each issuer gets a completed decline.
+    uint32_t expected = (lane == 3 || lane == 21) ? 0 : UINT32_MAX;
+    if (words[lane] != expected) {
+      printf("lane=%u got=%x expected=%x\n", lane, words[lane], expected);
+      return false;
+    }
+  }
+  return true;
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) return 1;
-  bool ok = strcmp(argv[1], "pair") == 0 ? check_pair() : check_query();
+  bool ok = strcmp(argv[1], "pair") == 0 ? check_pair() :
+            strcmp(argv[1], "lanes") == 0 ? check_lanes() : check_query();
   if (ok) puts("PASSED CPU comparison");
   return ok ? 0 : 1;
 }

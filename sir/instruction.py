@@ -119,6 +119,13 @@ class Instruction:
         elif self.opcodes[0] == "ELECT":
             self.use_op_start_idx = 2
 
+        elif self.opcodes[0] in ("IADD3", "UIADD3"):
+            # PT/UPT discards a carry output but still occupies its operand slot.
+            for op in self.operands[1:3]:
+                if not (op.is_predicate_reg or op.is_pt):
+                    break
+                self.use_op_start_idx += 1
+
         # B2R.RESULT Rdst, Pdst - both are defs
         elif self.opcodes[0] == "B2R":
             self.use_op_start_idx = 2

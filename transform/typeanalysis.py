@@ -389,6 +389,7 @@ class TypeAnalysis(SaSSTransform):
             "UIMAD.HI": [[INT32], [INT32, INT32, INT64]],
             "UMOV": [[INT32], [INT32]],
             "R2UR": [[INT32], [INT32]],
+            "R2UR.BROADCAST": [[INT32], [INT32, BOOL, INT32]],
             "UISETP": [[BOOL, BOOL], [INT32, INT32, BOOL]],
             "USEL": [[INT32], [INT32, INT32, BOOL]],
             

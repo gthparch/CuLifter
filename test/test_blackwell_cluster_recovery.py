@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ from utils.asm import Asm
 from utils.elf import Elf
 
 TARGETS = ("sm_100", "sm_100a", "sm_120", "sm_120a")
-CANCEL = "clusterlaunchcontrol.try_cancel.async.mbarrier::complete_tx::bytes"
+CANCEL = "clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes"
 PAIR = "tcgen05.alloc.cta_group::2.sync.aligned.shared::cta.b32"
 QUERY = """
     ld.global.b128 response, [out];
@@ -31,6 +32,28 @@ QUERY = """
     clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128 {x,y,z,_}, response;
     st.global.v2.b32 [out+16], {x,y};
     st.global.b32 [out+24], z;
+"""
+LANE_REQUESTS = f"""
+    .reg .pred first,second,active,done;
+    mov.u32 v,%tid.x;
+    setp.eq.u32 first,v,3; setp.eq.u32 second,v,21;
+    or.pred active,first,second;
+    @!active ret;
+    mov.u32 r,arena;
+    selp.u32 x,32,0,second;
+    add.u32 r,r,x; add.u32 b,r,16;
+    mbarrier.init.shared::cta.b64 [b],1;
+    fence.mbarrier_init.release.cluster;
+    mbarrier.arrive.expect_tx.shared::cta.b64 _,[b],16;
+    {CANCEL}.b128 [r],[b];
+wait_reply:
+    mbarrier.try_wait.parity.shared::cta.b64 done,[b],0;
+    @!done bra wait_reply;
+    ld.shared.b128 response,[r];
+    clusterlaunchcontrol.query_cancel.is_canceled.pred.b128 ok,response;
+    selp.u32 x,1,0,ok;
+    mad.wide.u32 out,v,4,out;
+    st.global.u32 [out],x;
 """
 
 
@@ -44,11 +67,12 @@ def toolkit():
     llvm.initialize_all_asmprinters()
 
 
-def assemble(tmp_path, arch, body):
+def assemble(tmp_path, arch, body, declarations=""):
     ptx = tmp_path / "input.ptx"
     ptx.write_text(f""".version 8.7
 .target {arch}
 .address_size 64
+{declarations}
 .visible .entry probe(.param .u64 output, .param .u32 slot, .param .u32 bar) {{
     .reg .u64 out; .reg .b32 r,b,x,y,z,v; .reg .b128 response; .reg .pred ok;
     ld.param.u64 out,[output]; ld.param.u32 r,[slot]; ld.param.u32 b,[bar];
@@ -86,11 +110,28 @@ def reassemble(compiled, arch, tmp_path):
     return disassemble(cubin)
 
 
-@pytest.mark.parametrize("arch, multicast", [(a, False) for a in TARGETS]
-                         + [(a, True) for a in ("sm_100a", "sm_120a")])
-def test_cancellation_delivery(toolkit, tmp_path, arch, multicast):
+@contextmanager
+def cpu_probe(compiled):
+    llvm.initialize_native_target()
+    llvm.initialize_native_asmprinter()
+    machine = llvm.Target.from_default_triple().create_target_machine()
+    compiled.triple = llvm.get_default_triple()
+    compiled.data_layout = str(machine.target_data)
+    with llvm.create_mcjit_compiler(compiled, machine) as engine:
+        engine.finalize_object()
+        signature = ctypes.CFUNCTYPE(None, ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32)
+        yield signature(engine.get_function_address("probe"))
+
+
+DELIVERY_FORMS = [(a, False) for a in TARGETS] + [(a, True) for a in ("sm_100a", "sm_120a")]
+
+
+@pytest.mark.parametrize("arch, multicast", DELIVERY_FORMS)
+@pytest.mark.parametrize("explicit_shared", [True, False])
+def test_cancellation_delivery(toolkit, tmp_path, arch, multicast, explicit_shared):
     op = CANCEL + (".multicast::cluster::all" if multicast else "") + ".b128"
-    binary = assemble(tmp_path, arch, op + " [r], [b];")
+    input_op = op if explicit_shared else op.replace(".shared::cta", "")
+    binary = assemble(tmp_path, arch, input_op + " [r], [b];")
     source = disassemble(binary)
     form = "BROADCAST" if multicast else "SELFCAST"
     assert source.count("UGETNEXTWORKID." + form) == 1
@@ -101,6 +142,87 @@ def test_cancellation_delivery(toolkit, tmp_path, arch, multicast):
     assert re.search(r'call i1 @llvm.nvvm.vote.any.sync\(i32 %branch_mask, i1 %[^)]+\)', text)
     assert re.search(r'br i1 %branch_any,', text)
     assert reassemble(compiled, arch, tmp_path).count("UGETNEXTWORKID." + form) == 1
+
+
+@pytest.mark.parametrize("arch, multicast", DELIVERY_FORMS)
+@pytest.mark.parametrize("issuer", ["guarded", "elected_lane", "lane_addresses"])
+def test_cancel_election_and_shared_addresses(toolkit, tmp_path, arch, multicast, issuer):
+    op = CANCEL + (".multicast::cluster::all" if multicast else "") + ".b128 [r],[b];"
+    if issuer == "guarded":
+        body = f"mov.u32 v,%tid.x; setp.eq.u32 ok,v,5; @ok {op} st.global.u32 [out],v;"
+    elif issuer == "elected_lane":
+        body = (".reg .b32 mask; activemask.b32 mask; elect.sync x|ok,mask; "
+                f"mad.lo.u32 r,x,16,r; mad.lo.u32 b,x,8,b; @ok {op} "
+                "mad.wide.u32 out,x,4,out; @ok st.global.u32 [out],x;")
+    else:
+        body = f"mov.u32 v,%tid.x; mad.lo.u32 r,v,16,r; mad.lo.u32 b,v,8,b; {op}"
+    binary = assemble(tmp_path, arch, body)
+    source = disassemble(binary)
+    compiled = lift(source, binary)
+    text = str(compiled)
+    issue = "UGETNEXTWORKID." + ("BROADCAST" if multicast else "SELFCAST")
+    assert source.count(issue) == reassemble(compiled, arch, tmp_path).count(issue) == 1
+    if issuer == "guarded":
+        assert re.search(r"@!?UP\d+\s+" + re.escape(issue), source)
+        assert re.search(r"icmp (?:eq|ne) i32 %tid_x, 5", text)
+        assert "call i1 @llvm.nvvm.vote.all.sync" in text
+    elif issuer == "elected_lane":
+        assert re.search(r"ELECT (?:PT|P\d+), UR\d+, PT", source)
+        assert re.search(r"extractvalue \{ i32, i1 \} %election, 0", text)
+    else:
+        assert source.count("R2UR.BROADCAST") == 2
+        assert text.count("call i32 @llvm.nvvm.vote.ballot.sync") == 2
+        assert text.count("call i32 @llvm.nvvm.shfl.sync.idx.i32") == 2
+        assert text.count("call i1 @llvm.nvvm.vote.any.sync") == 1
+
+
+@pytest.mark.parametrize("arch", TARGETS)
+def test_blackwell_launch_descriptor_dimensions(toolkit, tmp_path, arch):
+    names = [f"{kind}.{axis}" for kind in ("nctaid", "ntid") for axis in "xyz"]
+    body = " ".join(f"mov.u32 v,%{name}; st.global.u32 [out+{i * 4}],v;" for i, name in enumerate(names))
+    binary = assemble(tmp_path, arch, body)
+    source = disassemble(binary)
+    for offset in (0x370, 0x374, 0x378, 0x360, 0x364, 0x368):
+        assert f"c[0x0][{hex(offset)}]" in source
+    compiled = lift(source, binary)
+    reassemble(compiled, arch, tmp_path)
+    text = str(compiled)
+    dims = (17, 5, 3, 32, 2, 4)
+    # Give each special register a distinct CPU value and execute the lifted stores.
+    for name, value in zip(names, dims):
+        call = f"call i32 @llvm.nvvm.read.ptx.sreg.{name}()"
+        assert text.count(call) == 1
+        text = text.replace(call, f"add i32 0, {value}")
+    words = (ctypes.c_uint32 * 6)()
+    with cpu_probe(llvm.parse_assembly(text)) as call:
+        call(ctypes.addressof(words), 0, 0)
+    assert tuple(words) == dims
+
+
+@pytest.mark.parametrize("arch", TARGETS)
+def test_discarded_carry_destinations(toolkit, tmp_path, arch):
+    add = "add.u32 r,r,16; add.u32 b,b,8;"
+    store = "st.global.v2.b32 [out],{r,b};"
+    binary = assemble(tmp_path, arch, f"{add} {store}")
+    source = disassemble(binary)
+    if arch.startswith("sm_100"):
+        assert re.search(r"IADD3 R\d+, PT, PT,", source)
+    compiled = lift(source, binary)
+    reassemble(compiled, arch, tmp_path)
+    words = (ctypes.c_uint32 * 2)()
+    with cpu_probe(compiled) as call:
+        for r, b in ((0, 0), (16, 128), (0xfffffff8, 0xfffffffc)):
+            call(ctypes.addressof(words), r, b)
+            assert tuple(words) == ((r + 16) & 0xffffffff, (b + 8) & 0xffffffff)
+
+    binary = assemble(tmp_path, arch, f"{add} {CANCEL}.b128 [r],[b]; {store}")
+    source = disassemble(binary)
+    func, = Module("probe", SaSSParser(source, Elf(binary))).functions
+    adds = [inst for inst in func.instructions if inst.opcodes == ["UIADD3"]]
+    assert len(adds) == 2
+    assert all([p.reg for p in inst.get_defs()[1:]] == ["UPT", "UPT"] for inst in adds)
+    assert [inst.get_uses()[1].immediate_value for inst in adds] == [16, 8]
+    assert "UGETNEXTWORKID.SELFCAST" in reassemble(lift(source, binary), arch, tmp_path)
 
 
 @pytest.mark.parametrize("arch", TARGETS)
@@ -117,15 +239,8 @@ def test_query_coordinates_and_failed_request(toolkit, tmp_path, arch, coordinat
     reassemble(compiled, arch, tmp_path)
     # The query-only kernel contains integer ops and global loads/stores.
     # Execute its actual recovered body on the CPU, including the early exit.
-    llvm.initialize_native_target()
-    llvm.initialize_native_asmprinter()
-    machine = llvm.Target.from_default_triple().create_target_machine()
-    compiled.triple = llvm.get_default_triple()
-    compiled.data_layout = str(machine.target_data)
     u32 = ctypes.c_uint32
-    with llvm.create_mcjit_compiler(compiled, machine) as engine:
-        engine.finalize_object()
-        call = ctypes.CFUNCTYPE(None, ctypes.c_uint64, u32, u32)(engine.get_function_address("probe"))
+    with cpu_probe(compiled) as call:
         for tag in (0, 1, 0xffffffff, 0xfffffffe):
             for x, y, z in [(0, 0, 0), (0x89abcdef, 0x1234, 0x9abc), (42, 0xffff, 0xffff)]:
                 words = (u32 * 8)(x, y | (z << 16), tag, 0xa5a5a5a5, 91, 92, 93, 94)
@@ -278,13 +393,17 @@ def test_nvdisasm_target_suffix(toolkit, tmp_path, arch):
 
 @pytest.mark.skipif(os.environ.get("CULIFTER_TEST_SIMX") != "1",
                     reason="set CULIFTER_TEST_SIMX=1 in a configured CuPBoP/Vortex environment")
-@pytest.mark.parametrize("arch,case", [(a, "query") for a in TARGETS] + [("sm_100a", "pair")])
+@pytest.mark.parametrize("arch,case", [(a, "query") for a in TARGETS] + [("sm_100a", "pair"), ("sm_100", "lanes")])
 def test_simx_cpu_comparison(toolkit, tmp_path, arch, case):
     examples = Path(os.environ["CuPBoP_PATH"]) / "examples"
     regression = Path(os.environ["VORTEX_PATH"]) / "tests/regression"
     if case == "pair" and "-DVX_CFG_TCU_TMEM_ENABLE" not in os.environ["VORTEX_CONFIGS"].split():
         pytest.skip("the paired allocation needs a TMEM-enabled SimX build")
-    binary = assemble(tmp_path, arch, QUERY if case == "query" else paired_lifecycle(512))
+    if case == "lanes":
+        binary = assemble(tmp_path, arch, LANE_REQUESTS, ".extern .shared .align 16 .b8 arena[];")
+        assert disassemble(binary).count("R2UR.BROADCAST") == 2
+    else:
+        binary = assemble(tmp_path, arch, QUERY if case == "query" else paired_lifecycle(512))
     compiled = lift(disassemble(binary), binary)
 
     # lift.mk links the host runtime relative to the example directory.
