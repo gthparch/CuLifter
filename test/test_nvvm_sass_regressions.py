@@ -144,7 +144,7 @@ def test_wgmma_scoreboard_commit_boundaries_and_partial_waits():
     assert wgmma == [
         ("fence", ()),
         ("mma_async", ()),
-        ("mma_async", ()),
+        ("mma_async", (2,)),
         ("commit_group", (2,)),
         ("commit_group", (0,)),
         ("wait_group", (2, 1)),

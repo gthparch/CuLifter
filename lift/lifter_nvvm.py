@@ -2996,7 +2996,8 @@ class NVVMLifter(Lifter):
         failing the JIT for the int8 CUTLASS gemms (08_turing, 09_turing).
         On GPU the tensor core is native, so emit
         llvm.nvvm.mma.<geom>.row.col[.satfinite].<ty> (the run_intrinsic
-        imma_ path derives the fragment counts from the geometry)."""
+        imma_ path derives the fragment counts from the geometry). For sparse
+        INT8, emit PTX mma.sp directly and preserve the metadata operand."""
         is_sparse = len(Inst.opcodes) > 1 and Inst.opcodes[1] == "SP"
         base = 2 if is_sparse else 1
         shape = Inst.opcodes[base]
@@ -3013,12 +3014,32 @@ class NVVMLifter(Lifter):
             "16816": "m16n8k16", "16832": "m16n8k32", "16864": "m16n8k64",
         }
         if is_sparse:
-            # mma.sp (2:4 structured sparse) has no stable named NVVM
-            # intrinsic across LLVM versions. Leave a placeholder rather than
-            # emit an unresolved extern / invalid PTX (15_ampere_sparse stays
-            # failing on correctness, but the JIT no longer crashes).
-            raise UnsupportedInstructionException(
-                f"Sparse IMMA.SP.{shape} not supported on NVVM backend yet")
+            kernel_name = getattr(self.curr_function, "name", "") or ""
+            # ptxas also uses IMMA.SP.16864.S8.S8 for the two repacked
+            # sub-atoms of an INT4 m16n8k128 instruction. Preserve the base
+            # lifter's CUTLASS disambiguation and reject that format here.
+            int4 = ("integer_subbyteILi4" in kernel_name and "ILi16ELi8ELi128EE" in kernel_name)
+            if (int4 or shape != "16864" or src_type_a != src_type_b or
+                    src_type_a not in ("S8", "U8") or len(uses) != 14 or len(dests) != 4 or
+                    getattr(uses[-1], "immediate_value", None) != 0):
+                # UnsupportedInstructionException emits a weak no-op, which
+                # would silently discard the matrix product.
+                raise ValueError(
+                    f"Unsupported NVVM sparse IMMA form: {Inst}")
+            args = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "imma_sp_arg"), i32, "imma_sp_arg")
+                    for op in uses[:-1]]
+            ty = src_type_a.lower()
+            saturation = ".satfinite" if sat else ""
+            signature = self.ir.FunctionType(self.ir.LiteralStructType([i32] * 4), [i32] * len(args))
+            asm = self.ir.InlineAsm(
+                signature,
+                f"mma.sp.sync.aligned.m16n8k64.row.col{saturation}.s32.{ty}.{ty}.s32 "
+                "{$0,$1,$2,$3}, {$4,$5,$6,$7}, {$8,$9,$10,$11}, {$12,$13,$14,$15}, $16, 0;",
+                ",".join(["=r"] * 4 + ["r"] * len(args)), side_effect=True)
+            result = IRBuilder.call(asm, args, "imma_sp")
+            for i, destination in enumerate(dests):
+                self._set_val(IRBuilder, IRRegs, destination, IRBuilder.extract_value(result, i))
+            return
         if shape not in shape_map:
             raise UnsupportedInstructionException(f"Unsupported IMMA shape: {shape}")
 
@@ -3887,6 +3908,7 @@ class NVVMLifter(Lifter):
         if scoreboard:
             metadata = builder.module.add_metadata([ir.Constant(ir.IntType(32), value) for value in scoreboard])
             call.set_metadata("cupbop.wgmma.gsb", metadata)
+            return metadata
 
     @lift_for("HGMMA", "WGMMA", "QGMMA", "IGMMA")
     def lift_wgmma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
@@ -3907,9 +3929,12 @@ class NVVMLifter(Lifter):
         """
         opc = Inst.opcodes
         sparse = "SP" in opc
+        integer = opc[0] == "IGMMA"
         shape, accum = Inst.wgmma_shape_accum()
         if sparse and (opc[1] != "SP" or not re.fullmatch(r"64x\d+x(16|32|64)", shape)):
             raise UnsupportedInstructionException(f"Unsupported sparse WGMMA shape: {Inst}")
+        if integer and not sparse:
+            raise UnsupportedInstructionException(f"Dense IGMMA is not supported by the NVVM lifter: {Inst}")
         if not shape:
             shape = "64x8x16"
         parts = shape.split("x")
@@ -3929,12 +3954,9 @@ class NVVMLifter(Lifter):
             # ptxas lowers a commit with no preceding matrix operations to a
             # zero-destination HGMMA. It still increments the tagged scoreboard.
             self._emit_wgmma_group(IRBuilder, commit, scoreboard)
-        integer = opc[0] == "IGMMA"
             return
         # Input type from the trailing opcode tokens: HGMMA carries F32[.BF16]
         # (F16 implied), QGMMA (fp8) spells both operand types, e.g.
-        if integer and not sparse:
-            raise UnsupportedInstructionException(f"Dense IGMMA is not supported by the NVVM lifter: {Inst}")
         # QGMMA.64x128x32.F32.E4M3.E4M3.
         # Input types from trailing opcode tokens. HGMMA: F32[.BF16|.TF32]
         # (F16 implied). QGMMA spells BOTH operand types and they can DIFFER
@@ -3955,6 +3977,8 @@ class NVVMLifter(Lifter):
                 tys.append("e5m2")
             elif t.startswith("TF32"):
                 tys.append("tf32")
+            elif t in ("S8", "U8"):
+                tys.append(t.lower())
         in_ty_a = tys[0] if tys else "f16"
         in_ty_b = tys[1] if len(tys) > 1 else in_ty_a
         has_transpose = in_ty_a in ("f16", "bf16")
@@ -3985,8 +4009,6 @@ class NVVMLifter(Lifter):
         acc_ty = self.ir.FloatType() if accum == "F32" else i32
 
         # Descriptor words by parser tag. RS form (A from registers): the
-            elif t in ("S8", "U8"):
-                tys.append(t.lower())
         # parser tags the 4-reg A fragment `wgmma_a_frag` and resolves the
         # B-descriptor UR pair by convention — {URn+2, URn+3} for .tnspB RS
         # (same window as SS), {URn, URn+1} for plain RS (the encoded pair
@@ -4092,6 +4114,8 @@ class NVVMLifter(Lifter):
         neg_a = ".negA" in dname or (is_rs and getattr(a_frag[0], "wgmma_neg_a", False))
         scale_a = -1 if neg_a else 1
         scale_b = -1 if ".negB" in dname else 1
+        if integer and (scale_a != 1 or scale_b != 1 or t_a or t_b):
+            raise UnsupportedInstructionException(f"Unexpected scale or transpose in integer sparse WGMMA: {Inst}")
 
         regs = "{" + ",".join(f"${i}" for i in range(d_count)) + "}"
         constraints = ["=f" if accum == "F32" else "=r"] * d_count
@@ -4114,8 +4138,6 @@ class NVVMLifter(Lifter):
             operands.extend((f"${d_count + len(args)}", str(selector)))
             value = _get_val(metadata, "wgmma_metadata")
             args.append(self._insert_type_cast_if_needed(IRBuilder, value, i32, "wgmma_metadata32"))
-        if integer and (scale_a != 1 or scale_b != 1 or t_a or t_b):
-            raise UnsupportedInstructionException(f"Unexpected scale or transpose in integer sparse WGMMA: {Inst}")
             constraints.append("r")
         operands.append(str(scale_d))
         if not integer:
@@ -4142,7 +4164,9 @@ class NVVMLifter(Lifter):
         res = IRBuilder.call(asm, args, "wgmma_rs" if is_rs else "wgmma", attrs=("convergent",))
 
         if scoreboard is not None:
-            self._emit_wgmma_group(IRBuilder, commit, scoreboard)
+            metadata = self._emit_wgmma_group(IRBuilder, commit, scoreboard)
+            if not sparse and not is_rs and in_ty_a == in_ty_b and in_ty_a in ("f16", "bf16"):
+                res.set_metadata("cupbop.wgmma.gsb", metadata)
         for i, d in enumerate(defs[:d_count]):
             if getattr(d, "reg", None) == "RZ":
                 continue
