@@ -1361,6 +1361,7 @@ class NVVMLifter(Lifter):
             # SASS-only mode (no ELF -> no KPARAM map): the function takes no
             # IR params (the code reads the captured blob through the
             # @const_mem global), but it must still be a KERNEL (.entry) or
+        self._native_wgmma_board = self._single_wgmma_board(func) if kernel_entry else None
             # cuModuleGetFunction can't find it and the GPU-launch drivers
             # (test/common/kernel_wrapper_cuda.h, cuDNN CD_* benches) fail.
             self._mark_kernel(llvm_module, ir_function)
@@ -3933,6 +3934,59 @@ class NVVMLifter(Lifter):
     def _emit_wgmma_group(builder, operation, *scoreboard):
         asm = ir.InlineAsm(ir.FunctionType(ir.VoidType(), []), operation, "~{memory}", side_effect=True)
         call = builder.call(asm, [], attrs=("convergent",))
+    def _single_wgmma_board(self, func):
+        """Prove the function's committed groups fit the one PTX queue."""
+        if not func.blocks:
+            return None
+        boards = set()
+        has_commit = False
+        pending_after = {}
+        for block in func.blocks:
+            for inst in block.instructions:
+                opcode = inst.opcodes[0]
+                if opcode.startswith("CALL") or inst.is_indirect_branch():
+                    return None
+                if opcode in ("HGMMA", "WGMMA", "QGMMA", "IGMMA"):
+                    names = [(op.name or "").lower() for op in inst.operands]
+                    tags = [name for name in names if name.startswith("gsb")]
+                    if inst.pflag or len(tags) > 1 or any(name.startswith("invalid") for name in names):
+                        return None
+                    pending_after[block] = not tags
+                    if not tags:
+                        continue
+                    tag = tags[0]
+                    has_commit = True
+                elif inst.opcodes == ["WARPGROUP", "DEPBAR", "LE"] and len(inst.operands) == 2:
+                    tag = (inst.operands[0].name or "").lower()
+                elif opcode == "WARPGROUP" and inst.opcodes[1:] not in (["ARRIVE"], ["WAIT"]):
+                    return None
+                else:
+                    continue
+                if not re.fullmatch(r"gsb[0-7]", tag):
+                    return None
+                boards.add(int(tag[-1]))
+                if len(boards) != 1:
+                    return None
+        if not has_commit:
+            return None
+
+        # An untagged MMA contributes to the next tagged group on its path.
+        # Track both incoming states through branches and loops. An open
+        # group reaching an exit means this function alone cannot prove its
+        # correspondence with the architecture's committed-group stream.
+        work = [(func.blocks[0], False)]
+        visited = set()
+        while work:
+            block, pending = work.pop()
+            if (block, pending) in visited:
+                continue
+            visited.add((block, pending))
+            pending = pending_after.get(block, pending)
+            if not block.succs and pending:
+                return None
+            work.extend((succ, pending) for succ in block.succs)
+        return next(iter(boards))
+
         if scoreboard:
             metadata = builder.module.add_metadata([ir.Constant(ir.IntType(32), value) for value in scoreboard])
             call.set_metadata("cupbop.wgmma.gsb", metadata)
@@ -4621,10 +4675,10 @@ class NVVMLifter(Lifter):
             n = count.immediate_value
             if not isinstance(n, int) or not 0 <= n <= 7:
                 raise UnsupportedInstructionException(f"Unsupported WGMMA dependency count: {count.name}")
-            # CuPBoP reads the exact scoreboard and partial count. Plain PTX
-            # exposes a single queue, so its standalone fallback waits on all
-            # committed groups. Only a tagged HGMMA closes the open group.
-            self._emit_wgmma_group(IRBuilder, "wgmma.wait_group.sync.aligned 0;",
-                                   self._wgmma_scoreboard(board), n)
+            scoreboard = self._wgmma_scoreboard(board)
+            # Use the exact partial wait when this kernel fits the single
+            # PTX queue. CuPBoP also retains the named scoreboard on fallback.
+            native_n = n if self._native_wgmma_board == scoreboard else 0
+            self._emit_wgmma_group(IRBuilder, f"wgmma.wait_group.sync.aligned {native_n};", scoreboard, n)
             return
         # Other WARPGROUP forms: NOP.

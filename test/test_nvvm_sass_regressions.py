@@ -172,6 +172,26 @@ def test_wgmma_scoreboard_commit_boundaries_and_partial_waits():
         ("wait_group", (0, 0)),
         ("wait_group", (2, 0)),
     ]
+    assert "wgmma.wait_group.sync.aligned 1;" not in str(compiled)
+
+
+@pytest.mark.parametrize("open_group, partial", [(False, 1), (True, 0)])
+def test_wgmma_single_board_ptx_wait(open_group, partial):
+    lines = [
+        "UMOV UR4, 0x0", "UMOV UR5, 0x10", "UMOV UR6, 0x20", "UMOV UR7, 0x10",
+        "WARPGROUP.ARRIVE",
+        "HGMMA.64x8x16.F32 R24, gdesc[UR4], RZ, !UPT",
+        "HGMMA.64x8x16.F32 R24, gdesc[UR4], R24, gsb0",
+        "HGMMA.64x8x16.F32 R28, gdesc[UR4], RZ, !UPT, gsb0",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x1",
+        "WARPGROUP.DEPBAR.LE gsb0, 0x0",
+    ]
+    if open_group:
+        lines.append("HGMMA.64x8x16.F32 R32, gdesc[UR4], RZ, !UPT")
+    ir = str(lift_kernel(lines, 90))
+    waits = re.findall(r'"wgmma\.wait_group\.sync\.aligned (\d+);".*? !cupbop\.wgmma\.gsb !(\d+)', ir)
+    assert [int(count) for count, _ in waits] == [partial, 0]
+    assert f"!{waits[0][1]} = !{{i32 0, i32 1}}" in ir
 
 
 @pytest.mark.parametrize("n, bf16, register_a, selector", [
