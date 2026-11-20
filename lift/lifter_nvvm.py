@@ -2984,6 +2984,33 @@ class NVVMLifter(Lifter):
         for j, dest in enumerate(Inst.get_defs()):
             self._set_val(IRBuilder, IRRegs, dest, IRBuilder.extract_value(result, j))
 
+    @lift_for("HMMA")
+    def lift_hmma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        if Inst.opcodes[1:2] != ["SP"]:
+            return super().lift_hmma(Inst, IRBuilder, IRRegs, block_map, _get_val, **kwargs)
+
+        uses = Inst.get_uses()
+        dests = Inst.get_defs()
+        selector = getattr(uses[-1], "immediate_value", None) if uses else None
+        if (Inst.opcodes != ["HMMA", "SP", "16816", "F32", "TF32"] or
+                len(uses) != 14 or len(dests) != 4 or selector not in (0, 1)):
+            raise ValueError(f"Unsupported NVVM sparse HMMA form: {Inst}")
+
+        i32, f32 = self.ir.IntType(32), self.ir.FloatType()
+        types = [i32] * 8 + [f32] * 4 + [i32]
+        args = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "hmma_sp_arg"), ty, "hmma_sp_arg")
+                for op, ty in zip(uses, types)]
+        signature = self.ir.FunctionType(self.ir.LiteralStructType([f32] * 4), types)
+        asm = self.ir.InlineAsm(
+            signature,
+            "mma.sp.sync.aligned.m16n8k16.row.col.f32.tf32.tf32.f32 "
+            "{$0,$1,$2,$3}, {$4,$5,$6,$7}, {$8,$9,$10,$11}, {$12,$13,$14,$15}, "
+            f"$16, {selector};",
+            ",".join(["=f"] * 4 + ["r"] * 8 + ["f"] * 4 + ["r"]), side_effect=True)
+        result = IRBuilder.call(asm, args, "hmma_sp_tf32", attrs=("convergent",))
+        for i, destination in enumerate(dests):
+            self._set_val(IRBuilder, IRRegs, destination, IRBuilder.extract_value(result, i))
+
     @lift_for("IMMA")
     def lift_imma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         """IMMA on NVVM -> native integer tensor-core MMA intrinsic.

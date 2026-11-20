@@ -18,6 +18,22 @@ from utils.elf import Elf
 FIXTURES = Path(__file__).parent / "sm100_optest"
 
 
+def test_lift_sparse_warp_tf32_from_sm80_cubin():
+    fixture = Path(__file__).parent / "warp_sparse_tf32"
+    elf = Elf(fixture / "kernel.cubin")
+    module = Module("sparse_warp_tf32", SaSSParser((fixture / "kernel.sass").read_text(), elf))
+    output = io.StringIO()
+    lifter = NVVMLifter(elf)
+    lifter.lift_module(module, output)
+    assert not lifter.placeholder_log
+    compiled = llvm.parse_assembly(output.getvalue())
+    compiled.verify()
+    inputs = re.findall(
+        r'asm sideeffect "mma\.sp\.sync\.aligned\.m16n8k16\.row\.col\.f32\.tf32\.tf32\.f32 '
+        r'[^\n]+\$16, ([01]);", "=f,=f,=f,=f,r,r,r,r,r,r,r,r,f,f,f,f,r"', str(compiled))
+    assert inputs == ["0", "1"]
+
+
 def parse_kernel(lines, sm, name, elf):
     sass = [f"code for sm_{sm}", f"Function : {name}"]
     for pc, line in enumerate([*lines, "EXIT"]):

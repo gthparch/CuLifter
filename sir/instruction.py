@@ -694,11 +694,14 @@ class Instruction:
                     pass
 
         elif len(self.opcodes) > 1 and self.opcodes[0] == "HMMA":
-            # HMMA.<shape>.<accum> D, A, B, C
+            # HMMA.<shape>.<accum> D, A, B, C; sparse forms append E and a selector.
+            sparse = self.opcodes[1] == "SP"
             shape = self.opcodes[1] if len(self.opcodes) > 1 else ""
             accum = self.opcodes[2] if len(self.opcodes) > 2 else ""
 
-            if shape == "884":
+            if self.opcodes == ["HMMA", "SP", "16816", "F32", "TF32"]:
+                d_count, a_count, b_count, c_count = 4, 4, 4, 4
+            elif shape == "884":
                 d_count, a_count, b_count, c_count = 2, 2, 2, 2
             elif shape == "1688" and accum == "F16":
                 d_count, a_count, b_count, c_count = 2, 2, 1, 2
@@ -724,7 +727,7 @@ class Instruction:
             BRegs = Operand.create_reg_group(self.operands[2], b_count).reg_group
             CRegs = Operand.create_reg_group(self.operands[3], c_count).reg_group
 
-            self.operands = DRegs + ARegs + BRegs + CRegs
+            self.operands = DRegs + ARegs + BRegs + CRegs + (self.operands[4:] if sparse else [])
 
         elif self.opcodes == ["FFMA2"] and len(self.operands) == 4 and self.use_op_start_idx == 2:
             expanded = Operand.create_reg_group(self.operands[0], 2).reg_group
@@ -1327,7 +1330,10 @@ class Instruction:
         if self.opcodes and self.opcodes[0] == "HMMA":
             shape = self.opcodes[1] if len(self.opcodes) > 1 else ""
             accum = self.opcodes[2] if len(self.opcodes) > 2 else ""
-            if shape == "16816":
+            sparse = shape == "SP"
+            if self.opcodes == ["HMMA", "SP", "16816", "F32", "TF32"]:
+                a_count, b_count = 4, 4
+            elif shape == "16816":
                 a_count = 4
                 b_count = 2
             elif shape == "1688" and accum == "F32":
@@ -1337,8 +1343,10 @@ class Instruction:
                 a_count = 2
                 b_count = 2
             c_idx = a_count + b_count
-            if defs and len(uses) > c_idx:
+            if defs and len(uses) > c_idx and not sparse:
                 operands = [defs[0], uses[0], uses[a_count], uses[c_idx]]
+            elif defs and self.opcodes == ["HMMA", "SP", "16816", "F32", "TF32"] and len(uses) == 14:
+                operands = [defs[0], uses[0], uses[a_count], uses[c_idx], *uses[12:]]
 
         pred_prefix = f"@{self.pflag} " if self.pflag else ""
         opcodes_str = ".".join(self.opcodes)

@@ -297,6 +297,8 @@ class TypeAnalysis(SaSSTransform):
             # Typing A/B as TF32 distinguishes them from plain Float32 in the
             # lattice; LLVM IR emits f32 either way.
             "HMMA.1688.F32.TF32": [[FLOAT32] * 4, [TF32] * 6 + [FLOAT32] * 4],
+            # Sparse TF32 also carries a full B fragment and one metadata register.
+            "HMMA.SP.16816.F32.TF32": [[FLOAT32] * 4, [TF32] * 8 + [FLOAT32] * 4 + [INT32]],
             # HGMMA/WGMMA: warpgroup MMA (SM90)
             # Note: the dynamic handler in resolve_types() intercepts these
             # opcodes and sizes types from actual operand count. The static
