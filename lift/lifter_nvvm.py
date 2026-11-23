@@ -782,6 +782,12 @@ class NVVMLifter(Lifter):
         # the descriptor 176 bytes into the argument at 0x210).
         if byte_offset == 0xc0 and fn_name.startswith("nvjet_sm90_") and self.arg_info:
             param_bias = min(self.arg_info)
+        # NVJET's SM120 TMA descriptor address is bank-base + absolute offset.
+        # In the ID 67 HSH image, 0x400 and 0x440 are the two tensor maps
+        # inside the argument starting at 0x380 (parameter offsets 128 and 192).
+        if (byte_offset == 0x110 and self.sir_module.isa in ("sm_120", "sm_120a")
+                and fn_name.startswith("nvjet_sm120_") and self.arg_info):
+            param_bias = min(self.arg_info)
         if bank == 0 and param_bias is not None and \
                 isinstance(target_ty, self.ir.IntType) and target_ty.width == 64:
             i64 = self.ir.IntType(64)
@@ -1609,7 +1615,7 @@ class NVVMLifter(Lifter):
 
     def _get_val(self, builder, ir_regs, op, name=""):
         if op.is_rz:
-            return self.ir.Constant(op.get_ir_type(self), 0)
+            return self.ir.Constant(op.get_ir_type(self), (op.offset or 0) if op.is_mem_addr else 0)
 
         if op.is_pt:
             # int(...) — bare Python bool here makes llvmlite emit

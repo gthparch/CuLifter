@@ -80,6 +80,33 @@ def test_ffma2_rounds_each_lane_only_after_the_addition():
                     ["R0", "R1", "R2", "R3", "R4", "R5"], ["R8", "R9"], [(args, expected)])
 
 
+@pytest.mark.parametrize("opcode,reg,pred", [("LOP3", "R", "P"), ("ULOP3", "UR", "UP")])
+@pytest.mark.parametrize("op", ["PAND", "POR"])
+def test_lop3_combines_result_predicate(opcode, reg, pred, op):
+    line = f"{opcode}.LUT.{op} {pred}1, {reg}Z, {reg}3, 0x1f, {reg}Z, 0xc0, {pred}0"
+    cases = []
+    for tid, q in product((0, 1, 31, 32), (0, 1)):
+        active = int((tid & 31) != 0)
+        cases.append(((tid, q), [active & q if op == "PAND" else active | q]))
+    check_registers([line], [reg + "3", pred + "0"], [pred + "1"], cases)
+
+
+@pytest.mark.parametrize("backend", [CpuLifter, NVVMLifter])
+def test_uniform_64bit_barrier_initializer(backend):
+    check_registers(["UMOV.64 UR10, 0xffffe000001ffff8"], [], ["UR10", "UR11"],
+                    [([], [0x001ffff8, 0xffffe000])], backend)
+
+
+@pytest.mark.parametrize("backend", [CpuLifter, NVVMLifter])
+@pytest.mark.parametrize("base", ["RZ", "URZ"])
+def test_zero_register_shared_address_keeps_offset(backend, base):
+    lifter = backend(SimpleNamespace(arg_map={}, const_data={}))
+    for offset in (0x400, 0x408):
+        insn = parse_sass(f"SYNCS.EXCH.64 URZ, [{base}+{offset:#x}], UR10")
+        address, = (operand for operand in insn.get_uses() if operand.is_mem_addr)
+        assert lifter._get_val(None, {}, address).constant == offset
+
+
 @pytest.mark.parametrize("opcode,prefix", [("PLOP3", "P"), ("UPLOP3", "UP")])
 @pytest.mark.parametrize("discard", [None, 0, 1])
 def test_two_predicate_truth_tables(opcode, prefix, discard):

@@ -269,9 +269,27 @@ class Instruction:
         elif len(self.opcodes) > 1 and (self.opcodes[0] == "IMAD" or self.opcodes[0] == "UIMAD") and self.opcodes[1] == "HI":
             self.operands[2 + self.use_op_start_idx] = Operand.create_reg_pair(self.operands[2 + self.use_op_start_idx])
 
-        # Blackwell uses the base register of a pair for IADD.64 and MOV.64.
-        elif self.opcodes in (["IADD", "64"], ["MOV", "64"]):
-            self.opcodes = [self.opcodes[0] + "64"]
+        # Three-source uniform addition with a zero third addend and no live
+        # carries is modulo-2^64 addition of two register pairs. Negation
+        # applies to the entire pair, including a borrow into the high word.
+        elif (self.opcodes == ["UIADD3", "64"]
+              and len(self.operands) == self.use_op_start_idx + 3
+              and self.use_op_start_idx in (1, 3)
+              and all(op.reg == "UPT" and not op.prefix for op in self.operands[1:self.use_op_start_idx])
+              and self.operands[-1].reg == "URZ" and not self.operands[-1].prefix
+              and not self.operands[0].prefix
+              and all(op.reg and op.reg.startswith("UR") and op.reg[2:].isdigit()
+                      and op.prefix in (None, "", "-") and not op.suffix
+                      for op in (self.operands[0], *self.operands[self.use_op_start_idx:-1]))):
+            dst = self.operands[0]
+            lhs, rhs = self.operands[self.use_op_start_idx:-1]
+            self.opcodes = ["IADD64"]
+            self.operands = [Operand.create_reg_pair(op) for op in (dst, lhs, rhs)]
+            self.use_op_start_idx = 1
+
+        # The scalar and uniform 64-bit moves both write a register pair.
+        elif self.opcodes in (["IADD", "64"], ["MOV", "64"], ["UMOV", "64"]):
+            self.opcodes = ["IADD64" if self.opcodes[0] == "IADD" else "MOV64"]
             self.operands = [Operand.create_reg_pair(op) for op in self.operands]
 
         # QSPC.E.S P0, RZ, [R8] ; => R8:R9

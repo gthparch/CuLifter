@@ -1399,7 +1399,7 @@ class CpuLifter(Lifter):
             val = self._get_const_mem_val(builder, ir_regs, op, name)
 
         elif op.is_rz:
-            return self.ir.Constant(op.get_ir_type(self), 0)
+            return self.ir.Constant(op.get_ir_type(self), (op.offset or 0) if op.is_mem_addr else 0)
 
         elif op.is_pt:
             return self.ir.Constant(op.get_ir_type(self), int(not op.is_not_reg))

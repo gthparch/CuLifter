@@ -293,15 +293,17 @@ def test_blackwell_driver_slots(sm, elf_file):
     assert "%is_explicit_cluster" in ptx
 
 
-@pytest.mark.parametrize("name", ["nvjet_sm90_probe", "test_call"])
-def test_hopper_nvjet_parameter_base(name):
+@pytest.mark.parametrize("sm,arg_base,driver_slot", [(90, 0x210, 0xc0), (120, 0x380, 0x110)])
+@pytest.mark.parametrize("nvjet", [True, False])
+def test_nvjet_parameter_base(sm, arg_base, driver_slot, nvjet):
+    name = f"nvjet_sm{sm}_probe" if nvjet else "test_call"
     ptx = lift_ptx([
-        "LDC.64 R2, c[0x0][0x210]", "LDC.64 R4, c[0x0][0xc0]",
+        f"LDC.64 R2, c[0x0][{arg_base:#x}]", f"LDC.64 R4, c[0x0][{driver_slot:#x}]",
         "STG.E.64 [R2.64], R4",
-    ], 90, name=name)
-    if name.startswith("nvjet"):
+    ], sm, name=name)
+    if nvjet:
         assert f"{name}_param_0" in ptx and "cvta.param.u64" in ptx
-        assert re.search(r"add\.s64\s+[^;]+, -528;", ptx)
+        assert re.search(rf"add\.s64\s+[^;]+, -{arg_base};", ptx)
     else:
         assert "cvta.param.u64" not in ptx
 

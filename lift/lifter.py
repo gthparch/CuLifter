@@ -1393,6 +1393,27 @@ class Lifter:
         v1 = self._insert_type_cast_if_needed(IRBuilder, _get_val(uses[0], "fmnmx_lhs"), f32, "fmnmx_lhs")
         v2 = self._insert_type_cast_if_needed(IRBuilder, _get_val(uses[1], "fmnmx_rhs"), f32, "fmnmx_rhs")
         pred = Inst.get_uses()[2]
+        # Plain fixed-predicate FMNMX is the SM80 encoding of PTX min/max.f32.
+        # The numeric input wins against a NaN on either side. LLVM minnum
+        # and maxnum may choose either sign for equal zero inputs, whereas
+        # PTX specifies +0 > -0.
+        if len(Inst.opcodes) == 1 and pred.is_pt:
+            is_max = pred.is_not_reg
+            name = "llvm.maxnum.f32" if is_max else "llvm.minnum.f32"
+            intrinsic = self.llvm_module.globals.get(name)
+            if intrinsic is None:
+                intrinsic = self.ir.Function(self.llvm_module, self.ir.FunctionType(f32, [f32, f32]), name)
+            number = IRBuilder.call(intrinsic, [v1, v2], "fmnmx_number")
+            i32 = self.ir.IntType(32)
+            bits1 = IRBuilder.bitcast(v1, i32)
+            bits2 = IRBuilder.bitcast(v2, i32)
+            union = IRBuilder.or_(bits1, bits2)
+            magnitude = IRBuilder.and_(union, self.ir.Constant(i32, 0x7fffffff))
+            both_zero = IRBuilder.icmp_unsigned("==", magnitude, self.ir.Constant(i32, 0))
+            zero_bits = IRBuilder.and_(bits1, bits2) if is_max else union
+            result = IRBuilder.select(both_zero, IRBuilder.bitcast(zero_bits, f32), number, "fmnmx")
+            self._set_val(IRBuilder, IRRegs, dest, result)
+            return
         if pred.is_pt and pred.is_not_reg:
             # !PT → MAX: pick v1 when v1>v2
             r = IRBuilder.fcmp_ordered(">", v1, v2, "fmnmx")
@@ -3233,9 +3254,10 @@ class Lifter:
             tmp = IRBuilder.icmp_signed("!=", r, zero, "lop3_pred_cmp")
             # q (4th source) is a predicate operand; _get_val may have widened
             # it to i32 if the source pseudo-register was typed as int (e.g.,
-            # !PT constant fold). Normalize to i1 so or_ types match.
+            # !PT constant fold). Normalize to i1 for the predicate combiner.
             q = self._normalize_i1_in_curr_bb(IRBuilder, q, "lop3_q")
-            self._set_val(IRBuilder, IRRegs, destPred, IRBuilder.or_(tmp, q, "lop3_p"))
+            combine = IRBuilder.and_ if "PAND" in Inst.opcodes else IRBuilder.or_
+            self._set_val(IRBuilder, IRRegs, destPred, combine(tmp, q, "lop3_p"))
 
     @lift_for("MOVM")
     def lift_movm(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
