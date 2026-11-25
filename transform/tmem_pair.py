@@ -280,11 +280,133 @@ def _paired_release(insts, join, by_pc, bindings, dst, columns):
             return i, Operand.parse(regs["R5"]), sites, keep
 
 
+@lru_cache(maxsize=1)
+def _ranked_patterns():
+    return tuple(_compile(_read_lines(name)) for name in ("ranked_multi", "ranked_free"))
+
+
+def _ranked_edges(insts, by_pc):
+    edges = []
+    for i, inst in enumerate(insts):
+        if _unknown_control_target(inst):
+            return
+        nexts = []
+        if inst.is_branch() or inst.is_call() or inst.opcodes[0] in ("BSSY", "SSY", "PRET"):
+            target = by_pc.get(inst.operands[-1].immediate_value)
+            if target is None:
+                return
+            nexts.append(target)
+        terminal = (inst.is_exit() and not inst.operands) or inst.is_return() or (inst.opcodes == ["BRA"] and len(inst.operands) == 1)
+        if (inst.pflag or not terminal) and i + 1 < len(insts):
+            nexts.append(i + 1)
+        edges.append(nexts)
+    return edges
+
+
+def _ranked_base(insts, edges, start, released, regs):
+    # ptxas hoists (CTA rank << 24) + static shared base before the first
+    # branch. Both allocation and release reload their slot from this base.
+    rank, offset, base = (regs[key] for key in ("UR8", "UR9", "UR14"))
+    definitions = {}
+    for i, inst in enumerate(insts):
+        if i in released:
+            continue
+        for reg in _registers(inst.get_defs()) & {rank, offset, base}:
+            if reg in definitions or inst.pflag or i >= start:
+                return
+            definitions[reg] = i
+    if set(definitions) != {rank, offset, base}:
+        return
+    start_rank, start_offset, build = (definitions[key] for key in (rank, offset, base))
+    if (max(start_rank, start_offset) >= build or
+            any(inst.is_branch() or inst.is_exit() for inst in insts[:build]) or
+            any(any(dest != i + 1 and dest <= build for dest in nexts) for i, nexts in enumerate(edges)) or
+            _tokens(_source(insts[start_rank])) != _tokens(f"S2UR {rank}, SR_CgaCtaId") or
+            _tokens(_source(insts[build])) != _tokens(f"ULEA {base}, {rank}, {offset}, 0x18")):
+        return
+    load = insts[start_offset]
+    if load.opcodes == ["UMOV"] and load.operands[1].is_immediate:
+        return load.operands[1].immediate_value + regs["STATIC_DST"]
+
+
+def _ranked_dead(insts, edges, join, matched, release):
+    # Follow every consumer path. A register first used outside the protocol
+    # must have been redefined after allocation on every incoming path.
+    temps = set().union(*(_registers(insts[i].get_defs()) for i in matched))
+    pending = [(join + 1, temps)]
+    seen = {}
+    while pending:
+        i, live = pending.pop()
+        live = live - seen.get(i, set())
+        if not live:
+            continue
+        seen.setdefault(i, set()).update(live)
+        inst = insts[i]
+        if inst.is_call() or inst.is_return() or i in matched:
+            return False
+        uses = inst.get_uses() + ([inst.pflag] if inst.pflag else [])
+        if live & _registers(uses):
+            return False
+        if i == release:
+            continue  # its only input is the slot, and its successor exits
+        if not inst.pflag:
+            live -= _registers(inst.get_defs())
+        pending.extend((n, live) for n in edges[i])
+    return True
+
+
+def _recover_ranked_pair(insts, by_pc):
+    # Full CUDA 13 kernels may hoist the CTA-ranked base and use the uniform
+    # parity test. This release validates the run and exits without issuing
+    # a separate relinquish_alloc_permit.
+    alloc_pat, free_pat = _ranked_patterns()
+    sites = [i for i, inst in enumerate(insts) if inst.opcodes[0] == "UTCATOMSWS"]
+    if len(sites) != 3:
+        return
+    start = sites[0] - next(i for i, (line, _) in enumerate(alloc_pat) if line.startswith("UTCATOMSWS"))
+    free = sites[2] - next(i for i, (line, _) in enumerate(free_pat) if line.startswith("UTCATOMSWS"))
+    alloc = _match(alloc_pat, insts, start, by_pc)
+    release = _match(free_pat, insts, free, by_pc)
+    if not alloc or not release:
+        return
+    allocated, _, regs = alloc
+    released, keep, free_regs = release
+    if (sites[1] not in allocated or allocated & released or
+            any(regs[name] != free_regs[name] for name in ("MASK", "STATIC_DST", "UR8", "UR14"))):
+        return
+    operands = _alloc_operands(regs)
+    edges = _ranked_edges(insts, by_pc)
+    if not operands or edges is None:
+        return
+    # The original hot paths and both out-of-line wait/trap tails have one
+    # permitted entry per collective. Keep the caller's first-warp guard.
+    for i, nexts in enumerate(edges):
+        for region, entry in ((allocated, start), (released, free)):
+            if i not in region and any(n in region and n != entry for n in nexts):
+                return
+        if i not in released and (insts[i].is_call() or insts[i].is_return()):
+            return
+    offset = _ranked_base(insts, edges, start, released, regs)
+    join = by_pc[regs["@join"]]
+    if offset is None or offset % 4 or not 0 <= offset < 1 << 24 or not _ranked_dead(insts, edges, join, allocated, free):
+        return
+    slot = Operand.from_immediate(hex(offset), offset)
+    columns = operands[1]
+    address = insts[free].operands[0].clone()
+    for i in (allocated | released) - keep - {free}:
+        insts[i] = Instruction(insts[i].id, ["NOP"], [])
+    insts[start] = Instruction(insts[start].id, ["TMEMALLOC2"], [slot, columns])
+    insts[free + 1] = Instruction(insts[free + 1].id, ["TMEMFREE2", "DEALLOC"], [address, columns])
+    return True
+
+
 def recover_tmem_pair(func):
     insts = func.instructions
     if not any(i.opcodes == ["UTCATOMSWS", "2CTA", "FIND_AND_SET", "ALIGN"] for i in insts):
         return
     by_pc = {int(inst.id, 16): i for i, inst in enumerate(insts)}
+    if _recover_ranked_pair(insts, by_pc):
+        return
     for start, first in enumerate(insts):
         if first.opcodes != ["S2R"] or "SR_CgaCtaId" not in _source(first):
             continue

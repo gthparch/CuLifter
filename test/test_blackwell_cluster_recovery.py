@@ -314,6 +314,56 @@ def test_paired_allocation_and_release_with_per_lane_output(toolkit, tmp_path, c
         assert op in sass
 
 
+@pytest.mark.parametrize("old,new", [
+    ("", ""),
+    ("@P2 BRA 0x860", "@P2 BRA 0x4e0"),  # branch into allocation
+    ("LDC R1, c[0x0][0x37c]", "@P1 BRA 0x90"),  # skip ranked base definition
+    ("ULEA UR14, UR8, UR9, 0x18", "ULEA UR14, UR8, UR9, 0x17"),
+    ("/*0860*/ WARPSYNC.ALL", "/*0860*/ STS [UR14], R5"),  # allocation scratch escapes
+    ("/*11a0*/ LDS R0, [UR14+0x2408]", "/*11a0*/ LDS R0, [UR14+0x2404]"),
+    ("/*11c0*/ IMAD.MOV.U32 R5, RZ, RZ, 0x3", "/*11c0*/ IMAD.MOV.U32 R5, RZ, RZ, 0x1"),
+])
+def test_cuda133_ranked_pair_protocol(old, new):
+    # cuobjdump of the actual SM100a M256 N32 sparse INT8 kernel. Its free
+    # checks the original run, then exits without relinquishing the permit.
+    source = (Path(__file__).parent / "sm100_optest/column_pair_ranked.sass").read_text()
+    if old:
+        assert source.count(old) == 1
+        source = source.replace(old, new)
+    func, = Module("pair", SaSSParser(source, None)).functions
+    recover_tmem_pair(func)
+    alloc = [i for i in func.instructions if i.opcodes[0] == "TMEMALLOC2"]
+    release = [i for i in func.instructions if i.opcodes[0] == "TMEMFREE2"]
+    if old:
+        assert not alloc and not release
+        assert sum(i.opcodes[0] == "UTCATOMSWS" for i in func.instructions) == 3
+    else:
+        assert len(alloc) == len(release) == 1
+        assert [op.immediate_value for op in alloc[0].operands] == [0x2808, 64]
+        assert release[0].opcodes == ["TMEMFREE2", "DEALLOC"]
+        assert all(i.opcodes[0] != "UTCATOMSWS" for i in func.instructions)
+
+
+def test_cubin_fixed_cluster_dimensions(toolkit, tmp_path):
+    ptx = tmp_path / "fixed.ptx"
+    ptx.write_text(""".version 8.7
+.target sm_100a
+.address_size 64
+.visible .entry fixed() .maxntid 32, 1, 1 .reqnctapercluster 2, 2, 1 { ret; }
+.visible .entry ordinary() { ret; }
+""")
+    cubin = ptx.with_suffix(".cubin")
+    subprocess.run(["ptxas", "-arch=sm_100a", ptx, "-o", cubin], check=True)
+    listing = tmp_path / "fixed.elf"
+    listing.write_text(subprocess.check_output(["cuobjdump", "-elf", cubin], text=True))
+    for metadata in (cubin, listing):
+        elf = Elf(metadata)
+        assert elf.cluster_dims == {"fixed": (2, 2, 1)}
+        assert elf.max_threads["fixed"] == (32, 1, 1)
+        reassemble(lift(disassemble(cubin), metadata), "sm_100a", tmp_path)
+        assert Elf(tmp_path / "recovered.cubin").cluster_dims == {"fixed": (2, 2, 1)}
+
+
 @pytest.mark.parametrize("where", ["consumer_mask", "wrong_slot", "wrong_trap"])
 def test_unmatched_paired_release_is_never_consumed(toolkit, tmp_path, where):
     binary = assemble(tmp_path, "sm_100a", paired_lifecycle(512))

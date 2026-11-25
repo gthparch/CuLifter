@@ -1834,13 +1834,13 @@ class NVVMLifter(Lifter):
             mt = None
             if self.elf is not None and hasattr(self.elf, "max_threads_for"):
                 mt = self.elf.max_threads_for(fn.name)
-            if mt:
-                i32 = ir.IntType(32)
-                for axis, dim in zip(("maxntidx", "maxntidy", "maxntidz"), mt):
+            cluster = getattr(self.elf, "cluster_dims", {}).get(fn.name)
+            for prefix, dims in (("maxntid", mt), ("cluster_dim_", cluster)):
+                for axis, dim in zip("xyz", dims or ()):
                     if dim and dim > 0:
                         node = module.add_metadata(
-                            [fn, ir.MetaDataString(module, axis),
-                             ir.Constant(i32, int(dim))]
+                            [fn, ir.MetaDataString(module, prefix + axis),
+                             ir.Constant(ir.IntType(32), int(dim))]
                         )
                         module.add_named_metadata("nvvm.annotations").add(node)
         except Exception as e:
@@ -2366,10 +2366,11 @@ class NVVMLifter(Lifter):
         i32 = self.ir.IntType(32)
         address, columns = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, name), i32, name)
                             for op, name in zip(Inst.get_uses(), ("pair_taddr", "pair_columns"))]
+        op = "tcgen05.dealloc.cta_group::2.sync.aligned.b32 $0, $1;"
+        if Inst.opcodes == ["TMEMFREE2"]:
+            op += " tcgen05.relinquish_alloc_permit.cta_group::2.sync.aligned;"
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]),
-                                "tcgen05.dealloc.cta_group::2.sync.aligned.b32 $0, $1; "
-                                "tcgen05.relinquish_alloc_permit.cta_group::2.sync.aligned;",
-                                "r,r,~{memory}", side_effect=True)
+                                op, "r,r,~{memory}", side_effect=True)
         IRBuilder.call(asm, [address, columns], attrs=("convergent",))
 
     @lift_for("UTCATOMSWS")

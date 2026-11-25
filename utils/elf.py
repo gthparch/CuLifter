@@ -79,6 +79,7 @@ class Elf:
         # and large-block launches (e.g. 1024-thread LZW/resize) fail at launch
         # with "too many resources requested".
         self.max_threads = {}
+        self.cluster_dims = {}  # fixed CTA grid per cluster (EIATTR_CTA_PER_CLUSTER)
 
         # Detect binary ELF vs text dump
         with open(self.path, 'rb') as f:
@@ -374,6 +375,10 @@ class Elf:
                     elif attr == 0x05 and len(payload) >= 12:  # MAX_THREADS
                         self.max_threads[kernel] = struct.unpack_from(
                             '<3I', payload)
+                    elif attr == 0x3d and len(payload) == 12:  # CTA_PER_CLUSTER
+                        dims = struct.unpack('<3I', payload)
+                        if all(dims):
+                            self.cluster_dims[kernel] = dims
                     i += 4 + val16
                 else:  # NVAL/BVAL/HVAL: value inline, fixed 4 bytes
                     i += 4
@@ -532,7 +537,7 @@ class Elf:
         self._parse_rel_text_call_map(text)
         self._parse_frame_size(text)
         self._parse_min_stack_size(text)
-        self._parse_max_threads(text)
+        self._parse_launch_dims(text)
         self._parse_text_symtab(text)
         self._parse_nv_global(text)
         self._parse_rela_tables(text)
@@ -601,7 +606,7 @@ class Elf:
     def max_threads_for(self, kernel):
         return self.max_threads.get(kernel)
 
-    def _parse_max_threads(self, text):
+    def _parse_launch_dims(self, text):
         # Per-kernel .nv.info.<kernel> section carries:
         #     Attribute:   EIATTR_MAX_THREADS
         #     Format:      EIFMT_SVAL
@@ -611,16 +616,17 @@ class Elf:
             re.DOTALL | re.MULTILINE,
         )
         val_re = re.compile(
-            r"EIATTR_MAX_THREADS\s*\n\s*Format:\s*EIFMT_SVAL\s*\n\s*Value:\s*"
+            r"EIATTR_(MAX_THREADS|CTA_PER_CLUSTER)\s*\n\s*Format:\s*EIFMT_SVAL\s*\n\s*Value:\s*"
             r"(0x[0-9a-fA-F]+)\s+(0x[0-9a-fA-F]+)\s+(0x[0-9a-fA-F]+)"
         )
         for m in sec_re.finditer(text):
             kernel, body = m.group(1), m.group(2)
-            vm = val_re.search(body)
-            if vm:
-                self.max_threads[kernel] = (
-                    int(vm.group(1), 16), int(vm.group(2), 16), int(vm.group(3), 16)
-                )
+            for attribute, x, y, z in val_re.findall(body):
+                dims = tuple(int(value, 16) for value in (x, y, z))
+                if attribute == "MAX_THREADS":
+                    self.max_threads[kernel] = dims
+                elif all(dims):
+                    self.cluster_dims[kernel] = dims
 
     def _parse_frame_size(self, text):
         # Each kernel entry in .nv.info.<kernel> has an EIATTR_FRAME_SIZE
