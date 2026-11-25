@@ -1,4 +1,4 @@
-"""Recover CUDA 13 column allocation and guarded dense MMA before SSA conversion."""
+"""Recover CUDA column allocation, transfer shapes and MMA descriptors before SSA conversion."""
 from functools import lru_cache
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from sir.operand import Operand
 from transform.tmem_pair import _compile, _match, _registers, _single_entry, _unknown_control_target
 
 
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=6)
 def _aligned_patterns(form):
     directory = Path(__file__).with_name("patterns")
     if form == "aligned":
@@ -28,6 +28,18 @@ def _aligned_patterns(form):
     return _compile(alloc), _compile(release)
 
 
+def _ranked_address_inputs(inst):
+    if inst.opcodes != ["ULEA"] or inst.pflag or len(inst.operands) != 4:
+        return
+    _, rank, base, shift = inst.operands
+    if shift.immediate_value != 24:
+        return
+    # ULEA can negate either input. Only (rank << 24) + base is the
+    # CTA-local shared address; .reuse is a scheduling hint.
+    if all(op.is_uniform_reg and op.name.removesuffix(".reuse") == op.reg for op in (rank, base)):
+        return rank.reg, base.reg
+
+
 def _ranked_release_slot(instructions, slot_reg, rank_reg, offset):
     # This ptxas schedule rebuilds the static slot = (CTA rank << 24) + offset
     # after allocation. Check all three reaching definitions on a straight-line
@@ -39,11 +51,9 @@ def _ranked_release_slot(instructions, slot_reg, rank_reg, offset):
             return False
         defs = _registers(inst.get_defs())
         if slot_reg in defs:
-            slot_ok = False
-            if inst.opcodes == ["ULEA"] and not inst.pflag and len(inst.operands) == 4:
-                _, rank, base, shift = inst.operands
-                slot_ok = (shift.immediate_value == 24 and rank.reg == rank_reg
-                           and writers.get(rank_reg) == "rank" and writers.get(base.reg) == offset)
+            inputs = _ranked_address_inputs(inst)
+            slot_ok = (inputs is not None and inputs[0] == rank_reg and
+                       writers.get(rank_reg) == "rank" and writers.get(inputs[1]) == offset)
         for reg in defs:
             value = None
             if not inst.pflag and inst.opcodes == ["S2UR"] and inst.get_uses()[0].name == "SR_CgaCtaId":
@@ -54,10 +64,93 @@ def _ranked_release_slot(instructions, slot_reg, rank_reg, offset):
     return slot_ok and writers.get(rank_reg) == "rank"
 
 
-def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes):
+def _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, free_regs):
+    # The full 12.9 kernel hoists separately ranked shared bases on either
+    # side of the MMA. Check incoming edges and all reaching definitions;
+    # unrelated loops include a cold mbarrier wait after the EXIT.
+    predecessors = [[] for _ in insts]
+    sync_targets = {}
+    for i, inst in enumerate(insts):
+        op = inst.opcodes[0]
+        if _unknown_control_target(inst) or op in ("SSY", "PRET"):
+            return
+        if op == "BSSY":
+            if inst.opcodes != ["BSSY", "RECONVERGENT"] or inst.pflag or len(inst.operands) != 2:
+                return
+            barrier = inst.operands[0].name
+            if barrier in sync_targets:
+                return
+            sync_targets[barrier] = by_pc.get(inst.operands[1].immediate_value)
+        if op == "BSYNC":
+            if (inst.opcodes != ["BSYNC", "RECONVERGENT"] or inst.pflag or len(inst.operands) != 1 or
+                    sync_targets.pop(inst.operands[0].name, None) != i + 1):
+                return
+        if (inst.is_call() or inst.is_return()) and i not in allocated and i not in released:
+            return
+        if inst.is_branch() or inst.is_call():
+            target = by_pc.get(inst.operands[-1].immediate_value)
+            if target is None:
+                return
+            predecessors[target].append(i)
+        terminal = (inst.is_exit() and not inst.operands) or inst.is_return() or (op == "BRA" and len(inst.operands) == 1)
+        if (not terminal or inst.pflag) and i + 1 < len(insts):
+            predecessors[i + 1].append(i)
+    if sync_targets:
+        return
+    for entry, region in ((start, allocated), (release, released)):
+        if any(src not in region for dst in region - {entry} for src in predecessors[dst]):
+            return
+
+    def writer(before, reg):
+        if before == 0:
+            return
+        pending = list(predecessors[before])
+        checked = set()
+        found = None
+        while pending:
+            i = pending.pop()
+            if i in checked:
+                continue
+            checked.add(i)
+            if reg in _registers(insts[i].get_defs()):
+                if found is not None or insts[i].pflag:
+                    return
+                found = i
+            elif not predecessors[i] or i == 0:
+                return
+            else:
+                pending.extend(predecessors[i])
+        return found
+
+    slots = []
+    for entry, bindings, base, rank in ((start, regs, "UR7", "UR8"), (release, free_regs, "UR13", "UR9")):
+        build = writer(entry, bindings[base])
+        inputs = _ranked_address_inputs(insts[build]) if build is not None else None
+        if inputs is None or inputs[0] != bindings[rank]:
+            return
+        rank_reg, base_reg = inputs
+        rank_writer = writer(build, rank_reg)
+        # The same CTA rank must feed the guard/map addresses too.
+        if rank_writer is None or writer(entry, rank_reg) != rank_writer:
+            return
+        rank_inst = insts[rank_writer]
+        if rank_inst.opcodes != ["S2UR"] or rank_inst.get_uses()[0].name != "SR_CgaCtaId":
+            return
+        source = writer(build, base_reg)
+        if source is None or insts[source].opcodes != ["UMOV"]:
+            return
+        base_offset = insts[source].operands[1].immediate_value
+        if base_offset is None:
+            return
+        slots.append(base_offset + bindings["STATIC_DST"])
+    if slots[0] == slots[1]:
+        return slots[0]
+
+
+def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes, form):
     # CUDA 12.9 checks a shared permit byte before the election. The cold
     # paths store the failure sentinel and call distinct returning trap stubs.
-    alloc_pattern, free_pattern = _aligned_patterns("129")
+    alloc_pattern, free_pattern = _aligned_patterns(form)
     start = first - next(i for i, (line, _) in enumerate(alloc_pattern) if line.startswith("UTCATOMSWS"))
     # No branch labels precede the deallocation atom in this schedule.
     release = free - next(i for i, (line, _) in enumerate(free_pattern) if line.startswith("UTCATOMSWS"))
@@ -69,27 +162,31 @@ def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes):
         return
     allocated, _, regs = alloc
     released, _, free_regs = dealloc
-    units, offset = regs["UNITS"], regs["STATIC_DST"]
-    if (units not in (1, 2, 4, 8, 16) or regs["MASK"] != (1 << units) - 1 or
-            regs["MASK"] != free_regs["MASK"] or offset < 0x400 or offset + 4 > static_bytes or
-            offset >= 1 << 24 or offset % 4 or
+    units = regs.get("UNITS", 1)
+    if (units not in (1, 2, 4, 8, 16) or regs.get("MASK", 1) != (1 << units) - 1 or
+            regs.get("MASK", 1) != free_regs.get("MASK", 1) or
             retry not in allocated or free not in released or allocated & released):
         return
-    # The failure return and successful allocation reconverge at WARPSYNC,
-    # followed by a NOP. An outer branch may bypass allocation to its end.
-    end = by_pc[regs["@sync"]] + 1
-    if (not _single_entry(insts, start, allocated, by_pc) or
-            not _single_entry(insts, release, released, by_pc) or
-            not _ranked_release_slot(insts[end+1:release], free_regs["UR4"], free_regs["UR5"], offset)):
+    if form == "129_unit":
+        offset = _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, free_regs)
+    else:
+        offset = regs["STATIC_DST"]
+        # The successful and failed allocations reconverge at WARPSYNC; the
+        # transfer-only schedule rebuilds its release slot on a straight line.
+        end = by_pc[regs["@sync"]] + 1
+        if (not _single_entry(insts, start, allocated, by_pc) or
+                not _single_entry(insts, release, released, by_pc) or
+                not _ranked_release_slot(insts[end+1:release], free_regs["UR4"], free_regs["UR5"], offset)):
+            return
+        for i, inst in enumerate(insts):
+            if (inst.is_call() or inst.is_return()) and i not in allocated and i not in released:
+                return
+            if (inst.is_branch() or inst.is_call()) and inst.operands:
+                target = by_pc.get(inst.operands[-1].immediate_value, -1)
+                if end + 1 < target <= release:
+                    return
+    if offset is None or offset < 0x400 or offset + 4 > static_bytes or offset >= 1 << 24 or offset % 4:
         return
-    for i, inst in enumerate(insts):
-        if inst.is_call() or inst.is_return():
-            if i not in allocated and i not in released:
-                return
-        if (inst.is_branch() or inst.is_call()) and inst.operands:
-            target = by_pc.get(inst.operands[-1].immediate_value, -1)
-            if end + 1 < target <= release:
-                return
 
     elect = next(i for i in sorted(allocated) if insts[i].opcodes == ["ELECT"])
     # Keep the permit check, sentinel and election intact. On the successful
@@ -131,7 +228,8 @@ def recover_single_aligned(func, guarded_static_bytes=0):
             break
     else:
         if guarded_static_bytes:
-            return _recover_single_guarded(insts, by_pc, first, retry, free, guarded_static_bytes)
+            return any(_recover_single_guarded(insts, by_pc, first, retry, free, guarded_static_bytes, form)
+                       for form in ("129", "129_unit"))
         return
     matched, _, regs = match
     released, _, release_regs = release

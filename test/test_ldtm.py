@@ -143,3 +143,37 @@ def test_129_guarded_slot_preserves_permit_and_release(old, new, static_bytes, f
         assert func.instructions[i+1].opcodes == ["ELECT"]
         assert sum(inst.is_call() for inst in func.instructions) == 3
         assert sum(inst.opcodes[-1] == "ALIGNED_RELEASE" for inst in func.instructions) == 1
+
+
+@pytest.mark.parametrize("old,new,fold", [
+    ("", "", True),
+    ("/*0060*/ LDC.64 R2, c[0x0][0x380]", "/*0060*/ @P1 BRA 0x80", False),
+    ("/*0020*/ S2UR UR8, SR_CgaCtaId", "/*0020*/ S2UR UR8, SR_TID.X", False),
+    ("/*0670*/ UMOV UR8, 0x400", "/*0670*/ UMOV UR8, 0x404", False),
+    ("ULEA UR13, UR9, UR8, 0x18", "ULEA UR13, -UR9, UR8, 0x18", False),
+    ("ULEA UR13, UR9, UR8, 0x18", "ULEA UR13, UR9, -UR8, 0x18", False),
+    ("ULEA UR13, UR9, UR8, 0x18", "ULEA UR13, UR9.reuse, UR8, 0x18", True),
+    ("/*0b60*/ LDS R0, [UR13+0x2408]", "/*0b60*/ LDS R0, [UR13+0x240c]", False),
+    ("/*0de0*/ SYNCS.PHASECHK.TRANS64.TRYWAIT P0, [UR8], RZ",
+     "/*0de0*/ UMOV UR13, 0x2808", False),
+    ("@!P1 BRA 0x210", "@!P1 BRA 0x400", False),
+    ("BSSY.RECONVERGENT B0, 0x170", "BSSY.RECONVERGENT B0, 0x400", False),
+    ("/*0d80*/ CALL.REL.NOINC 0xe10", "/*0d80*/ CALL.REL.NOINC 0xe40", False),
+])
+def test_129_guarded_unit_checks_ranked_slot_across_mma(old, new, fold):
+    from parse.parser import SaSSParser
+    from sir.module import Module
+    from transform.tmem_column import recover_single_aligned
+
+    source = (Path(__file__).parent / "sm100_optest/column_alloc_guarded_unit_129.sass").read_text()
+    if old:
+        assert old in source
+        source = source.replace(old, new)
+    func, = Module("mma_case", SaSSParser(source, None)).functions
+    recover_single_aligned(func, guarded_static_bytes=0x280c)
+    sites = [inst for inst in func.instructions if inst.opcodes == ["TMEMALLOC1"]]
+    assert len(sites) == int(fold)
+    if fold:
+        assert [op.immediate_value for op in sites[0].operands] == [0x2808, 32]
+        assert sum(inst.opcodes[-1] == "ALIGNED_RELEASE" for inst in func.instructions) == 1
+        assert sum(inst.is_call() for inst in func.instructions) == 3
