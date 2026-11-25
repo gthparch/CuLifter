@@ -98,12 +98,12 @@ class NVVMLifter(Lifter):
         self._guarded_tmem_entries = set()
         for func in module.functions:
             if module.isa == "sm_100a":
-                recover_tmem_pair(func)
                 guarded_bytes = 0
                 if (func.name in getattr(self.elf, "guarded_tmem_entries", ()) and
                         not self._dynamic_shared_detected):
                     guarded_bytes = self.elf.shared_sizes.get(func.name, 0)
-                if recover_single_aligned(func, guarded_bytes):
+                guarded_pair = recover_tmem_pair(func, guarded_bytes)
+                if recover_single_aligned(func, guarded_bytes) or guarded_pair:
                     self._guarded_tmem_entries.add(func.name)
                 recover_guarded_mma_constants(func)
                 recover_split_transfers(func)
@@ -2437,7 +2437,10 @@ class NVVMLifter(Lifter):
         mods = [m.upper() for m in Inst.opcodes[1:]]
         pair = "2CTA" in mods
         fields = [m for m in mods if m != "2CTA"]
-        if fields not in (["T", "S"], ["T", "S", "128DP128BIT"]):
+        shape = {("T", "S"): "128x256b",
+                 ("T", "S", "128DP128BIT"): "128x128b",
+                 ("T", "S", "4X32DP128BIT"): "32x128b.warpx4"}.get(tuple(fields))
+        if shape is None:
             raise UnsupportedInstructionException(f"unsupported column copy {Inst}")
         dest, src = Inst.get_uses()
         if not src.is_reg_group or len(src.reg_group) != 2:
@@ -2445,7 +2448,6 @@ class NVVMLifter(Lifter):
         word = self.ir.IntType(32)
         dest = self._insert_type_cast_if_needed(IRBuilder, _get_val(dest, "copy_dst"), word, "column")
         desc = self._tcgen_desc(IRBuilder, _get_val(src, "copy_desc"))
-        shape = "128x128b" if len(fields) == 3 else "128x256b"
         body = self._elect_one_wrap(f"tcgen05.cp.cta_group::{2 if pair else 1}.{shape} [$0], $1")
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [word, desc.type]),
                                 "{ " + body + " }", "r,l,~{memory}", side_effect=True)
@@ -2465,43 +2467,74 @@ class NVVMLifter(Lifter):
         word = self.ir.IntType(32)
         args = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "sttm"), word, "bits") for op in ops]
         tuple_regs = ",".join(f"${i}" for i in range(1, count + 1))
+        unpack = ".unpack::16b" if Inst.opcodes[-1].lower() == "expand16bit" else ""
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [word] * len(args)),
-                                f"tcgen05.st.sync.aligned.{transfer[0]}.x{transfer[1]}.b32 [$0]{split}, {{{tuple_regs}}}; tcgen05.wait::st.sync.aligned;",
+                                f"tcgen05.st.sync.aligned.{transfer[0]}.x{transfer[1]}{unpack}.b32 [$0]{split}, {{{tuple_regs}}}; tcgen05.wait::st.sync.aligned;",
                                 ",".join(["r"] * len(args) + ["~{memory}"]), side_effect=True)
         IRBuilder.call(asm, args)
 
-    @lift_for("UTCIMMA", "UTCHMMA", "UTCQMMA")
+    @lift_for("UTCIMMA", "UTCHMMA", "UTCQMMA", "UTCOMMA")
     def lift_utcimma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         ops = Inst.get_uses()
-        if (Inst.opcodes[1:] not in ([], ["2CTA"]) or len(ops) != 6
-                or not all(op.is_reg_group and len(op.reg_group) == 2 for op in ops[:2])):
-            raise UnsupportedInstructionException("expected UTC MMA with two SMEM descriptors")
+        opcode = Inst.opcodes[0]
+        scaled = len(ops) == 8
+        mods = set(Inst.opcodes[1:])
+        if (len(ops) not in (6, 8) or not ops[1].is_reg_pair or mods - {"2CTA", "4X"}
+                or ("4X" in mods and opcode != "UTCOMMA")
+                or (opcode == "UTCOMMA" and not scaled)
+                or (scaled and opcode not in ("UTCQMMA", "UTCOMMA"))):
+            raise UnsupportedInstructionException(f"unsupported TCGEN MMA form: {Inst}")
         i32, i64 = self.ir.IntType(32), self.ir.IntType(64)
-        a, b, dest, metadata, idesc, acc = ops
+        a, b, dest, metadata, idesc = ops[:5]
         descriptor = _get_val(idesc, "mma_idesc")
-        args = [_get_val(dest, "mma_tmem"), self._tcgen_desc(IRBuilder, _get_val(a, "mma_a")),
-                self._tcgen_desc(IRBuilder, _get_val(b, "mma_b")), descriptor, _get_val(acc, "mma_enable_d")]
-        types = [i32, i64, i64, i32, i32]
-        kind = {"UTCIMMA": "i8", "UTCHMMA": "f16", "UTCQMMA": "f8f6f4"}[Inst.opcodes[0]]
-        group = 2 if "2CTA" in Inst.opcodes else 1
+        aval = _get_val(a, "mma_a")
+        if a.is_reg_pair:
+            aval = self._tcgen_desc(IRBuilder, aval)
+        args = [_get_val(dest, "mma_tmem"), aval, self._tcgen_desc(IRBuilder, _get_val(b, "mma_b")),
+                descriptor, _get_val(ops[-1], "mma_enable_d")]
+        types = [i32, i64 if a.is_reg_pair else i32, i64, i32, i32]
+        kind = {"UTCIMMA": "i8", "UTCHMMA": "f16", "UTCQMMA": "f8f6f4", "UTCOMMA": "mxf4nvf4"}[opcode]
+        known = isinstance(descriptor, self.ir.Constant) and isinstance(descriptor.constant, int)
+        # UTCHMMA also encodes TF32. Both PTX input type fields must be 2.
+        type_mask = (7 << 7) | (7 << 10)
+        tf32_types = (2 << 7) | (2 << 10)
+        if opcode == "UTCHMMA" and known and descriptor.constant & type_mask == tf32_types:
+            kind = "tf32"
+        if scaled:
+            vector = "1X" if opcode == "UTCQMMA" else "4X" if "4X" in mods else "2X"
+            kind = ("mxf8f6f4" if opcode == "UTCQMMA" else kind) + f".block_scale.scale_vec::{vector}"
+        group = 2 if "2CTA" in mods else 1
         suffix = f".cta_group::{group}.kind::{kind}"
-        dense = f"tcgen05.mma{suffix} [$0], $1, $2, $3, use_d"
-        sparse = f"tcgen05.mma.sp{suffix} [$0], $1, $2, [$5], $3, use_d"
+        ab = "$1, $2" if a.is_reg_pair else "[$1], $2"
         # The SASS mnemonic is shared. Bit 2 of idesc selects sparsity, even
         # when the fourth operand addresses metadata at TMEM column zero.
-        known = isinstance(descriptor, self.ir.Constant) and isinstance(descriptor.constant, int)
         if not known or descriptor.constant & 4:
             args.append(_get_val(metadata, "mma_metadata"))
             types.append(i32)
+        tail = ", use_d"
+        if scaled:
+            first = len(args)
+            args.extend([_get_val(ops[5], "mma_scale_a"), _get_val(ops[6], "mma_scale_b")])
+            types.extend([i32, i32])
+            tail = f", [${first}], [${first+1}]" + tail
+        dense = f"tcgen05.mma{suffix} [$0], {ab}, $3{tail}"
+        sparse = f"tcgen05.mma.sp{suffix} [$0], {ab}, [$5], $3{tail}"
         if known:
             body = self._elect_one_wrap(sparse if descriptor.constant & 4 else dense)
         else:
+            dispatch = f"@sp {sparse}; @dn {dense};"
+            if opcode == "UTCHMMA":
+                dispatch = (f".reg .pred tf, tf_sp, tf_dn; and.b32 mode, $3, {type_mask}; "
+                            f"setp.eq.u32 tf, mode, {tf32_types}; and.pred tf_sp, tf, sp; "
+                            "and.pred tf_dn, tf, dn; not.pred tf, tf; and.pred sp, tf, sp; and.pred dn, tf, dn; "
+                            f"@tf_sp {sparse.replace('kind::f16', 'kind::tf32')}; "
+                            f"@tf_dn {dense.replace('kind::f16', 'kind::tf32')}; " + dispatch)
             body = ("{ .reg .pred issuer, sp, dn; .reg .b32 mask, mode; activemask.b32 mask; "
                     "elect.sync _|issuer, mask; and.b32 mode, $3, 4; "
                     "setp.ne.and.u32 sp, mode, 0, issuer; setp.eq.and.u32 dn, mode, 0, issuer; "
-                    f"@sp {sparse}; @dn {dense}; }}")
+                    + dispatch + " }")
         args = [self._insert_type_cast_if_needed(IRBuilder, v, t, "mma_arg") for v, t in zip(args, types)]
-        constraints = ["r", "l", "l", "r", "r"] + (["r"] if len(args) == 6 else [])
+        constraints = ["l" if ty == i64 else "r" for ty in types]
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), types),
                                 "{ .reg .pred use_d; setp.ne.u32 use_d, $4, 0; " + body + " }",
                                 ",".join(constraints + ["~{memory}"]), side_effect=True)
@@ -2591,7 +2624,8 @@ class NVVMLifter(Lifter):
         else:
             address = self._insert_type_cast_if_needed(IRBuilder, _get_val(source, "ldtm_addr"), word, "ldtm_addr_bits")
         outputs = ", ".join(f"${index}" for index in range(count))
-        operation = (f"tcgen05.ld.sync.aligned.{transfer[0]}.x{transfer[1]}.b32 {{{outputs}}}, [${count}]{split};\n\t"
+        pack = ".pack::16b" if Inst.opcodes[-1].lower() == "pack16bit" else ""
+        operation = (f"tcgen05.ld.sync.aligned.{transfer[0]}.x{transfer[1]}{pack}.b32 {{{outputs}}}, [${count}]{split};\n\t"
                      "tcgen05.wait::ld.sync.aligned;")
         result_type = word if count == 1 else self.ir.LiteralStructType([word] * count)
         signature = self.ir.FunctionType(result_type, [word])

@@ -534,9 +534,6 @@ class TypeAnalysis(SaSSTransform):
             "UGETNEXTWORKID.SELFCAST": [[], [INT32, INT32]],
             "UGETNEXTWORKID.BROADCAST": [[], [INT32, INT32]],
             "UTCCP": [[], [INT32, INT64]],
-            "UTCQMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
-            "UTCHMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
-            "UTCIMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
             "UTCBAR": [[], [INT32, INT32]],
             "UTCBAR.MULTICAST": [[], [INT32, INT32, INT32]],
             "UTCATOMSWS.FIND_AND_SET": [[BOOL, INT32], [INT32]],
@@ -808,6 +805,12 @@ class TypeAnalysis(SaSSTransform):
         if self._seed_blacklist and opcode in self._seed_blacklist:
             for op in inst.operands:
                 self.set_op_type(optypes, op, TOP, inst)
+            return
+
+        if opcode in inst.TCGEN_MMA:
+            for op in inst.get_uses():
+                ty = BOOL if op.is_predicate_reg or op.is_pt else INT64 if op.is_reg_group else INT32
+                self.set_op_type(optypes, op, ty, inst)
             return
 
         if opcode in ("LDTM", "STTM") and inst.tmem_transfer:

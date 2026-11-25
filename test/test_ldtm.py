@@ -20,9 +20,12 @@ from transform.typeanalysis import TypeAnalysis
                                    ("16x128b", "16dp128bit", 2), ("16x256b", "16dp256bit", 4))
     for count in (1, 2, 4, 8, 16, 32, 64, 128) if count >= words
 ])
-def test_ldtm_registers_and_address(shape, modifier, words, count):
+@pytest.mark.parametrize("packed", [False, True])
+def test_ldtm_registers_and_address(shape, modifier, words, count, packed):
     repeat = count // words
     modifiers = ([modifier] if modifier else []) + ([] if repeat == 1 else [f"x{repeat}"])
+    if packed:
+        modifiers.append("PACK16BIT")
     inst = Instruction(0, ["LDTM", *modifiers], [Operand.parse("R4"), Operand.parse("tmem[UR6+0x60]")])
     expected = [f"R{4 + index}" for index in range(count)]
     assert [operand.reg for operand in inst.get_defs()] == expected
@@ -43,7 +46,8 @@ def test_ldtm_registers_and_address(shape, modifier, words, count):
     call, = [instruction for instruction in builder.block.instructions if instruction.opname == "call"]
     addr, = call.args
     assert addr.opname == "add" and addr.operands[0] is function.args[0] and addr.operands[1].constant == 96
-    assert f"tcgen05.ld.sync.aligned.{shape}.x{repeat}.b32" in call.callee.asm
+    qualifier = ".pack::16b" if packed else ""
+    assert f"tcgen05.ld.sync.aligned.{shape}.x{repeat}{qualifier}.b32" in call.callee.asm
     assert "tcgen05.wait::ld.sync.aligned;" in call.callee.asm
     if count == 1:
         assert registers["R4"] is call
@@ -57,6 +61,16 @@ def test_other_ldtm_layout_is_reported():
     lifter = NVVMLifter(SimpleNamespace(arg_map={}, const_data={}))
     with pytest.raises(UnsupportedInstructionException, match="Unsupported LDTM form"):
         lifter.lift_instruction(inst, None, {}, {})
+
+
+@pytest.mark.parametrize("opcodes", [
+    ["LDTM", "EXPAND16BIT"],
+    ["STTM", "PACK16BIT"],
+    ["LDTM", "PACK16BIT", "x2"],
+    ["STTM", "16dp64bit", "x2", "EXPAND16BIT", "EXPAND16BIT"],
+])
+def test_invalid_tmem_packing_modifiers(opcodes):
+    assert Instruction(0, opcodes, []).tmem_transfer is None
 
 
 def test_tmem_side_effects_survive_dce():
@@ -177,3 +191,34 @@ def test_129_guarded_unit_checks_ranked_slot_across_mma(old, new, fold):
         assert [op.immediate_value for op in sites[0].operands] == [0x2808, 32]
         assert sum(inst.opcodes[-1] == "ALIGNED_RELEASE" for inst in func.instructions) == 1
         assert sum(inst.is_call() for inst in func.instructions) == 3
+
+
+@pytest.mark.parametrize("schedule,slot,columns,old,new", [
+    ("multi", 0x2400, 128, "", ""),
+    ("multi", 0x2400, 128, "/*0670*/ UMOV UR10, 0x400", "/*0670*/ UMOV UR10, 0x404"),
+    ("multi", 0x2400, 128, "/*03f0*/ IMAD.MOV.U32 R5, RZ, RZ, 0xf", "/*03f0*/ IMAD.MOV.U32 R5, RZ, RZ, 0x7"),
+    ("multi", 0x2400, 128, "/*0f70*/ BSYNC.RECONVERGENT B0", "/*0f70*/ BSYNC B0"),
+    ("multi", 0x2400, 128, "/*0600*/ WARPSYNC.ALL", "/*0600*/ BMOV B0, R4"),
+    ("multi_gpr", 0x808, 64, "", ""),
+    ("multi_gpr", 0x808, 64, "/*02d0*/ MOV R6, 0x400", "/*02d0*/ MOV R6, 0x404"),
+    ("multi_gpr", 0x808, 64, "STS [R9+0x408], R2", "STS [R9+0x40c], R2"),
+    ("multi_gpr", 0x808, 64, "/*0310*/ @P0 BRA 0x520", "/*0310*/ @P0 BRA 0x530"),
+])
+def test_129_guarded_multi_column_protocol(schedule, slot, columns, old, new):
+    from parse.parser import SaSSParser
+    from sir.module import Module
+    from transform.tmem_column import recover_single_aligned
+
+    fixture = Path(__file__).parent / "sm100_optest" / f"column_alloc_guarded_{schedule}_129.sass"
+    source = fixture.read_text()
+    if old:
+        assert source.count(old) == 1
+        source = source.replace(old, new)
+    func, = Module("column", SaSSParser(source, None)).functions
+    recover_single_aligned(func, guarded_static_bytes=slot + 4)
+    alloc = [i for i in func.instructions if i.opcodes == ["TMEMALLOC1"]]
+    assert len(alloc) == int(not old)
+    assert sum(i.opcodes[-1] == "ALIGNED_RELEASE" for i in func.instructions) == len(alloc)
+    if alloc:
+        assert [op.immediate_value for op in alloc[0].operands] == [slot, columns]
+        assert sum(i.is_call() for i in func.instructions) == 3

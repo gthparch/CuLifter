@@ -344,6 +344,56 @@ def test_cuda133_ranked_pair_protocol(old, new):
         assert all(i.opcodes[0] != "UTCATOMSWS" for i in func.instructions)
 
 
+@pytest.mark.parametrize("old,new", [
+    ("", ""),
+    ("@P0 BRA 0x9f0", "@!P0 BRA 0x9f0"),                      # wrong permit predicate
+    ("UR7, 0x2408, URZ", "UR14, 0x2408, URZ"),              # wrong peer slot
+    ("/*0ad0*/ LDS R2", "/*0ad0*/ @P1 LDS R2"),               # live old R2 reaches a consumer
+    ("/*1390*/ LDS R0, [UR15+0x2408]", "/*1390*/ LDS R0, [UR15+0x2404]"),
+])
+def test_cuda129_guarded_paired_tmem_a(old, new):
+    # Complete SM100a BF16 TMEM-A kernel. Recompute both ranked shared
+    # addresses and require the original paired bitmap and returning trap.
+    source = (Path(__file__).parent / "sm100_optest/column_pair_guarded_129.sass").read_text()
+    if old:
+        assert source.count(old) == 1
+        source = source.replace(old, new)
+    func, = Module("pair", SaSSParser(source, None)).functions
+    guarded = recover_tmem_pair(func, guarded_static_bytes=0x2810)
+    if old:
+        assert not guarded
+        assert sum(i.opcodes[0] == "UTCATOMSWS" for i in func.instructions) == 3
+    else:
+        assert guarded
+        alloc, = [i for i in func.instructions if i.opcodes == ["TMEMALLOC2"]]
+        assert [op.immediate_value for op in alloc.operands] == [0x2808, 64]
+        assert sum(i.opcodes == ["TMEMFREE2", "DEALLOC"] for i in func.instructions) == 1
+        assert any(i.id == "0a10" and i.opcodes == ["STS"] for i in func.instructions)
+        assert any(i.id == "0a20" and i.opcodes == ["BPT", "TRAP"] for i in func.instructions)
+        assert not any(i.opcodes[0] == "UTCATOMSWS" for i in func.instructions)
+
+
+@pytest.mark.parametrize("before,reload,dead", [
+    ("NOP", "LDS R2, [UR11+0x2408]", True),
+    ("NOP", "@P0 LDS R2, [UR11+0x2408]", False),
+    ("@P0 BRA 0x50", "LDS R2, [UR11+0x2408]", False),
+    ("STS [UR11], R2", "LDS R2, [UR11+0x2408]", False),
+])
+def test_ranked_pair_scratch_reloaded_after_bssy(before, reload, dead):
+    from .test_nvvm_sass_regressions import parse_kernel
+    from transform.tmem_pair import _ranked_dead, _ranked_edges
+
+    # CUDA 13.3 places the slot reload inside the reconvergence region and
+    # uses it after BSYNC when A comes from TMEM. A genuine bypass or use of
+    # the old R2 value must still disqualify the allocator replacement.
+    func, = parse_kernel(["MOV R2, RZ", "BSSY.RECONVERGENT B0, 0x50", before, reload,
+                          "BSYNC.RECONVERGENT B0", "IMAD.IADD R2, R2, 0x1, R3"],
+                         100, "test_call", None).functions
+    insts = func.instructions
+    edges = _ranked_edges(insts, {int(inst.id, 16): i for i, inst in enumerate(insts)})
+    assert _ranked_dead(insts, edges, 0, {0}, len(insts) - 1) == dead
+
+
 def test_cubin_fixed_cluster_dimensions(toolkit, tmp_path):
     ptx = tmp_path / "fixed.ptx"
     ptx.write_text(""".version 8.7

@@ -10,6 +10,8 @@ class Instruction:
     # path keeps it False to preserve its verified SSA numbering.
     SYNTH_DESC_B_HI = False
 
+    TCGEN_MMA = ("UTCIMMA", "UTCHMMA", "UTCQMMA", "UTCOMMA")
+
     _SPARSE_WARP_HMMA_FORMS = {
         ("HMMA", "SP", "16832", "F32"): ("m16n8k32", "f16"),
         ("HMMA", "SP", "16832", "F32", "BF16"): ("m16n8k32", "bf16"),
@@ -189,7 +191,7 @@ class Instruction:
         # KeyError at lift (FA fwd: UR13's def dropped, SYNCS on the same
         # barrier then read an undefined register).
         elif self.is_branch() or self.opcodes[0] in (
-                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCHMMA", "UTCQMMA", "UTCCP", "STTM", "UTCBAR",
+                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCHMMA", "UTCQMMA", "UTCOMMA", "UTCCP", "STTM", "UTCBAR",
                 "UGETNEXTWORKID", "TMEMALLOC1", "TMEMALLOC2", "TMEMFREE2", "EXIT"):
             self.use_op_start_idx = 0
 
@@ -627,13 +629,20 @@ class Instruction:
         elif self.opcodes[0] == "STL" and "128" in self.opcodes:
             self.operands[1] = Operand.create_reg_quad(self.operands[1])
 
-        elif (self.opcodes[0] in ("UTCIMMA", "UTCHMMA", "UTCQMMA") and len(self.operands) == 6
-              and all(re.fullmatch(r"gdesc\[UR\d+\]", op.name or "") for op in self.operands[:2])
-              and all(re.fullmatch(r"tmem\[UR\d+\]", op.name or "") for op in self.operands[2:4])
+        elif (self.opcodes[0] in self.TCGEN_MMA and len(self.operands) in (6, 7)
+              and re.fullmatch(r"(?:gdesc|tmem)\[UR(?:\d+|Z)\]", self.operands[0].name or "")
+              and re.fullmatch(r"gdesc\[UR(?:\d+|Z)\]", self.operands[1].name or "")
+              and all(re.fullmatch(r"tmem\[UR(?:\d+|Z)\]", op.name or "") for op in self.operands[2:4])
               and (idesc := re.fullmatch(r"idesc\[(UR\d+)\]", self.operands[4].name or ""))
-              and (self.operands[5].is_predicate_reg or self.operands[5].is_pt)):
-            self.operands[:2] = [Operand.create_reg_pair(op) for op in self.operands[:2]]
+              and (self.operands[-1].is_predicate_reg or self.operands[-1].is_pt)
+              and (len(self.operands) == 6 or re.fullmatch(r"tmem\[UR(?:\d+|Z)\]", self.operands[5].name or ""))):
+            if self.operands[0].name.startswith("gdesc["):
+                self.operands[0] = Operand.create_reg_pair(self.operands[0])
+            self.operands[1] = Operand.create_reg_pair(self.operands[1])
             self.operands[4] = Operand.from_reg(idesc[1], idesc[1])
+            if len(self.operands) == 7:
+                # One SASS operand encodes two adjacent 32-bit scale addresses.
+                self.operands[5:6] = Operand.create_reg_pair(self.operands[5]).reg_group
 
         elif self.opcodes[0] == "UTCCP" and len(self.operands) == 2 and re.fullmatch(
                 r"gdesc\[UR\d+\]", self.operands[1].name or ""):
@@ -1161,6 +1170,9 @@ class Instruction:
     def tmem_transfer(self):
         """Return the PTX shape, repetition count and lane register count."""
         modifiers = [op.lower() for op in self.opcodes[1:]]
+        packed = "pack16bit" if self.opcodes[0] == "LDTM" else "expand16bit"
+        if modifiers and modifiers[-1] == packed:
+            modifiers.pop()
         shapes = {"split": ("16x32bx2", 1), "16dp64bit": ("16x64b", 1), "16dp128bit": ("16x128b", 2),
                   "16dp256bit": ("16x256b", 4)}
         shape, width = "32x32b", 1

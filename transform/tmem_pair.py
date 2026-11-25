@@ -20,7 +20,14 @@ _TOKEN = re.compile(r"@[a-z_][a-z_0-9]*|\w+|[^\w\s]")
 
 
 def _tokens(line):
-    return _TOKEN.findall(line.replace(".reuse", ""))
+    tokens = _TOKEN.findall(line.replace(".reuse", ""))
+    # ptxas uses both MOV and the zero-product IMAD to copy a uniform
+    # register into a general register during allocation/release.
+    if (len(tokens) == 10 and tokens[:3] == ["IMAD", ".", "U32"] and
+            tokens[4:9] == [",", "RZ", ",", "RZ", ","] and
+            re.fullmatch(r"R\d+", tokens[3]) and re.fullmatch(r"UR\d+", tokens[9])):
+        return ["MOV", tokens[3], ",", tokens[9]]
+    return tokens
 
 
 def _read_lines(form):
@@ -91,7 +98,7 @@ def _match_tokens(pattern, actual, bindings, reverse):
         if register:
             if not re.fullmatch(register[1] + r"\d+", value) or not _bind(reverse, value, name):
                 return False
-        elif (name.startswith("@") and name != "@") or name in ("DST", "STATIC_DST", "NCOLS", "UNITS", "MASK"):
+        elif (name.startswith("@") and name != "@") or name in ("DST", "STATIC_BASE", "STATIC_DST", "NCOLS", "UNITS", "MASK"):
             if not re.fullmatch("0x[0-9a-fA-F]+", value):
                 return False
             value = int(value, 16)
@@ -351,7 +358,23 @@ def _ranked_dead(insts, edges, join, matched, release):
             continue  # its only input is the slot, and its successor exits
         if not inst.pflag:
             live -= _registers(inst.get_defs())
-        pending.extend((n, live) for n in edges[i])
+        if inst.opcodes[0] == "BSSY" and len(edges[i]) == 2:
+            # BSSY installs a reconvergence PC and falls through. The edge to
+            # that PC conservatively models a later divergence. Instructions
+            # in the straight-line prefix execute before either path, e.g.
+            # ptxas reloads the published slot into R2 immediately after BSSY.
+            # Visit that prefix normally to check every read as well.
+            target, successor = edges[i]
+            reaching = live.copy()
+            for j in range(successor, target):
+                op = insts[j]
+                if edges[j] != [j + 1] or op.is_branch() or op.is_call() or op.is_return() or op.is_exit():
+                    break
+                if not op.pflag:
+                    reaching -= _registers(op.get_defs())
+            pending.extend(((target, reaching), (successor, live)))
+        else:
+            pending.extend((n, live) for n in edges[i])
     return True
 
 
@@ -400,11 +423,78 @@ def _recover_ranked_pair(insts, by_pc):
     return True
 
 
-def recover_tmem_pair(func):
+@lru_cache(maxsize=1)
+def _ranked_guard_pattern():
+    return _compile(_read_lines("129_ranked_guard"))
+
+
+def _recover_guarded_ranked_pair(insts, by_pc, static_bytes):
+    # The 12.9 full kernel performs a permit check before its elected
+    # even/odd peer handoff and rebuilds its ranked base before release.
+    from transform.tmem_column import _aligned_patterns, _guarded_ranked_slot
+
+    sites = [i for i, inst in enumerate(insts) if inst.opcodes[0] == "UTCATOMSWS"]
+    if len(sites) != 3:
+        return
+    alloc_pat, free_pat = _ranked_guard_pattern(), _aligned_patterns("129_multi")[1]
+    def locate(pattern, site):
+        # Labels bind PCs and consume no SASS instructions.
+        prefix = 0
+        for line, _ in pattern:
+            if line.startswith("UTCATOMSWS"):
+                break
+            prefix += not line.endswith(":")
+        index = site - prefix
+        return index, _match(pattern, insts, index, by_pc) if index >= 0 else None
+    start, alloc = locate(alloc_pat, sites[0])
+    release, dealloc = locate(free_pat, sites[-1])
+    if not alloc or not dealloc:
+        return
+    allocated, keep, regs = alloc
+    released, _, free_regs = dealloc
+    units = regs["UNITS"]
+    if (sites[1] not in allocated or allocated & released or units not in (2, 4, 8, 16) or
+            regs["MASK"] != (1 << units) - 1 or regs["MASK"] != free_regs["MASK"]):
+        return
+    offset = _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs,
+                                  operand_names=(("UR11", "UR12"), ("UR13", "UR9")), alloc_base_source="UR10")
+    if offset is None or offset < 0x400 or offset + 4 > static_bytes or offset % 4 or offset >= 1 << 24:
+        return
+    edges = _ranked_edges(insts, by_pc)
+    join = by_pc[regs["@join"]]
+    if edges is None or not _ranked_dead(insts, edges, join, allocated - keep, release):
+        return
+    slot = Operand.from_immediate(hex(offset), offset)
+    columns = Operand.from_immediate(str(32 * units), 32 * units)
+    # Preserve the CUDA permit check, sentinel, trap and returning join.
+    # CuPBoP owns each peer's actual column allocation and validates the
+    # published handle and size on release. Its handle is a paired address,
+    # not a CUDA bitmap index.
+    issue = by_pc[regs["@issue"]]
+    exit_index = by_pc[free_regs["@exit"]] + 1
+    for i in (allocated - keep) | (released - {release, exit_index}):
+        insts[i] = Instruction(insts[i].id, ["NOP"], [])
+    # The denied branch still stores -1 and executes the verified BPT.TRAP.
+    # Inline that trap so call/return reconstruction never jumps into removed
+    # deallocation tails that happen to surround the permit trap in SASS.
+    trap = insts[by_pc[regs["@permit_trap"]]]
+    call = next(i for i in keep if insts[i].is_call())
+    insts[call] = Instruction(insts[call].id, trap.opcodes.copy(), [op.clone() for op in trap.operands])
+    insts[issue] = Instruction(insts[issue].id, ["TMEMALLOC2"], [slot, columns])
+    target = Operand.from_immediate(hex(regs["@join"]), regs["@join"])
+    insts[issue + 1] = Instruction(insts[issue + 1].id, ["BRA"], [target])
+    insts[release + 1] = Instruction(insts[release + 1].id, ["TMEMFREE2", "DEALLOC"],
+                                     [insts[release].operands[0].clone(), columns])
+    return True
+
+
+def recover_tmem_pair(func, guarded_static_bytes=0):
     insts = func.instructions
     if not any(i.opcodes == ["UTCATOMSWS", "2CTA", "FIND_AND_SET", "ALIGN"] for i in insts):
         return
     by_pc = {int(inst.id, 16): i for i, inst in enumerate(insts)}
+    if guarded_static_bytes and _recover_guarded_ranked_pair(insts, by_pc, guarded_static_bytes):
+        return True
     if _recover_ranked_pair(insts, by_pc):
         return
     for start, first in enumerate(insts):

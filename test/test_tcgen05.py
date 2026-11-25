@@ -164,11 +164,13 @@ def test_column_data_movement_and_fp16_survive_lifting(group, modifier):
         "UMOV UR4, 0", "UMOV UR10, 0", "UMOV UR11, 0x8100010",
         *[f"IMAD.MOV.U32 R{4+i}, RZ, RZ, {i+1}" for i in range(4)],
         f"UTCCP.T.S.128dp128bit{modifier} tmem[UR4], gdesc[UR6]",
+        f"UTCCP.T.S{modifier}.4x32dp128bit tmem[UR4], gdesc[UR6]",
         "STTM.x4 tmem[UR4], R4",
         f"UTCHMMA{modifier} gdesc[UR6], gdesc[UR8], tmem[UR4], tmem[UR10], idesc[UR11], UPT",
     ]
     text = str(lift_kernel(lines, 100))
     assert f"tcgen05.cp.cta_group::{group}.128x128b" in text
+    assert f"tcgen05.cp.cta_group::{group}.32x128b.warpx4" in text
     assert "tcgen05.st.sync.aligned.32x32b.x4.b32" in text
     assert f"tcgen05.mma.cta_group::{group}.kind::f16" in text
 
@@ -289,3 +291,37 @@ def test_guarded_descriptor_at_kernel_entry_with_backedge():
     ], 100, "test_call", None).functions
     recover_guarded_mma_constants(func)
     assert func.instructions[0].operands[4].is_uniform_reg
+
+
+@pytest.mark.parametrize("opcode,kind,idesc,scaled,tmem_a", [
+    ("UTCHMMA", "tf32", 0x08040910, False, False),
+    ("UTCHMMA.2CTA", "tf32", 0x10040914, False, True),
+    ("UTCQMMA", "f8f6f4", 0x08040910, False, True),
+    ("UTCQMMA", "mxf8f6f4.block_scale.scale_vec::1X", 0x08040900, True, False),
+    ("UTCOMMA", "mxf4nvf4.block_scale.scale_vec::2X", 0x08040004, True, True),
+    ("UTCOMMA.4X", "mxf4nvf4.block_scale.scale_vec::4X", 0x08040000, True, False),
+])
+def test_column_mma_operand_encodings(opcode, kind, idesc, scaled, tmem_a, assemble_sm100a):
+    first = "tmem[UR6]" if tmem_a else "gdesc[UR6]"
+    scales = ", tmem[UR12]" if scaled else ""
+    lines = ["LDCU.64 UR6, c[0x0][0x380]", "LDCU.64 UR8, c[0x0][0x388]",
+             "UMOV UR4, 0", "UMOV UR10, 0x18", f"UMOV UR11, {idesc:#x}",
+             "UMOV UR12, 0x30", "UMOV UR13, 0x44",
+             f"{opcode} {first}, gdesc[UR8], tmem[UR4], tmem[UR10], idesc[UR11]{scales}, UPT"]
+    ir = str(lift_kernel(lines, 100))
+    group = 2 if ".2CTA" in opcode else 1
+    output = f"tcgen05.mma{'.sp' if idesc & 4 else ''}.cta_group::{group}.kind::{kind}"
+    assert output + (" [$0], [$1]" if tmem_a else " [$0], $1") in ir
+    if scaled:
+        assert "i32 48, i32 68" in ir
+    assemble_sm100a(lines)
+
+
+def test_block_scaled_mma_zero_scale_addresses(assemble_sm100a):
+    lines = ["LDCU.64 UR8, c[0x0][0x380]", "LDCU.64 UR10, c[0x0][0x388]",
+             "UMOV UR4, 0x10", "UMOV UR6, 0", "UMOV UR7, 0x08040480",
+             "UTCOMMA gdesc[UR8], gdesc[UR10], tmem[UR4], tmem[UR6], idesc[UR7], tmem[URZ], UPT"]
+    ir = str(lift_kernel(lines, 100))
+    assert "mxf4nvf4.block_scale.scale_vec::2X" in ir
+    assert "i32 0, i32 0)" in ir
+    assemble_sm100a(lines)

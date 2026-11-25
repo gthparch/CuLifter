@@ -70,6 +70,7 @@ class DCE(SaSSTransform):
             "UTCIMMA",
             "UTCHMMA",
             "UTCQMMA",
+            "UTCOMMA",
             "UTCCP",
             "STTM",
             "UTCATOMSWS",

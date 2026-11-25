@@ -7,14 +7,15 @@ from sir.operand import Operand
 from transform.tmem_pair import _compile, _match, _registers, _single_entry, _unknown_control_target
 
 
-@lru_cache(maxsize=6)
+@lru_cache(maxsize=None)
 def _aligned_patterns(form):
     directory = Path(__file__).with_name("patterns")
     if form == "aligned":
         names = ("tmem_single_aligned.sass", "tmem_single_aligned_free.sass")
     else:
         alloc_form = "ranked" if form == "ranked_compact" else form
-        names = (f"tmem_single_{alloc_form}_alloc.sass", f"tmem_single_{form}_free.sass")
+        free_form = "129_multi" if form == "129_multi_gpr" else form
+        names = (f"tmem_single_{alloc_form}_alloc.sass", f"tmem_single_{free_form}_free.sass")
     alloc, release = [(directory / name).read_text().splitlines() for name in names]
     if form == "ranked_compact":
         # Both shifts overwrite their own mask constants once those are dead.
@@ -64,7 +65,8 @@ def _ranked_release_slot(instructions, slot_reg, rank_reg, offset):
     return slot_ok and writers.get(rank_reg) == "rank"
 
 
-def _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, free_regs):
+def _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs,
+                         operand_names=(("UR7", "UR8"), ("UR13", "UR9")), alloc_base_source=None):
     # The full 12.9 kernel hoists separately ranked shared bases on either
     # side of the MMA. Check incoming edges and all reaching definitions;
     # unrelated loops include a cold mbarrier wait after the EXIT.
@@ -72,18 +74,20 @@ def _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, 
     sync_targets = {}
     for i, inst in enumerate(insts):
         op = inst.opcodes[0]
-        if _unknown_control_target(inst) or op in ("SSY", "PRET"):
+        # A changed barrier register or a dynamic break target invalidates
+        # the implicit fallthrough edge we prove for each BSYNC below.
+        if _unknown_control_target(inst) or op in ("SSY", "PRET", "BMOV", "BREAK"):
             return
         if op == "BSSY":
-            if inst.opcodes != ["BSSY", "RECONVERGENT"] or inst.pflag or len(inst.operands) != 2:
+            if inst.opcodes[1:] not in ([], ["RECONVERGENT"]) or inst.pflag or len(inst.operands) != 2:
                 return
             barrier = inst.operands[0].name
             if barrier in sync_targets:
                 return
-            sync_targets[barrier] = by_pc.get(inst.operands[1].immediate_value)
+            sync_targets[barrier] = (by_pc.get(inst.operands[1].immediate_value), inst.opcodes[1:])
         if op == "BSYNC":
-            if (inst.opcodes != ["BSYNC", "RECONVERGENT"] or inst.pflag or len(inst.operands) != 1 or
-                    sync_targets.pop(inst.operands[0].name, None) != i + 1):
+            if (inst.pflag or len(inst.operands) != 1 or
+                    sync_targets.pop(inst.operands[0].name, None) != (i + 1, inst.opcodes[1:])):
                 return
         if (inst.is_call() or inst.is_return()) and i not in allocated and i not in released:
             return
@@ -123,7 +127,13 @@ def _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, 
         return found
 
     slots = []
-    for entry, bindings, base, rank in ((start, regs, "UR7", "UR8"), (release, free_regs, "UR13", "UR9")):
+    for entry, bindings, (base, rank) in ((start, regs, operand_names[0]), (release, free_regs, operand_names[1])):
+        # The GPR schedule builds both addresses within the matched region:
+        # (SR_CgaCtaId << 24) + STATIC_BASE + STATIC_DST, including the
+        # sentinel store on the failed-permit branch.
+        if "STATIC_BASE" in bindings:
+            slots.append(bindings["STATIC_BASE"] + bindings["STATIC_DST"])
+            continue
         build = writer(entry, bindings[base])
         inputs = _ranked_address_inputs(insts[build]) if build is not None else None
         if inputs is None or inputs[0] != bindings[rank]:
@@ -139,6 +149,11 @@ def _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, 
         source = writer(build, base_reg)
         if source is None or insts[source].opcodes != ["UMOV"]:
             return
+        # The paired protocol uses the unranked immediate again to build the
+        # peer publication address. Its definition must still reach allocation.
+        if entry == start and alloc_base_source is not None:
+            if base_reg != bindings[alloc_base_source] or writer(entry, base_reg) != source:
+                return
         base_offset = insts[source].operands[1].immediate_value
         if base_offset is None:
             return
@@ -167,8 +182,8 @@ def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes, form
             regs.get("MASK", 1) != free_regs.get("MASK", 1) or
             retry not in allocated or free not in released or allocated & released):
         return
-    if form == "129_unit":
-        offset = _guarded_unit_slot(insts, by_pc, start, allocated, release, released, regs, free_regs)
+    if form in ("129_unit", "129_multi", "129_multi_gpr"):
+        offset = _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs)
     else:
         offset = regs["STATIC_DST"]
         # The successful and failed allocations reconverge at WARPSYNC; the
@@ -229,7 +244,7 @@ def recover_single_aligned(func, guarded_static_bytes=0):
     else:
         if guarded_static_bytes:
             return any(_recover_single_guarded(insts, by_pc, first, retry, free, guarded_static_bytes, form)
-                       for form in ("129", "129_unit"))
+                       for form in ("129", "129_unit", "129_scheduled", "129_multi", "129_multi_gpr"))
         return
     matched, _, regs = match
     released, _, release_regs = release
@@ -306,7 +321,7 @@ def recover_split_transfers(func):
 def recover_guarded_mma_constants(func):
     """Resolve uniform immediates along all incoming edges under the MMA guard."""
     insts = func.instructions
-    sites = [i for i, inst in enumerate(insts) if inst.pflag and inst.opcodes[0] in ("UTCIMMA", "UTCHMMA", "UTCQMMA")]
+    sites = [i for i, inst in enumerate(insts) if inst.pflag and inst.opcodes[0] in Instruction.TCGEN_MMA]
     if not sites or any(_unknown_control_target(inst) for inst in insts):
         return
     by_pc = {int(inst.id, 16): i for i, inst in enumerate(insts)}
@@ -352,8 +367,8 @@ def recover_guarded_mma_constants(func):
 
     for i in sites:
         site = insts[i]
-        if (len(site.operands) != 6 or not site.pflag.is_uniform_reg
-                or not all(op.is_reg_group for op in site.operands[:2])
+        if (len(site.operands) not in (6, 8) or not site.pflag.is_uniform_reg
+                or not site.operands[1].is_reg_group
                 or not site.operands[3].is_uniform_reg or not site.operands[4].is_uniform_reg):
             continue
         for j in (3, 4):
