@@ -72,6 +72,7 @@ class Elf:
         # the old fixed 32 KB silently overflowed bigger __shared__ (tensorT's
         # double tile[5900] = 47200 B -> cross-thread corruption).
         self.shared_sizes = {}  # kernel -> static shared bytes
+        self.guarded_tmem_entries = set()
         # kernel -> (x, y, z) launch block dims from EIATTR_MAX_THREADS. The
         # lifter emits these as nvvm `maxntid*` so ptxas caps register usage to
         # fit the original block size; without them ptxas over-allocates regs
@@ -198,6 +199,37 @@ class Elf:
             self._parse_binary_nv_global(elf)
             self._parse_binary_abs32_relocs(elf)
             self._parse_binary_shared_sizes(elf)
+            self._parse_guarded_tmem_entries(elf)
+
+    def _parse_guarded_tmem_entries(self, elf):
+        # CUDA 12.9 puts two runtime-owned allocation fields in reserved
+        # shared memory. Only a CUDA entry starts a new lifetime for them.
+        if (not self.blackwell_param_abi or elf.elfclass != 64 or
+                not elf.get_section_by_name(".nv.shared.reserved.0")):
+            return
+        tab = elf.get_section_by_name(".symtab")
+        if not tab:
+            return
+        required = {("__nv_reservedSMEM_allocation_phase", 0x40, 1),
+                    ("__nv_reservedSMEM_allocation_mask", 0x50, 4)}
+        raw = tab.data()
+        entries = set()
+        for i, sym in enumerate(tab.iter_symbols()):
+            index = sym["st_shndx"]
+            if not isinstance(index, int):
+                continue
+            field = (sym.name, sym["st_value"], sym["st_size"])
+            if field in required and sym["st_info"]["type"] == "STT_OBJECT":
+                if elf.get_section(index).name == ".nv.shared.reserved.0":
+                    required.remove(field)
+            # pyelftools exposes visibility but discards CUDA's STO_CUDA_ENTRY
+            # flag. st_other is byte 5 of Elf64_Sym.
+            other = raw[i * tab["sh_entsize"] + 5]
+            if (other & 0x10 and sym["st_info"]["type"] == "STT_FUNC" and sym["st_value"] == 0 and
+                    elf.get_section(index).name == ".text." + sym.name):
+                entries.add(sym.name)
+        if not required:
+            self.guarded_tmem_entries = entries
 
     def _parse_binary_shared_sizes(self, elf):
         """Per-kernel static shared size from `.nv.shared.<kernel>` (NOBITS)

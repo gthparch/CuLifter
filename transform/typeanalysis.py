@@ -534,7 +534,7 @@ class TypeAnalysis(SaSSTransform):
             "UGETNEXTWORKID.SELFCAST": [[], [INT32, INT32]],
             "UGETNEXTWORKID.BROADCAST": [[], [INT32, INT32]],
             "UTCCP": [[], [INT32, INT64]],
-            **{f"STTM.x{n}": [[], [INT32] * (1 + n)] for n in (4, 8, 16, 32, 64, 128)},
+            "UTCQMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
             "UTCHMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
             "UTCIMMA": [[], [INT64, INT64, INT32, INT32, INT32, BOOL]],
             "UTCBAR": [[], [INT32, INT32]],
@@ -810,7 +810,7 @@ class TypeAnalysis(SaSSTransform):
                 self.set_op_type(optypes, op, TOP, inst)
             return
 
-        if opcode == "LDTM" and inst.ldtm_register_count:
+        if opcode in ("LDTM", "STTM") and inst.tmem_transfer:
             for operand in inst.get_defs():
                 self.set_op_type(optypes, operand, NUM32, inst)
             for operand in inst.get_uses():

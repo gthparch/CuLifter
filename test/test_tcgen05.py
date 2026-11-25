@@ -173,20 +173,46 @@ def test_column_data_movement_and_fp16_survive_lifting(group, modifier):
     assert f"tcgen05.mma.cta_group::{group}.kind::f16" in text
 
 
-@pytest.mark.parametrize("original,replacement,recognized", [
-    ("", "", True),
-    ("BRA.U !UP0, 0x400", "BRA.U UP0, 0x400", False),
-    ("R5, RZ, RZ, 0xf", "R5, RZ, RZ, 0x7", False),
-    ("LDS R0, [UR10+0x2000]", "LDS R0, [UR10+0x2004]", False),
-    ("ULOP3.LUT UR4, URZ, UR4, URZ, 0x33", "ULOP3.LUT UR4, URZ, UR4, URZ, 0x3c", False),
+@pytest.mark.parametrize("group,opcode,desc,metadata", [
+    (1, "UTCHMMA", "0x08100014", "UMOV UR10, 0x0"),
+    (2, "UTCIMMA.2CTA", "0x101004a4", "LDCU UR10, c[0x0][0x390]"),
+    (1, "UTCQMMA", "0x08100094", "LDCU UR10, c[0x0][0x390]"),
 ])
-def test_single_aligned_alloc_protocol(original, replacement, recognized):
+def test_sparse_mma_keeps_metadata_address(group, opcode, desc, metadata, assemble_sm100a):
+    lines = ["LDCU.64 UR6, c[0x0][0x380]", "LDCU.64 UR8, c[0x0][0x388]",
+             "UMOV UR4, 0x0", metadata, f"UMOV UR11, {desc}",
+             f"{opcode} gdesc[UR6], gdesc[UR8], tmem[UR4], tmem[UR10], idesc[UR11], UPT"]
+    assert f"tcgen05.mma.sp.cta_group::{group}" in str(lift_kernel(lines, 100))
+    assemble_sm100a(lines)
+
+
+def test_dynamic_mma_descriptor_elects_once_for_dense_or_sparse(assemble_sm100a):
+    lines = ["LDCU.64 UR6, c[0x0][0x380]", "LDCU.64 UR8, c[0x0][0x388]",
+             "UMOV UR4, 0x0", "LDCU.64 UR10, c[0x0][0x390]",
+             "UTCIMMA gdesc[UR6], gdesc[UR8], tmem[UR4], tmem[UR10], idesc[UR11], UPT"]
+    text = str(lift_kernel(lines, 100))
+    assert text.count("elect.sync") == 1
+    assert "@sp tcgen05.mma.sp." in text and "@dn tcgen05.mma.cta_group" in text
+    assemble_sm100a(lines)
+
+
+@pytest.mark.parametrize("fixture,original,replacement,recognized", [
+    ("column_alloc_128.sass", "", "", True),
+    ("column_alloc_128.sass", "BRA.U !UP0, 0x400", "BRA.U UP0, 0x400", False),
+    ("column_alloc_128.sass", "R5, RZ, RZ, 0xf", "R5, RZ, RZ, 0x7", False),
+    ("column_alloc_128.sass", "LDS R0, [UR10+0x2000]", "LDS R0, [UR10+0x2004]", False),
+    ("column_alloc_128.sass", "ULOP3.LUT UR4, URZ, UR4, URZ, 0x33", "ULOP3.LUT UR4, URZ, UR4, URZ, 0x3c", False),
+    ("column_alloc_32.sass", "", "", True),
+    ("column_alloc_32.sass", "UMOV UR6, 0x1", "UMOV UR6, 0x2", False),
+    ("column_alloc_32.sass", "ATOMS.OR RZ, [UR5+0x18], R3", "ATOMS.OR RZ, [UR5+0x18], R4", False),
+])
+def test_single_aligned_alloc_protocol(original, replacement, recognized, fixture):
     from pathlib import Path
     from parse.parser import SaSSParser
     from sir.module import Module
     from transform.tmem_column import recover_single_aligned
 
-    source = (Path(__file__).parent / "sm100_optest/column_alloc_128.sass").read_text()
+    source = (Path(__file__).parent / "sm100_optest" / fixture).read_text()
     if original:
         assert original in source
         source = source.replace(original, replacement)

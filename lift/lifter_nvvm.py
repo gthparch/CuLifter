@@ -21,7 +21,7 @@ from transform.set_zero import SetZero
 from transform.dce import DCE
 from transform.tmem_alloc import mark_full_tmem_alloc
 from transform.tmem_pair import recover_tmem_pair
-from transform.tmem_column import recover_single_aligned, recover_guarded_mma_constants
+from transform.tmem_column import recover_single_aligned, recover_guarded_mma_constants, recover_split_transfers
 from transform.cluster_dims import BlackwellClusterDims
 from transform.mov_eliminate import MovEliminate
 from transform.typeanalysis import TypeAnalysis, FLOAT32, FLOAT64
@@ -95,11 +95,18 @@ class NVVMLifter(Lifter):
         # intra-function inline path (HandleCall) can lower them. Runs at the
         # module level before per-function transforms split the Functions apart.
         from transform.cross_func_inline import CrossFuncInline
+        self._guarded_tmem_entries = set()
         for func in module.functions:
             if module.isa == "sm_100a":
                 recover_tmem_pair(func)
-                recover_single_aligned(func)
+                guarded_bytes = 0
+                if (func.name in getattr(self.elf, "guarded_tmem_entries", ()) and
+                        not self._dynamic_shared_detected):
+                    guarded_bytes = self.elf.shared_sizes.get(func.name, 0)
+                if recover_single_aligned(func, guarded_bytes):
+                    self._guarded_tmem_entries.add(func.name)
                 recover_guarded_mma_constants(func)
+                recover_split_transfers(func)
             # A uniform ANY branch tests the predicate across all active
             # lanes. Splitting its guard into a per-lane PBRA before the vote
             # loses lanes in ptxas's per-request CLC serialization loop.
@@ -1420,9 +1427,32 @@ class NVVMLifter(Lifter):
             self._mark_kernel(llvm_module, ir_function)
 
         func.block_map = {}
+        init_tmem = func.name in self._guarded_tmem_entries
+        if init_tmem:
+            leader = ir_function.append_basic_block("tmem_entry")
+            clear = ir_function.append_basic_block("clear_tmem_guard")
+            join = ir_function.append_basic_block("publish_tmem_guard")
         func.build_bb_to_ir_map(ir_function, func.block_map)
 
         entry_block = func.block_map[func.blocks[0]]
+        if init_tmem:
+            # The CUDA loader supplies the CTA's fresh permit and ownership
+            # map. The lifted shared array needs the same initial state even
+            # when the preceding CTA left nonzero bytes in scratchpad RAM.
+            b = self.ir.IRBuilder(leader)
+            x, y, z = [self.run_intrinsic(f"sreg_tid.{axis}", b, [], "tid_" + axis)
+                       for axis in "xyz"]
+            i8, i32 = self.ir.IntType(8), self.ir.IntType(32)
+            zero = self.ir.Constant(i32, 0)
+            b.cbranch(b.icmp_unsigned("==", b.or_(x, b.or_(y, z)), zero), clear, join)
+            b = self.ir.IRBuilder(clear)
+            b.store(self.ir.Constant(i8, 0), self._shared_gep(b, self.ir.Constant(i32, 0x40), "phase"))
+            mask = self._shared_gep(b, self.ir.Constant(i32, 0x50), "mask")
+            b.store(zero, b.bitcast(mask, self.ir.PointerType(i32, 3)))
+            b.branch(join)
+            b = self.ir.IRBuilder(join)
+            self.run_intrinsic("barrier", b, [])
+            b.branch(entry_block)
         builder = self.ir.IRBuilder(entry_block)
         builder.position_at_start(entry_block)
 
@@ -2423,41 +2453,57 @@ class NVVMLifter(Lifter):
     @lift_for("STTM")
     def lift_sttm(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         ops = Inst.get_uses()
+        split = ""
+        if "SPLIT" in Inst.opcodes:
+            split = f", {ops[-1].immediate_value}"
+            ops = ops[:-1]
         count = len(ops) - 1
-        if count not in (4, 8, 16, 32, 64, 128) or [m.upper() for m in Inst.opcodes[1:]] != [f"X{count}"]:
+        transfer = Inst.tmem_transfer
+        if not transfer or count != transfer[2]:
             raise UnsupportedInstructionException(f"unsupported column store {Inst}")
         word = self.ir.IntType(32)
         args = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "sttm"), word, "bits") for op in ops]
         tuple_regs = ",".join(f"${i}" for i in range(1, count + 1))
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [word] * len(args)),
-                                f"tcgen05.st.sync.aligned.32x32b.x{count}.b32 [$0], {{{tuple_regs}}}; tcgen05.wait::st.sync.aligned;",
+                                f"tcgen05.st.sync.aligned.{transfer[0]}.x{transfer[1]}.b32 [$0]{split}, {{{tuple_regs}}}; tcgen05.wait::st.sync.aligned;",
                                 ",".join(["r"] * len(args) + ["~{memory}"]), side_effect=True)
         IRBuilder.call(asm, args)
 
-    @lift_for("UTCIMMA", "UTCHMMA")
+    @lift_for("UTCIMMA", "UTCHMMA", "UTCQMMA")
     def lift_utcimma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         ops = Inst.get_uses()
         if (Inst.opcodes[1:] not in ([], ["2CTA"]) or len(ops) != 6
                 or not all(op.is_reg_group and len(op.reg_group) == 2 for op in ops[:2])):
-            raise UnsupportedInstructionException("expected dense UTC MMA with two SMEM descriptors")
+            raise UnsupportedInstructionException("expected UTC MMA with two SMEM descriptors")
         i32, i64 = self.ir.IntType(32), self.ir.IntType(64)
-        # The fourth SASS operand is the metadata TMEM slot of the descriptor
-        # pair. Dense i8 has no sparsity metadata or disable-output-lane tuple.
         a, b, dest, metadata, idesc, acc = ops
-        metadata_value = _get_val(metadata, "mma_metadata")
-        if not isinstance(metadata_value, self.ir.Constant) or metadata_value.constant != 0:
-            raise UnsupportedInstructionException("nonzero or dynamic UTCIMMA metadata slot")
+        descriptor = _get_val(idesc, "mma_idesc")
         args = [_get_val(dest, "mma_tmem"), self._tcgen_desc(IRBuilder, _get_val(a, "mma_a")),
-                self._tcgen_desc(IRBuilder, _get_val(b, "mma_b")),
-                _get_val(idesc, "mma_idesc"), _get_val(acc, "mma_enable_d")]
+                self._tcgen_desc(IRBuilder, _get_val(b, "mma_b")), descriptor, _get_val(acc, "mma_enable_d")]
         types = [i32, i64, i64, i32, i32]
-        args = [self._insert_type_cast_if_needed(IRBuilder, v, t, "mma_arg") for v, t in zip(args, types)]
-        kind = "i8" if Inst.opcodes[0] == "UTCIMMA" else "f16"
+        kind = {"UTCIMMA": "i8", "UTCHMMA": "f16", "UTCQMMA": "f8f6f4"}[Inst.opcodes[0]]
         group = 2 if "2CTA" in Inst.opcodes else 1
-        body = self._elect_one_wrap(f"tcgen05.mma.cta_group::{group}.kind::{kind} [$0], $1, $2, $3, use_d")
+        suffix = f".cta_group::{group}.kind::{kind}"
+        dense = f"tcgen05.mma{suffix} [$0], $1, $2, $3, use_d"
+        sparse = f"tcgen05.mma.sp{suffix} [$0], $1, $2, [$5], $3, use_d"
+        # The SASS mnemonic is shared. Bit 2 of idesc selects sparsity, even
+        # when the fourth operand addresses metadata at TMEM column zero.
+        known = isinstance(descriptor, self.ir.Constant) and isinstance(descriptor.constant, int)
+        if not known or descriptor.constant & 4:
+            args.append(_get_val(metadata, "mma_metadata"))
+            types.append(i32)
+        if known:
+            body = self._elect_one_wrap(sparse if descriptor.constant & 4 else dense)
+        else:
+            body = ("{ .reg .pred issuer, sp, dn; .reg .b32 mask, mode; activemask.b32 mask; "
+                    "elect.sync _|issuer, mask; and.b32 mode, $3, 4; "
+                    "setp.ne.and.u32 sp, mode, 0, issuer; setp.eq.and.u32 dn, mode, 0, issuer; "
+                    f"@sp {sparse}; @dn {dense}; }}")
+        args = [self._insert_type_cast_if_needed(IRBuilder, v, t, "mma_arg") for v, t in zip(args, types)]
+        constraints = ["r", "l", "l", "r", "r"] + (["r"] if len(args) == 6 else [])
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), types),
                                 "{ .reg .pred use_d; setp.ne.u32 use_d, $4, 0; " + body + " }",
-                                "r,l,l,r,r,~{memory}", side_effect=True)
+                                ",".join(constraints + ["~{memory}"]), side_effect=True)
         IRBuilder.call(asm, args)
 
     @lift_for("CLUSTERDIM")
@@ -2502,15 +2548,17 @@ class NVVMLifter(Lifter):
     @lift_for("UTCBAR")
     def lift_utcbar(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         ops = Inst.get_uses()
-        multicast = Inst.opcodes == ["UTCBAR", "MULTICAST"]
-        if ((not multicast and Inst.opcodes != ["UTCBAR"]) or len(ops) != 2 + multicast
+        modifiers = Inst.opcodes[1:]
+        multicast = "MULTICAST" in modifiers
+        if (modifiers not in ([], ["MULTICAST"], ["2CTA"], ["2CTA", "MULTICAST"]) or len(ops) != 2 + multicast
                 or not (ops[1].is_rz or ops[1].is_immediate and ops[1].immediate_value == 0)):
             raise UnsupportedInstructionException("unsupported UTCBAR form or completion operand")
         i32 = self.ir.IntType(32)
         address = self._insert_type_cast_if_needed(IRBuilder, _get_val(ops[0], "utcbar_addr"), i32, "utcbar_bits")
         local = IRBuilder.ptrtoint(self._shared_gep(IRBuilder, address, "utcbar_local"), i32)
         args = [local, IRBuilder.lshr(address, self.ir.Constant(i32, 24))]
-        op = "tcgen05.commit.cta_group::1.mbarrier::arrive::one.shared::cluster"
+        group = 2 if "2CTA" in modifiers else 1
+        op = f"tcgen05.commit.cta_group::{group}.mbarrier::arrive::one.shared::cluster"
         constraints = "r,r"
         if multicast:
             args.append(self._insert_type_cast_if_needed(IRBuilder, _get_val(ops[2], "utcbar_mask"),
@@ -2525,9 +2573,14 @@ class NVVMLifter(Lifter):
 
     @lift_for("LDTM")
     def lift_ldtm(self, Inst, IRBuilder, IRRegs, block_map, _get_val=None, **kwargs):
-        count = Inst.ldtm_register_count
+        transfer = Inst.tmem_transfer
+        count = transfer[2] if transfer else 0
         destinations = Inst.get_defs()
         sources = Inst.get_uses()
+        split = ""
+        if "SPLIT" in Inst.opcodes:
+            split = f", {sources[-1].immediate_value}"
+            sources = sources[:-1]
         if not count or len(destinations) != count or len(sources) != 1:
             raise UnsupportedInstructionException(f"Unsupported LDTM form: {Inst}")
         word = self.ir.IntType(32)
@@ -2537,7 +2590,7 @@ class NVVMLifter(Lifter):
         else:
             address = self._insert_type_cast_if_needed(IRBuilder, _get_val(source, "ldtm_addr"), word, "ldtm_addr_bits")
         outputs = ", ".join(f"${index}" for index in range(count))
-        operation = (f"tcgen05.ld.sync.aligned.32x32b.x{count}.b32 {{{outputs}}}, [${count}];\n\t"
+        operation = (f"tcgen05.ld.sync.aligned.{transfer[0]}.x{transfer[1]}.b32 {{{outputs}}}, [${count}]{split};\n\t"
                      "tcgen05.wait::ld.sync.aligned;")
         result_type = word if count == 1 else self.ir.LiteralStructType([word] * count)
         signature = self.ir.FunctionType(result_type, [word])
@@ -4688,13 +4741,27 @@ class NVVMLifter(Lifter):
             self._shared_gep(IRBuilder, mbar_v, "ublkcp_mbar_gep"), i64, "ublkcp_mbar_ptr")
         units = _get_val(size_op, "ublkcp_units")
         units = self._insert_type_cast_if_needed(IRBuilder, units, i32, "ublkcp_units32")
+        mask = None
+        opcode = "cp.async.bulk.shared::cluster.global.mbarrier::complete_tx::bytes"
+        operands = " [$0], [$1], $2, [$3]"
+        constraints = "l,l,r,l"
+        if "MULTICAST" in Inst.opcodes:
+            # UBLKCP.S.G.MULTICAST encodes both fields in the final UR:
+            # e.g. mask=3, bytes=128 is UMOV 0x00030008 on SM90a and SM100a.
+            mask = IRBuilder.lshr(units, self.ir.Constant(i32, 16))
+            mask = IRBuilder.trunc(mask, self.ir.IntType(16), "ublkcp_mask")
+            units = IRBuilder.and_(units, self.ir.Constant(i32, 0xffff))
+            opcode += ".multicast::cluster"
+            operands += ", $4"
+            constraints += ",h"
         nbytes = IRBuilder.shl(units, self.ir.Constant(i32, 4), "ublkcp_bytes")
-        body = ("cp.async.bulk.shared::cluster.global.mbarrier::complete_tx::bytes"
-                " [$0], [$1], $2, [$3]")
-        fn_ty = self.ir.FunctionType(self.ir.VoidType(), [i64, i64, i32, i64])
-        asm = self.ir.InlineAsm(
-            fn_ty, self._elect_one_wrap(body), "l,l,r,l,~{memory}", side_effect=True)
-        IRBuilder.call(asm, [dst_ptr, src_v, nbytes, mbar_ptr], "")
+        args = [dst_ptr, src_v, nbytes, mbar_ptr]
+        if mask is not None:
+            args.append(mask)
+        fn_ty = self.ir.FunctionType(self.ir.VoidType(), [arg.type for arg in args])
+        asm = self.ir.InlineAsm(fn_ty, self._elect_one_wrap(opcode + operands),
+                                constraints + ",~{memory}", side_effect=True)
+        IRBuilder.call(asm, args, "")
 
     @lift_for("UBLKRED")
     def lift_ublkred(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):

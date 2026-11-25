@@ -449,3 +449,15 @@ def test_simx_cpu_comparison(toolkit, tmp_path, arch, case):
         run = subprocess.run([*cmd, "run", "RUN_ARGS=" + case], cwd=work, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=120)
         assert run.returncode == 0 and "PASSED CPU comparison" in run.stdout, run.stdout
+
+
+@pytest.mark.parametrize("arch", ["sm_90a", "sm_100a"])
+def test_bulk_multicast_preserves_mask_and_size(toolkit, tmp_path, arch):
+    op = "cp.async.bulk.shared::cluster.global.mbarrier::complete_tx::bytes.multicast::cluster"
+    cubin = assemble(tmp_path, arch, f"{op} [r], [out], 128, [b], 3;")
+    original = disassemble(cubin)
+    assert "UBLKCP.S.G.MULTICAST" in original and "0x30008" in original
+    compiled = lift(original, cubin)
+    assert op in str(compiled)
+    recovered = reassemble(compiled, arch, tmp_path)
+    assert "UBLKCP.S.G.MULTICAST" in recovered and "0x30008" in recovered

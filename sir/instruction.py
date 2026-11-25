@@ -189,7 +189,7 @@ class Instruction:
         # KeyError at lift (FA fwd: UR13's def dropped, SYNCS on the same
         # barrier then read an undefined register).
         elif self.is_branch() or self.opcodes[0] in (
-                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCHMMA", "UTCCP", "STTM", "UTCBAR",
+                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCHMMA", "UTCQMMA", "UTCCP", "STTM", "UTCBAR",
                 "UGETNEXTWORKID", "TMEMALLOC1", "TMEMALLOC2", "TMEMFREE2", "EXIT"):
             self.use_op_start_idx = 0
 
@@ -627,7 +627,7 @@ class Instruction:
         elif self.opcodes[0] == "STL" and "128" in self.opcodes:
             self.operands[1] = Operand.create_reg_quad(self.operands[1])
 
-        elif (self.opcodes[0] in ("UTCIMMA", "UTCHMMA") and len(self.operands) == 6
+        elif (self.opcodes[0] in ("UTCIMMA", "UTCHMMA", "UTCQMMA") and len(self.operands) == 6
               and all(re.fullmatch(r"gdesc\[UR\d+\]", op.name or "") for op in self.operands[:2])
               and all(re.fullmatch(r"tmem\[UR\d+\]", op.name or "") for op in self.operands[2:4])
               and (idesc := re.fullmatch(r"idesc\[(UR\d+)\]", self.operands[4].name or ""))
@@ -638,15 +638,14 @@ class Instruction:
         elif self.opcodes[0] == "UTCCP" and len(self.operands) == 2 and re.fullmatch(
                 r"gdesc\[UR\d+\]", self.operands[1].name or ""):
             self.operands[1] = Operand.create_reg_pair(self.operands[1])
-        elif (self.opcodes[0] == "STTM" and len(self.opcodes) == 2 and len(self.operands) == 2
-              and re.fullmatch(r"x(4|8|16|32|64|128)", self.opcodes[1], re.I)):
-            self.operands[1:] = Operand.create_reg_group(self.operands[1], int(self.opcodes[1][1:])).reg_group
-
-        elif self.opcodes[0] == "LDTM" and self.ldtm_register_count:
-            count = self.ldtm_register_count
-            self.use_op_start_idx = count
-            if len(self.operands) == 2 and count > 1 and self.operands[0].is_reg:
-                self.operands[:1] = Operand.create_reg_group(self.operands[0], count).reg_group
+        elif self.opcodes[0] in ("STTM", "LDTM") and self.tmem_transfer:
+            _, _, count = self.tmem_transfer
+            load = self.opcodes[0] == "LDTM"
+            if load:
+                self.use_op_start_idx = count
+            index = 0 if load else 1
+            if count > 1 and self.operands[index].is_reg and len(self.operands) == (3 if "SPLIT" in self.opcodes else 2):
+                self.operands[index:index + 1] = Operand.create_reg_group(self.operands[index], count).reg_group
 
         # LDSM.16.M88.4 R132, [R99] loads 4 regs from shared memory
         elif self.opcodes[0] == "LDSM":
@@ -1159,13 +1158,28 @@ class Instruction:
         return False
 
     @property
-    def ldtm_register_count(self):
-        modifiers = self.opcodes[1:]
+    def tmem_transfer(self):
+        """Return the PTX shape, repetition count and lane register count."""
+        modifiers = [op.lower() for op in self.opcodes[1:]]
+        shapes = {"split": ("16x32bx2", 1), "16dp64bit": ("16x64b", 1), "16dp128bit": ("16x128b", 2),
+                  "16dp256bit": ("16x256b", 4)}
+        shape, width = "32x32b", 1
+        if modifiers and modifiers[0] in shapes:
+            shape, width = shapes[modifiers.pop(0)]
         if not modifiers:
-            return 1
-        if len(modifiers) == 1 and modifiers[0] in ("x2", "x4", "x8", "x16", "x32", "x64", "x128"):
-            return int(modifiers[0][1:])
-        return 0
+            repeat = 1
+        elif len(modifiers) == 1 and modifiers[0] in ("x2", "x4", "x8", "x16", "x32", "x64", "x128"):
+            repeat = int(modifiers[0][1:])
+        else:
+            return None
+        if width * repeat <= 128:
+            return shape, repeat, width * repeat
+        return None
+
+    @property
+    def ldtm_register_count(self):
+        transfer = self.tmem_transfer if self.opcodes[0] == "LDTM" else None
+        return transfer[2] if transfer else 0
 
     def is_load(self):
         return len(self.opcodes) > 0 and (self.opcodes[0] in ["LDG", "LD", "LDS", "LDC", "ULDC", "LDL", "LDSM", "LDTM"])
