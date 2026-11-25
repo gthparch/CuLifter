@@ -18,9 +18,18 @@ def _aligned_patterns(form, early_return=False):
             "129_multi_gpr": ("129_multi_gpr", "129_multi"),
             "129_unit_gpr": ("129_multi_gpr", "129_unit"),
             "129_multi_slot_reuse": ("129_multi", "129_multi"),
+            "129_multi_local_slot": ("129_multi", "129_multi"),
         }.get(form, (form, form))
         names = (f"tmem_single_{alloc_form}_alloc.sass", f"tmem_single_{free_form}_free.sass")
     alloc, release = [(directory / name).read_text().splitlines() for name in names]
+    if form == "129_multi_local_slot":
+        # Materialize the same rank+base on both the success and sentinel
+        # branches. On the latter UR4 no longer holds the map address.
+        publish = "STS [UR7+STATIC_DST], R4"
+        alloc[alloc.index(publish)] = "STS [UR5+STATIC_DST], R4"
+        alloc[alloc.index(publish)] = "STS [UR4+STATIC_DST], R4"
+        alloc.insert(alloc.index("LOP3.LUT R5, R6, R5, RZ, 0xfc, !PT"), "ULEA UR5, UR8, UR7, 0x18")
+        alloc.insert(alloc.index("bad_permit:") + 1, "ULEA UR4, UR8, UR7, 0x18")
     if form == "129_multi_slot_reuse":
         # The release no longer needs the shared-slot base after its LDS.
         release = [line.replace("UR6", "UR13") for line in release]
@@ -89,7 +98,8 @@ def _ranked_release_slot(instructions, slot_reg, rank_reg, offset):
 
 
 def _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs,
-                         operand_names=(("UR7", "UR8"), ("UR13", "UR9")), alloc_base_source=None):
+                         operand_names=(("UR7", "UR8"), ("UR13", "UR9")), alloc_base_source=None,
+                         alloc_builds_slot=False):
     # The full 12.9 kernel hoists separately ranked shared bases on either
     # side of the MMA. Check incoming edges and all reaching definitions;
     # unrelated loops include a cold mbarrier wait after the EXIT.
@@ -157,11 +167,17 @@ def _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs
         if "STATIC_BASE" in bindings:
             slots.append(bindings["STATIC_BASE"] + bindings["STATIC_DST"])
             continue
-        build = writer(entry, bindings[base])
-        inputs = _ranked_address_inputs(insts[build]) if build is not None else None
-        if inputs is None or inputs[0] != bindings[rank]:
-            return
-        rank_reg, base_reg = inputs
+        if entry == start and alloc_builds_slot:
+            # The matched ULEAs use these incoming operands without any
+            # intervening write on either side of the permit branch.
+            build = entry
+            rank_reg, base_reg = bindings[rank], bindings[base]
+        else:
+            build = writer(entry, bindings[base])
+            inputs = _ranked_address_inputs(insts[build]) if build is not None else None
+            if inputs is None or inputs[0] != bindings[rank]:
+                return
+            rank_reg, base_reg = inputs
         rank_writer = writer(build, rank_reg)
         # The same CTA rank must feed the guard/map addresses too.
         if rank_writer is None or writer(entry, rank_reg) != rank_writer:
@@ -207,8 +223,9 @@ def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes, form
             regs.get("MASK", 1) != free_regs.get("MASK", 1) or
             retry not in allocated or free not in released or allocated & released):
         return
-    if form in ("129_unit", "129_unit_gpr", "129_multi", "129_multi_gpr", "129_multi_slot_reuse"):
-        offset = _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs)
+    if form in ("129_unit", "129_unit_gpr", "129_multi", "129_multi_gpr", "129_multi_slot_reuse", "129_multi_local_slot"):
+        offset = _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs,
+                                      alloc_builds_slot=form == "129_multi_local_slot")
     else:
         offset = regs["STATIC_DST"]
         # The successful and failed allocations reconverge at WARPSYNC; the
@@ -269,7 +286,7 @@ def recover_single_aligned(func, guarded_static_bytes=0):
     else:
         if guarded_static_bytes:
             return any(_recover_single_guarded(insts, by_pc, first, retry, free, guarded_static_bytes, form)
-                       for form in ("129", "129_unit", "129_scheduled", "129_multi", "129_multi_gpr", "129_unit_gpr", "129_multi_slot_reuse"))
+                       for form in ("129", "129_unit", "129_scheduled", "129_multi", "129_multi_gpr", "129_unit_gpr", "129_multi_slot_reuse", "129_multi_local_slot"))
         return
     matched, _, regs = match
     released, _, release_regs = release

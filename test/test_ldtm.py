@@ -197,6 +197,11 @@ def test_129_guarded_unit_checks_ranked_slot_across_mma(old, new, fold):
 
 
 @pytest.mark.parametrize("schedule,slot,columns,old,new", [
+    ("local_slot", 0x2808, 512, "", ""),
+    ("local_slot", 0x2808, 512, "/*00a0*/ UMOV UR7, 0x400", "/*00a0*/ UMOV UR7, 0x404"),
+    ("local_slot", 0x2808, 512, "/*0090*/ S2UR UR8, SR_CgaCtaId", "/*0090*/ S2UR UR8, SR_TID.X"),
+    ("local_slot", 0x2808, 512, "/*05e0*/ ULEA UR4, UR8, UR7, 0x18", "/*05e0*/ ULEA UR4, UR8, UR6, 0x18"),
+    ("local_slot", 0x2808, 512, "/*0360*/ @P0 BRA 0x650", "/*0360*/ @P0 BRA 0x590"),
     ("multi", 0x2400, 128, "", ""),
     ("multi", 0x2400, 128, "/*0670*/ UMOV UR10, 0x400", "/*0670*/ UMOV UR10, 0x404"),
     ("multi", 0x2400, 128, "/*03f0*/ IMAD.MOV.U32 R5, RZ, RZ, 0xf", "/*03f0*/ IMAD.MOV.U32 R5, RZ, RZ, 0x7"),
