@@ -21,6 +21,7 @@ from transform.set_zero import SetZero
 from transform.dce import DCE
 from transform.tmem_alloc import mark_full_tmem_alloc
 from transform.tmem_pair import recover_tmem_pair
+from transform.tmem_column import recover_single_aligned, recover_guarded_mma_constants
 from transform.cluster_dims import BlackwellClusterDims
 from transform.mov_eliminate import MovEliminate
 from transform.typeanalysis import TypeAnalysis, FLOAT32, FLOAT64
@@ -97,6 +98,8 @@ class NVVMLifter(Lifter):
         for func in module.functions:
             if module.isa == "sm_100a":
                 recover_tmem_pair(func)
+                recover_single_aligned(func)
+                recover_guarded_mma_constants(func)
             # A uniform ANY branch tests the predicate across all active
             # lanes. Splitting its guard into a per-lane PBRA before the vote
             # loses lanes in ptxas's per-request CLC serialization loop.
@@ -768,8 +771,10 @@ class NVVMLifter(Lifter):
             params = (self.arg_map or {}).get(fn_name)
             if bank_base is not None and params and params[0]:
                 param_bias = params[0][0] - bank_base
-        if bank == 0 and byte_offset == 0x36c and getattr(self.elf, "blackwell_param_abi", False) and target_ty == self.ir.IntType(32):
-            # Verified with mov.pred %is_explicit_cluster on sm_100a/sm_120.
+        explicit_cluster_slot = ((hopper and byte_offset == 0x140) or
+                                 (getattr(self.elf, "blackwell_param_abi", False) and byte_offset == 0x36c))
+        if bank == 0 and explicit_cluster_slot and target_ty == self.ir.IntType(32):
+            # Hopper ptxas tests this slot before UCGABAR in barrier.cluster.
             read_cluster = self.ir.InlineAsm(self.ir.FunctionType(target_ty, []),
                 "{ .reg .pred p; mov.pred p, %is_explicit_cluster; selp.u32 $0, 1, 0, p; }",
                 "=r", side_effect=False)
@@ -1556,6 +1561,13 @@ class NVVMLifter(Lifter):
            keep the original raw-offset semantics unchanged.
         """
         i64 = self.ir.IntType(64)
+        if self.sir_module.isa.startswith(("sm_90", "sm_100", "sm_120")):
+            # Keep the three inputs together across target retargeting. PTX and
+            # Vortex have different generic address encodings for peer shared memory.
+            shared = builder.bitcast(self.SharedMem, self.ir.PointerType(self.ir.IntType(8), 3))
+            shared = builder.addrspacecast(shared, self.ir.PointerType(self.ir.IntType(8)))
+            dyn = self.ir.Constant(i64, getattr(self, "_shared_dyn_base", 0))
+            return self._shared_window_call(builder, "resolve", [addr_i64, shared, dyn], i64, name)
         sm_i8 = builder.bitcast(
             self.SharedMem, self.ir.PointerType(self.ir.IntType(8), 3),
             name + "_smfix_i8")
@@ -2191,6 +2203,28 @@ class NVVMLifter(Lifter):
             IRBuilder.store(v, addr_ptr)
 
 
+    def _shared_window_call(self, builder, operation, args, result_type, name):
+        symbol = "__culifter_shared_window_" + operation
+        fn = self.llvm_module.globals.get(symbol)
+        if fn is None:
+            fn = self.ir.Function(self.llvm_module,
+                                  self.ir.FunctionType(result_type, [a.type for a in args]), symbol)
+            fn.linkage = "internal"
+            fn.attributes.add("noinline")
+            b = self.ir.IRBuilder(fn.append_basic_block("entry"))
+            i64 = self.ir.IntType(64)
+            if operation == "resolve":
+                address, shared, dyn = fn.args
+                base = b.ptrtoint(shared, i64)
+                hi = self.ir.Constant(i64, 32)
+                same_window = b.icmp_unsigned("==", b.lshr(address, hi), b.lshr(base, hi))
+                bias = b.sub(b.and_(base, self.ir.Constant(i64, 0xffffff)), dyn)
+                value = b.select(same_window, b.add(address, bias), address)
+            else:
+                value = fn.args[0]
+            b.ret(value)
+        return builder.call(fn, args, name=name)
+
     def _swin_value(self, IRBuilder, want_hi, tag):
         """Value of SR_SWINLO / SR_SWINHI: generic-space base of the shared
         window, as the low/high 32 bits.
@@ -2235,7 +2269,10 @@ class NVVMLifter(Lifter):
         else:
             base = IRBuilder.and_(
                 base, self.ir.Constant(i64, 0x00FFFFFF), tag + "_lo_norank")
-        return IRBuilder.trunc(base, self.ir.IntType(32), tag)
+        word = IRBuilder.trunc(base, self.ir.IntType(32), tag)
+        if self.sir_module.isa.startswith(("sm_90", "sm_100", "sm_120")):
+            return self._shared_window_call(IRBuilder, "hi" if want_hi else "lo", [word], word.type, tag)
+        return word
 
     def _shared_gep(self, IRBuilder, addr, name):
         """GEP into @shared_mem with the dynamic-shared base offset removed.
@@ -2276,14 +2313,20 @@ class NVVMLifter(Lifter):
             name,
         )
 
-    @lift_for("TMEMALLOC2")
-    def lift_tmemalloc2(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+    @lift_for("TMEMALLOC1", "TMEMALLOC2")
+    def lift_tmemalloc(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         i32 = self.ir.IntType(32)
+        group = 1 if Inst.opcodes == ["TMEMALLOC1"] else 2
+        prefix = "allocation" if group == 1 else "pair"
         dst, columns = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, name), i32, name)
-                        for op, name in zip(Inst.get_uses(), ("pair_dst", "pair_columns"))]
-        ptr = IRBuilder.ptrtoint(self._shared_gep(IRBuilder, dst, "pair_shared"), i32)
-        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]),
-                                "tcgen05.alloc.cta_group::2.sync.aligned.shared::cta.b32 [$0], $1;",
+                        for op, name in zip(Inst.get_uses(), (prefix + "_dst", prefix + "_columns"))]
+        slot_name = "allocation_slot" if group == 1 else "pair_shared"
+        ptr = IRBuilder.ptrtoint(self._shared_gep(IRBuilder, dst, slot_name), i32)
+        op = f"tcgen05.alloc.cta_group::{group}.sync.aligned.shared::cta.b32 [$0], $1;"
+        if group == 1:
+            # Retain WARPSYNC.ALL at entry; publish the slot to the elected reader.
+            op = "bar.warp.sync 0xffffffff; " + op + " bar.warp.sync 0xffffffff;"
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32, i32]), op,
                                 "r,r,~{memory}", side_effect=True)
         IRBuilder.call(asm, [ptr, columns], attrs=("convergent",))
 
@@ -2301,6 +2344,25 @@ class NVVMLifter(Lifter):
     @lift_for("UTCATOMSWS")
     def lift_utcatomsws(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         i32 = self.ir.IntType(32)
+        if Inst.opcodes[-1] == "ALLOCATED":
+            offset = _get_val(Inst.get_uses()[0], "tmem_alloc_slot")
+            ptr = IRBuilder.bitcast(self._shared_gep(IRBuilder, offset, "tmem_alloc"), i32.as_pointer(3))
+            base = IRBuilder.load(ptr)
+            self._set_val(IRBuilder, IRRegs, Inst.get_defs()[1], IRBuilder.lshr(base, self.ir.Constant(i32, 5)))
+            self._set_val(IRBuilder, IRRegs, Inst.get_defs()[0], self.ir.Constant(self.ir.IntType(1), 1))
+            return
+        if Inst.opcodes[-1] == "ALIGNED_RELEASE":
+            keep = self._insert_type_cast_if_needed(IRBuilder, _get_val(Inst.get_uses()[0], "keep"), i32, "keep32")
+            columns = Inst.operands[-1].immediate_value
+            bits = IRBuilder.not_(keep)
+            # The matched release checked both ownership bitmaps. Its complement
+            # is a contiguous run; its first set bit gives the 32-column group.
+            count = IRBuilder.cttz(bits, self.ir.Constant(self.ir.IntType(1), 0))
+            asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [i32]),
+                                    f"tcgen05.dealloc.cta_group::1.sync.aligned.b32 $0, {columns};",
+                                    "r,~{memory}", side_effect=True)
+            IRBuilder.call(asm, [IRBuilder.shl(count, self.ir.Constant(i32, 5))], attrs=("convergent",))
+            return
         if Inst.opcodes == ["UTCATOMSWS", "FIND_AND_SET", "FULL_TMEM"]:
             units = _get_val(Inst.get_uses()[0], "tmem_units")
             if not isinstance(units, self.ir.Constant) or units.constant != 16:
@@ -2330,12 +2392,53 @@ class NVVMLifter(Lifter):
         else:
             raise UnsupportedInstructionException("unrecognized tensor-memory SW-state allocation/release protocol")
 
-    @lift_for("UTCIMMA")
+    def _tcgen_desc(self, builder, value):
+        i64 = self.ir.IntType(64)
+        delta = builder.ptrtoint(self.SharedMem, i64)
+        delta = builder.sub(delta, self.ir.Constant(i64, getattr(self, "_shared_dyn_base", 0)))
+        field = self.ir.Constant(i64, 0x3fff)
+        start = builder.and_(builder.add(value, builder.lshr(delta, self.ir.Constant(i64, 4))), field)
+        return builder.or_(builder.and_(value, self.ir.Constant(i64, ~0x3fff)), start)
+
+    @lift_for("UTCCP")
+    def lift_utccp(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        mods = [m.upper() for m in Inst.opcodes[1:]]
+        pair = "2CTA" in mods
+        fields = [m for m in mods if m != "2CTA"]
+        if fields not in (["T", "S"], ["T", "S", "128DP128BIT"]):
+            raise UnsupportedInstructionException(f"unsupported column copy {Inst}")
+        dest, src = Inst.get_uses()
+        if not src.is_reg_group or len(src.reg_group) != 2:
+            raise UnsupportedInstructionException(f"expected shared descriptor in {Inst}")
+        word = self.ir.IntType(32)
+        dest = self._insert_type_cast_if_needed(IRBuilder, _get_val(dest, "copy_dst"), word, "column")
+        desc = self._tcgen_desc(IRBuilder, _get_val(src, "copy_desc"))
+        shape = "128x128b" if len(fields) == 3 else "128x256b"
+        body = self._elect_one_wrap(f"tcgen05.cp.cta_group::{2 if pair else 1}.{shape} [$0], $1")
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [word, desc.type]),
+                                "{ " + body + " }", "r,l,~{memory}", side_effect=True)
+        IRBuilder.call(asm, [dest, desc])
+
+    @lift_for("STTM")
+    def lift_sttm(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
+        ops = Inst.get_uses()
+        count = len(ops) - 1
+        if count not in (4, 8, 16, 32, 64, 128) or [m.upper() for m in Inst.opcodes[1:]] != [f"X{count}"]:
+            raise UnsupportedInstructionException(f"unsupported column store {Inst}")
+        word = self.ir.IntType(32)
+        args = [self._insert_type_cast_if_needed(IRBuilder, _get_val(op, "sttm"), word, "bits") for op in ops]
+        tuple_regs = ",".join(f"${i}" for i in range(1, count + 1))
+        asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), [word] * len(args)),
+                                f"tcgen05.st.sync.aligned.32x32b.x{count}.b32 [$0], {{{tuple_regs}}}; tcgen05.wait::st.sync.aligned;",
+                                ",".join(["r"] * len(args) + ["~{memory}"]), side_effect=True)
+        IRBuilder.call(asm, args)
+
+    @lift_for("UTCIMMA", "UTCHMMA")
     def lift_utcimma(self, Inst, IRBuilder, IRRegs, block_map=None, _get_val=None, **kwargs):
         ops = Inst.get_uses()
-        if (Inst.opcodes != ["UTCIMMA"] or len(ops) != 6
+        if (Inst.opcodes[1:] not in ([], ["2CTA"]) or len(ops) != 6
                 or not all(op.is_reg_group and len(op.reg_group) == 2 for op in ops[:2])):
-            raise UnsupportedInstructionException("expected dense single-CTA UTCIMMA with two SMEM descriptors")
+            raise UnsupportedInstructionException("expected dense UTC MMA with two SMEM descriptors")
         i32, i64 = self.ir.IntType(32), self.ir.IntType(64)
         # The fourth SASS operand is the metadata TMEM slot of the descriptor
         # pair. Dense i8 has no sparsity metadata or disable-output-lane tuple.
@@ -2343,21 +2446,14 @@ class NVVMLifter(Lifter):
         metadata_value = _get_val(metadata, "mma_metadata")
         if not isinstance(metadata_value, self.ir.Constant) or metadata_value.constant != 0:
             raise UnsupportedInstructionException("nonzero or dynamic UTCIMMA metadata slot")
-        delta = IRBuilder.ptrtoint(self.SharedMem, i64)
-        delta = IRBuilder.sub(delta, self.ir.Constant(i64, getattr(self, "_shared_dyn_base", 0)))
-        delta = IRBuilder.lshr(delta, self.ir.Constant(i64, 4))
-
-        def descriptor(op):
-            value = _get_val(op, "mma_smem_desc")
-            field = self.ir.Constant(i64, 0x3fff)
-            start = IRBuilder.and_(IRBuilder.add(value, delta), field)
-            return IRBuilder.or_(IRBuilder.and_(value, self.ir.Constant(i64, ~0x3fff)), start)
-
-        args = [_get_val(dest, "mma_tmem"), descriptor(a), descriptor(b),
+        args = [_get_val(dest, "mma_tmem"), self._tcgen_desc(IRBuilder, _get_val(a, "mma_a")),
+                self._tcgen_desc(IRBuilder, _get_val(b, "mma_b")),
                 _get_val(idesc, "mma_idesc"), _get_val(acc, "mma_enable_d")]
         types = [i32, i64, i64, i32, i32]
         args = [self._insert_type_cast_if_needed(IRBuilder, v, t, "mma_arg") for v, t in zip(args, types)]
-        body = self._elect_one_wrap("tcgen05.mma.cta_group::1.kind::i8 [$0], $1, $2, $3, use_d")
+        kind = "i8" if Inst.opcodes[0] == "UTCIMMA" else "f16"
+        group = 2 if "2CTA" in Inst.opcodes else 1
+        body = self._elect_one_wrap(f"tcgen05.mma.cta_group::{group}.kind::{kind} [$0], $1, $2, $3, use_d")
         asm = self.ir.InlineAsm(self.ir.FunctionType(self.ir.VoidType(), types),
                                 "{ .reg .pred use_d; setp.ne.u32 use_d, $4, 0; " + body + " }",
                                 "r,l,l,r,r,~{memory}", side_effect=True)

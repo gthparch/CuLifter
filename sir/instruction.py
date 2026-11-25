@@ -189,8 +189,8 @@ class Instruction:
         # KeyError at lift (FA fwd: UR13's def dropped, SYNCS on the same
         # barrier then read an undefined register).
         elif self.is_branch() or self.opcodes[0] in (
-                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCBAR",
-                "UGETNEXTWORKID", "TMEMALLOC2", "TMEMFREE2", "EXIT"):
+                "RED", "REDG", "UBLKCP", "UBLKRED", "UTMALDG", "UTMASTG", "UTCIMMA", "UTCHMMA", "UTCCP", "STTM", "UTCBAR",
+                "UGETNEXTWORKID", "TMEMALLOC1", "TMEMALLOC2", "TMEMFREE2", "EXIT"):
             self.use_op_start_idx = 0
 
         # ARRIVES.LDGSTSBAR.64.TRANSCNT [URdst+off] — mbarrier arrive-on-cp.async.
@@ -627,13 +627,20 @@ class Instruction:
         elif self.opcodes[0] == "STL" and "128" in self.opcodes:
             self.operands[1] = Operand.create_reg_quad(self.operands[1])
 
-        elif (self.opcodes == ["UTCIMMA"] and len(self.operands) == 6
+        elif (self.opcodes[0] in ("UTCIMMA", "UTCHMMA") and len(self.operands) == 6
               and all(re.fullmatch(r"gdesc\[UR\d+\]", op.name or "") for op in self.operands[:2])
               and all(re.fullmatch(r"tmem\[UR\d+\]", op.name or "") for op in self.operands[2:4])
               and (idesc := re.fullmatch(r"idesc\[(UR\d+)\]", self.operands[4].name or ""))
               and (self.operands[5].is_predicate_reg or self.operands[5].is_pt)):
             self.operands[:2] = [Operand.create_reg_pair(op) for op in self.operands[:2]]
             self.operands[4] = Operand.from_reg(idesc[1], idesc[1])
+
+        elif self.opcodes[0] == "UTCCP" and len(self.operands) == 2 and re.fullmatch(
+                r"gdesc\[UR\d+\]", self.operands[1].name or ""):
+            self.operands[1] = Operand.create_reg_pair(self.operands[1])
+        elif (self.opcodes[0] == "STTM" and len(self.opcodes) == 2 and len(self.operands) == 2
+              and re.fullmatch(r"x(4|8|16|32|64|128)", self.opcodes[1], re.I)):
+            self.operands[1:] = Operand.create_reg_group(self.operands[1], int(self.opcodes[1][1:])).reg_group
 
         elif self.opcodes[0] == "LDTM" and self.ldtm_register_count:
             count = self.ldtm_register_count

@@ -155,3 +155,78 @@ def test_full_tmem_allocation_on_sm100(sm100_context, assemble_sm100a):
             check(cuda.cuMemFree_v2(output))
     finally:
         check(cuda.cuModuleUnload(module))
+
+
+@pytest.mark.parametrize("group,modifier", [(1, ""), (2, ".2CTA")])
+def test_column_data_movement_and_fp16_survive_lifting(group, modifier):
+    lines = [
+        "LDCU.64 UR6, c[0x0][0x380]", "LDCU.64 UR8, c[0x0][0x388]",
+        "UMOV UR4, 0", "UMOV UR10, 0", "UMOV UR11, 0x8100010",
+        *[f"IMAD.MOV.U32 R{4+i}, RZ, RZ, {i+1}" for i in range(4)],
+        f"UTCCP.T.S.128dp128bit{modifier} tmem[UR4], gdesc[UR6]",
+        "STTM.x4 tmem[UR4], R4",
+        f"UTCHMMA{modifier} gdesc[UR6], gdesc[UR8], tmem[UR4], tmem[UR10], idesc[UR11], UPT",
+    ]
+    text = str(lift_kernel(lines, 100))
+    assert f"tcgen05.cp.cta_group::{group}.128x128b" in text
+    assert "tcgen05.st.sync.aligned.32x32b.x4.b32" in text
+    assert f"tcgen05.mma.cta_group::{group}.kind::f16" in text
+
+
+@pytest.mark.parametrize("original,replacement,recognized", [
+    ("", "", True),
+    ("BRA.U !UP0, 0x400", "BRA.U UP0, 0x400", False),
+    ("R5, RZ, RZ, 0xf", "R5, RZ, RZ, 0x7", False),
+    ("LDS R0, [UR10+0x2000]", "LDS R0, [UR10+0x2004]", False),
+    ("ULOP3.LUT UR4, URZ, UR4, URZ, 0x33", "ULOP3.LUT UR4, URZ, UR4, URZ, 0x3c", False),
+])
+def test_single_aligned_alloc_protocol(original, replacement, recognized):
+    from pathlib import Path
+    from parse.parser import SaSSParser
+    from sir.module import Module
+    from transform.tmem_column import recover_single_aligned
+
+    source = (Path(__file__).parent / "sm100_optest/column_alloc_128.sass").read_text()
+    if original:
+        assert original in source
+        source = source.replace(original, replacement)
+    func, = Module("test", SaSSParser(source, None)).functions
+    recover_single_aligned(func)
+    assert sum(inst.opcodes == ["TMEMALLOC1"] for inst in func.instructions) == int(recognized)
+    assert sum(inst.opcodes[-1] == "ALLOCATED" for inst in func.instructions) == 2 * int(recognized)
+    assert sum(inst.opcodes[-1] == "ALIGNED_RELEASE" for inst in func.instructions) == int(recognized)
+
+
+@pytest.mark.parametrize("middle,expected", [
+    ([], True),
+    (["UMOV UR15, 0x8100010"], True),
+    (["@!UP0 UMOV UR15, 0x8100010"], True),
+    (["UISETP.NE.U32.AND UP0, UPT, UR4, 1, UPT"], False),
+    (["R2UR UR15, R9"], False),
+])
+def test_guarded_mma_descriptor_writers(middle, expected):
+    from transform.tmem_column import recover_guarded_mma_constants
+
+    lines = ["@UP0 UMOV UR14, 0x0", "@UP0 UMOV UR15, 0x8100490", *middle,
+             "@UP0 UTCHMMA gdesc[UR4], gdesc[UR6], tmem[UR11], tmem[UR14], idesc[UR15], !UPT"]
+    func, = parse_kernel(lines, 100, "test_call", None).functions
+    recover_guarded_mma_constants(func)
+    desc = func.instructions[-2].operands[4]
+    assert desc.is_immediate == expected
+    if expected:
+        assert desc.immediate_value == (0x8100010 if middle == ["UMOV UR15, 0x8100010"] else 0x8100490)
+
+
+@pytest.mark.parametrize("alternate,known", [("0x8100490", True), ("0x8100010", False)])
+def test_guarded_descriptor_must_agree_at_branch_join(alternate, known):
+    from transform.tmem_column import recover_guarded_mma_constants
+
+    func, = parse_kernel([
+        "@P0 BRA 0x30",
+        "@UP0 UMOV UR15, 0x8100490",
+        "BRA 0x40",
+        f"@UP0 UMOV UR15, {alternate}",
+        "@UP0 UTCHMMA gdesc[UR4], gdesc[UR6], tmem[UR11], tmem[UR14], idesc[UR15], !UPT",
+    ], 100, "test_call", None).functions
+    recover_guarded_mma_constants(func)
+    assert func.instructions[4].operands[4].is_immediate == known
