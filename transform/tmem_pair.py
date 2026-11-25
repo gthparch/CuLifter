@@ -20,6 +20,14 @@ _TOKEN = re.compile(r"@[a-z_][a-z_0-9]*|\w+|[^\w\s]")
 
 
 def _tokens(line):
+    # ptxas also materializes the 32-bit ownership literal one with an
+    # HFMA2: the two binary16 addends are +0 and the smallest subnormal.
+    half_one = re.fullmatch(r"HFMA2\s+(R\d+),\s*-RZ,\s*RZ,\s*0,\s*5\.9604644775390625e-08", line)
+    if half_one:
+        line = f"IMAD.MOV.U32 {half_one[1]}, RZ, RZ, 0x1"
+    all_ones = re.fullmatch(r"MOV\s+(R\d+),\s*0xffffffff", line)
+    if all_ones:
+        line = f"IMAD.MOV.U32 {all_ones[1]}, RZ, RZ, -0x1"
     tokens = _TOKEN.findall(line.replace(".reuse", ""))
     # ptxas uses both MOV and the zero-product IMAD to copy a uniform
     # register into a general register during allocation/release.
@@ -97,6 +105,10 @@ def _match_tokens(pattern, actual, bindings, reverse):
         register = _REGISTER.fullmatch(name)
         if register:
             if not re.fullmatch(register[1] + r"\d+", value) or not _bind(reverse, value, name):
+                return False
+        elif re.fullmatch(r"SB[0-5]", name):
+            # DEPBAR's physical scoreboard slot is assigned by the scheduler.
+            if not re.fullmatch(r"SB[0-5]", value) or not _bind(reverse, value, name):
                 return False
         elif (name.startswith("@") and name != "@") or name in ("DST", "STATIC_BASE", "STATIC_DST", "NCOLS", "UNITS", "MASK"):
             if not re.fullmatch("0x[0-9a-fA-F]+", value):

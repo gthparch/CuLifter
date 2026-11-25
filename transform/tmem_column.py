@@ -8,15 +8,32 @@ from transform.tmem_pair import _compile, _match, _registers, _single_entry, _un
 
 
 @lru_cache(maxsize=None)
-def _aligned_patterns(form):
+def _aligned_patterns(form, early_return=False):
     directory = Path(__file__).with_name("patterns")
-    if form == "aligned":
+    if form in ("aligned", "aligned_reordered"):
         names = ("tmem_single_aligned.sass", "tmem_single_aligned_free.sass")
     else:
-        alloc_form = "ranked" if form == "ranked_compact" else form
-        free_form = "129_multi" if form == "129_multi_gpr" else form
+        alloc_form, free_form = {
+            "ranked_compact": ("ranked", "ranked_compact"),
+            "129_multi_gpr": ("129_multi_gpr", "129_multi"),
+            "129_unit_gpr": ("129_multi_gpr", "129_unit"),
+            "129_multi_slot_reuse": ("129_multi", "129_multi"),
+        }.get(form, (form, form))
         names = (f"tmem_single_{alloc_form}_alloc.sass", f"tmem_single_{free_form}_free.sass")
     alloc, release = [(directory / name).read_text().splitlines() for name in names]
+    if form == "129_multi_slot_reuse":
+        # The release no longer needs the shared-slot base after its LDS.
+        release = [line.replace("UR6", "UR13") for line in release]
+    if form == "129_unit_gpr":
+        # Both packed ownership masks use the same one-bit constant.
+        alloc.remove("IMAD.MOV.U32 R3, RZ, RZ, MASK")
+        alloc = [line.replace("UNITS", "0x1").replace("SHF.L.U32 R3, R3,", "SHF.L.U32 R3, R7,") for line in alloc]
+    if form == "aligned_reordered":
+        # These independent mask initializers can straddle the address ULEA
+        # in either order. Their subsequent different uses are still checked.
+        one = alloc.index("IMAD.MOV.U32 R7, RZ, RZ, 0x1")
+        mask = alloc.index("IMAD.MOV.U32 R5, RZ, RZ, MASK")
+        alloc[one], alloc[mask] = alloc[mask], alloc[one]
     if form == "ranked_compact":
         # Both shifts overwrite their own mask constants once those are dead.
         substitutions = {
@@ -26,6 +43,12 @@ def _aligned_patterns(form):
             "ATOMS.OR RZ, [UR7+0x18], R5": "ATOMS.OR RZ, [UR7+0x18], R7",
         }
         alloc = [substitutions.get(line, line) for line in alloc]
+    if early_return:
+        # The accumulator-live schedule keeps the sentinel and trap return PC
+        # in different registers, so it can materialize the PC before STS.
+        ret = alloc.index("MOV R2, @sync")
+        alloc[ret-1:ret+1] = ["MOV R4, @sync", alloc[ret-1]]
+        alloc[-2:] = ["IMAD.MOV.U32 R5, RZ, RZ, 0x0", "RET.REL.NODEC R4 0x0"]
     return _compile(alloc), _compile(release)
 
 
@@ -173,6 +196,8 @@ def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes, form
         return
     alloc = _match(alloc_pattern, insts, start, by_pc)
     dealloc = _match(free_pattern, insts, release, by_pc)
+    if dealloc and not alloc and form in ("129_unit", "129_multi_gpr"):
+        alloc = _match(_aligned_patterns(form, early_return=True)[0], insts, start, by_pc)
     if not alloc or not dealloc:
         return
     allocated, _, regs = alloc
@@ -182,7 +207,7 @@ def _recover_single_guarded(insts, by_pc, first, retry, free, static_bytes, form
             regs.get("MASK", 1) != free_regs.get("MASK", 1) or
             retry not in allocated or free not in released or allocated & released):
         return
-    if form in ("129_unit", "129_multi", "129_multi_gpr"):
+    if form in ("129_unit", "129_unit_gpr", "129_multi", "129_multi_gpr", "129_multi_slot_reuse"):
         offset = _guarded_ranked_slot(insts, by_pc, start, allocated, release, released, regs, free_regs)
     else:
         offset = regs["STATIC_DST"]
@@ -231,7 +256,7 @@ def recover_single_aligned(func, guarded_static_bytes=0):
     if insts[free].opcodes != ["UTCATOMSWS", "AND"]:
         return
     by_pc = {int(inst.id, 16): i for i, inst in enumerate(insts)}
-    for form in ("aligned", "unit", "ranked", "ranked_compact"):
+    for form in ("aligned", "aligned_reordered", "unit", "ranked", "ranked_compact"):
         alloc_pattern, release_pattern = _aligned_patterns(form)
         start = first - next(i for i, (line, _) in enumerate(alloc_pattern) if line.startswith("UTCATOMSWS"))
         release_start = free + 1 - len(release_pattern)
@@ -244,7 +269,7 @@ def recover_single_aligned(func, guarded_static_bytes=0):
     else:
         if guarded_static_bytes:
             return any(_recover_single_guarded(insts, by_pc, first, retry, free, guarded_static_bytes, form)
-                       for form in ("129", "129_unit", "129_scheduled", "129_multi", "129_multi_gpr"))
+                       for form in ("129", "129_unit", "129_scheduled", "129_multi", "129_multi_gpr", "129_unit_gpr", "129_multi_slot_reuse"))
         return
     matched, _, regs = match
     released, _, release_regs = release

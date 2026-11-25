@@ -28,7 +28,7 @@ static bool check_query() {
   return true;
 }
 
-static bool check_pair() {
+static bool check_pair(bool column) {
   uint8_t bank[LIFT_CBANK] = {};
   uint32_t words[66];
   void *buf = lift_dev(nullptr, sizeof(words));
@@ -38,11 +38,17 @@ static bool check_pair() {
     const uint32_t guard = trial * 0x11111111u;
     for (auto &word : words) word = guard;
     LIFT_CHECK(cudaMemcpy(buf, words, sizeof(words), cudaMemcpyHostToDevice));
-    lift_launch("probe", dim3(2), dim3(32), 0, "896:8 904:4 908:4", bank);
+    lift_launch("probe", dim3(2), dim3(column ? 128 : 32), 0, "896:8 904:4 908:4", bank);
     LIFT_CHECK(cudaMemcpy(words, buf, sizeof(words), cudaMemcpyDeviceToHost));
+    // Partial column allocation returns an aligned logical handle shared
+    // by both CTAs. The fixed 512-column engine always returns base zero.
+    const uint32_t base = column ? words[1] : 0;
+    if (base % 32 || base > UINT16_MAX) {
+      printf("pair trial=%u invalid logical base=%x\n", trial, base);
+      return false;
+    }
     for (unsigned i = 0; i < 66; ++i) {
-      // A full 512-column allocation owns all TMEM and starts at column zero.
-      const uint32_t expected = (i == 0 || i == 65) ? guard : 0;
+      const uint32_t expected = (i == 0 || i == 65) ? guard : base;
       if (words[i] != expected) {
         printf("pair trial=%u word=%u got=%x expected=%x\n", trial, i, words[i], expected);
         return false;
@@ -75,7 +81,8 @@ static bool check_lanes() {
 
 int main(int argc, char **argv) {
   if (argc != 2) return 1;
-  bool ok = strcmp(argv[1], "pair") == 0 ? check_pair() :
+  bool ok = strcmp(argv[1], "pair") == 0 ? check_pair(false) :
+            strcmp(argv[1], "column-pair") == 0 ? check_pair(true) :
             strcmp(argv[1], "lanes") == 0 ? check_lanes() : check_query();
   if (ok) puts("PASSED CPU comparison");
   return ok ? 0 : 1;

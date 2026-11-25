@@ -517,11 +517,18 @@ def test_nvdisasm_target_suffix(toolkit, tmp_path, arch):
 def test_simx_cpu_comparison(toolkit, tmp_path, arch, case):
     examples = Path(os.environ["CuPBoP_PATH"]) / "examples"
     regression = Path(os.environ["VORTEX_PATH"]) / "tests/regression"
-    if case == "pair" and "-DVX_CFG_TCU_TMEM_ENABLE" not in os.environ["VORTEX_CONFIGS"].split():
+    configs = os.environ["VORTEX_CONFIGS"].split()
+    column_pair = case == "pair" and "-DVX_CFG_TCU_TMEM_COLUMN_ENABLE" in configs
+    if case == "pair" and "-DVX_CFG_TCU_TMEM_ENABLE" not in configs:
         pytest.skip("the paired allocation needs a TMEM-enabled SimX build")
     if case == "lanes":
         binary = assemble(tmp_path, arch, LANE_REQUESTS, ".extern .shared .align 16 .b8 arena[];")
         assert disassemble(binary).count("R2UR.BROADCAST") == 2
+    elif column_pair:
+        # Column dispatch requires four warps per CTA. Only its first warp
+        # participates in this collective and writes the 32-lane trace.
+        first_warp = "mov.u32 v,%tid.x; setp.ge.u32 ok,v,32; @ok ret;"
+        binary = assemble(tmp_path, arch, first_warp + paired_lifecycle(32))
     else:
         binary = assemble(tmp_path, arch, QUERY if case == "query" else paired_lifecycle(512))
     compiled = lift(disassemble(binary), binary)
@@ -546,7 +553,8 @@ def test_simx_cpu_comparison(toolkit, tmp_path, arch, case):
         if case == "pair":
             # Supply the 2x1x1 geometry to CuPBoP's by-name kernel launcher.
             (work / "cupbop_cluster_dims.txt").write_text("probe 2 1 1 0\n")
-        run = subprocess.run([*cmd, "run", "RUN_ARGS=" + case], cwd=work, env=env,
+        run_case = "column-pair" if column_pair else case
+        run = subprocess.run([*cmd, "run", "RUN_ARGS=" + run_case], cwd=work, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=120)
         assert run.returncode == 0 and "PASSED CPU comparison" in run.stdout, run.stdout
 

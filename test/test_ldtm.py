@@ -161,6 +161,9 @@ def test_129_guarded_slot_preserves_permit_and_release(old, new, static_bytes, f
 
 @pytest.mark.parametrize("old,new,fold", [
     ("", "", True),
+    ("DEPBAR.LE SB0", "DEPBAR.LE SB1", True),
+    ("/*0420*/ DEPBAR.LE SB0", "/*0420*/ DEPBAR.LE SB1", False),
+    ("/*05c0*/ IMAD.MOV.U32 R2, RZ, RZ, -0x1", "/*05c0*/ MOV R2, 0xffffffff", True),
     ("/*0060*/ LDC.64 R2, c[0x0][0x380]", "/*0060*/ @P1 BRA 0x80", False),
     ("/*0020*/ S2UR UR8, SR_CgaCtaId", "/*0020*/ S2UR UR8, SR_TID.X", False),
     ("/*0670*/ UMOV UR8, 0x400", "/*0670*/ UMOV UR8, 0x404", False),
@@ -199,6 +202,9 @@ def test_129_guarded_unit_checks_ranked_slot_across_mma(old, new, fold):
     ("multi", 0x2400, 128, "/*03f0*/ IMAD.MOV.U32 R5, RZ, RZ, 0xf", "/*03f0*/ IMAD.MOV.U32 R5, RZ, RZ, 0x7"),
     ("multi", 0x2400, 128, "/*0f70*/ BSYNC.RECONVERGENT B0", "/*0f70*/ BSYNC B0"),
     ("multi", 0x2400, 128, "/*0600*/ WARPSYNC.ALL", "/*0600*/ BMOV B0, R4"),
+    ("unit_gpr", 0xc08, 32, "", ""),
+    ("unit_gpr", 0xc08, 32, "/*0350*/ IMAD.MOV.U32 R7, RZ, RZ, 0x1", "/*0350*/ IMAD.MOV.U32 R7, RZ, RZ, 0x3"),
+    ("unit_gpr", 0xc08, 32, "/*0530*/ STS [R9+0x808]", "/*0530*/ STS [R9+0x80c]"),
     ("multi_gpr", 0x808, 64, "", ""),
     ("multi_gpr", 0x808, 64, "/*02d0*/ MOV R6, 0x400", "/*02d0*/ MOV R6, 0x404"),
     ("multi_gpr", 0x808, 64, "STS [R9+0x408], R2", "STS [R9+0x40c], R2"),
@@ -222,3 +228,32 @@ def test_129_guarded_multi_column_protocol(schedule, slot, columns, old, new):
     if alloc:
         assert [op.immediate_value for op in alloc[0].operands] == [slot, columns]
         assert sum(i.is_call() for i in func.instructions) == 3
+
+@pytest.mark.parametrize("consume_result", [True, False])
+def test_129_release_reuses_dead_slot_base(consume_result):
+    from parse.parser import SaSSParser
+    from sir.module import Module
+    from transform.tmem_column import recover_single_aligned
+
+    fixture = Path(__file__).parent / "sm100_optest/column_alloc_guarded_multi_129.sass"
+    prefix, release = fixture.read_text().split("REDUX UR6, R2", 1)
+    if consume_result:
+        release = release.replace("RZ, RZ, UR6", "RZ, RZ, UR16", 1)
+    func, = Module("column", SaSSParser(prefix + "REDUX UR16, R2" + release, None)).functions
+    recover_single_aligned(func, guarded_static_bytes=0x2404)
+    assert sum(i.opcodes == ["TMEMALLOC1"] for i in func.instructions) == int(consume_result)
+
+@pytest.mark.parametrize("mantissa,recognized", [("5.9604644775390625e-08", True), ("0", False)])
+def test_13_reordered_tmem_ownership_literals(mantissa, recognized):
+    from parse.parser import SaSSParser
+    from sir.module import Module
+    from transform.tmem_column import recover_single_aligned
+
+    source = (Path(__file__).parent / "sm100_optest/column_alloc_128.sass").read_text()
+    source = source.replace("/*0390*/ IMAD.MOV.U32 R5, RZ, RZ, 0xf",
+                            f"/*0390*/ HFMA2 R7, -RZ, RZ, 0, {mantissa}")
+    source = source.replace("/*03b0*/ IMAD.MOV.U32 R7, RZ, RZ, 0x1",
+                            "/*03b0*/ IMAD.MOV.U32 R5, RZ, RZ, 0xf")
+    func, = Module("column", SaSSParser(source, None)).functions
+    recover_single_aligned(func)
+    assert sum(inst.opcodes == ["TMEMALLOC1"] for inst in func.instructions) == int(recognized)
