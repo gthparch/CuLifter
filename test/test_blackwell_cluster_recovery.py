@@ -368,7 +368,7 @@ def test_pattern_tracks_relocated_edges_registers_and_parameter_slot(toolkit, tm
     assert dst.offset == 0x38c and count.immediate_value == 32
 
 
-@pytest.mark.parametrize("mutation", ["sleep", "peer_store", "retry", "live_out", "cold_jump"])
+@pytest.mark.parametrize("mutation", ["sleep", "peer_store", "retry", "live_out", "cold_jump", "indirect_jump"])
 def test_partial_or_externally_observed_protocol_is_not_folded(toolkit, tmp_path, mutation):
     binary = assemble(tmp_path, "sm_100a", f"{PAIR} [r], 32;")
     original = disassemble(binary)
@@ -382,6 +382,9 @@ def test_partial_or_externally_observed_protocol_is_not_folded(toolkit, tmp_path
     elif mutation == "retry":
         sass = re.sub(r"(\bBRA(?:\.U)? (?:!UP\d+, )?)" + hex(retry_pc) + r"\b",
                       lambda m: m[1] + hex(retry_pc + 16), original, count=1)
+    elif mutation == "indirect_jump":
+        # An indirect path from before the allocation could enter any interior PC.
+        sass = re.sub(r"(/\*0000\*/\s+)[^;]+;", r"\1@P0 BRXU UR4 0x0 ;", original, count=1)
     elif mutation == "live_out":
         sass = original.replace("EXIT ;", "STG.E [R2.64], R4 ;", 1)
     else:

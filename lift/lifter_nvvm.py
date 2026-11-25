@@ -2211,6 +2211,7 @@ class NVVMLifter(Lifter):
                                   self.ir.FunctionType(result_type, [a.type for a in args]), symbol)
             fn.linkage = "internal"
             fn.attributes.add("noinline")
+            fn.set_metadata("culifter.shared_window", self.llvm_module.add_metadata([]))
             b = self.ir.IRBuilder(fn.append_basic_block("entry"))
             i64 = self.ir.IntType(64)
             if operation == "resolve":

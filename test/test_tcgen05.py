@@ -230,3 +230,36 @@ def test_guarded_descriptor_must_agree_at_branch_join(alternate, known):
     ], 100, "test_call", None).functions
     recover_guarded_mma_constants(func)
     assert func.instructions[4].operands[4].is_immediate == known
+
+
+@pytest.mark.parametrize("transfer", [
+    "CALL.REL.NOINC 0x30",
+    "CALL.ABS.NOINC R2",
+    "CALL.REL.NOINC R2 0x0",
+    "BRXU UR4 0x0",
+])
+def test_guarded_descriptor_definition_bypassed_by_transfer(transfer):
+    from transform.tmem_column import recover_guarded_mma_constants
+
+    func, = parse_kernel([
+        "@P0 BRA 0x50",
+        "@UP0 UMOV UR15, 0x8100490",
+        "NOP",
+        "@UP0 UTCHMMA gdesc[UR4], gdesc[UR6], tmem[UR11], tmem[UR14], idesc[UR15], !UPT",
+        "EXIT",
+        transfer,
+    ], 100, "test_call", None).functions
+    recover_guarded_mma_constants(func)
+    assert func.instructions[3].operands[4].is_uniform_reg
+
+
+def test_guarded_descriptor_at_kernel_entry_with_backedge():
+    from transform.tmem_column import recover_guarded_mma_constants
+
+    func, = parse_kernel([
+        "@UP0 UTCHMMA gdesc[UR4], gdesc[UR6], tmem[UR11], tmem[UR14], idesc[UR15], !UPT",
+        "@UP0 UMOV UR15, 0x8100490",
+        "BRA 0x0",
+    ], 100, "test_call", None).functions
+    recover_guarded_mma_constants(func)
+    assert func.instructions[0].operands[4].is_uniform_reg

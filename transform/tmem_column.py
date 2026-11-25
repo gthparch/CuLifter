@@ -4,7 +4,7 @@ from pathlib import Path
 
 from sir.instruction import Instruction
 from sir.operand import Operand
-from transform.tmem_pair import _compile, _match, _registers
+from transform.tmem_pair import _compile, _match, _registers, _unknown_control_target
 
 
 @lru_cache(maxsize=1)
@@ -45,7 +45,7 @@ def recover_single_aligned(func):
     # Both collectives have a single entry. Preserve the caller's branch
     # around the collective and ptxas's original release validation paths.
     for i, inst in enumerate(insts):
-        if inst.opcodes[0] in ("BRX", "JMX", "JMXU"):
+        if _unknown_control_target(inst):
             return
         if inst.is_branch() or inst.is_call() or inst.opcodes[0] in ("BSSY", "SSY", "PRET"):
             target = by_pc.get(inst.operands[-1].immediate_value)
@@ -67,12 +67,12 @@ def recover_guarded_mma_constants(func):
     """Resolve uniform immediates along all incoming edges under the MMA guard."""
     insts = func.instructions
     sites = [i for i, inst in enumerate(insts) if inst.pflag and inst.opcodes[0] in ("UTCIMMA", "UTCHMMA")]
-    if not sites or any(inst.opcodes[0] in ("BRX", "JMX", "JMXU") for inst in insts):
+    if not sites or any(_unknown_control_target(inst) for inst in insts):
         return
     by_pc = {int(inst.id, 16): i for i, inst in enumerate(insts)}
     predecessors = [[] for _ in insts]
     for i, inst in enumerate(insts):
-        if (inst.is_branch() or inst.opcodes[0] in ("BSSY", "SSY", "PRET")) and inst.operands:
+        if (inst.is_branch() or inst.is_call() or inst.opcodes[0] in ("BSSY", "SSY", "PRET")) and inst.operands:
             target = by_pc.get(inst.operands[-1].immediate_value)
             if target is not None:
                 predecessors[target].append(i)
@@ -82,6 +82,8 @@ def recover_guarded_mma_constants(func):
             predecessors[i + 1].append(i)
 
     def constant(site, op, guard):
+        if site == 0:  # The kernel entry has no incoming register definition.
+            return
         pending = list(predecessors[site])
         seen, values = set(), set()
         while pending:

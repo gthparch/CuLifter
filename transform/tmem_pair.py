@@ -167,12 +167,20 @@ def _registers(operands):
     return regs
 
 
+def _unknown_control_target(inst):
+    if inst.opcodes[0] in ("BRX", "BRXU", "JMP", "JMX", "JMXU", "SWITCH"):
+        return True
+    if inst.is_call():
+        return len(inst.operands) != 1 or not inst.operands[0].is_immediate
+    return False
+
+
 def _single_entry(instructions, start, matched, by_pc):
     # A branch into either retry/hand-off path would bypass the collective.
     for i, inst in enumerate(instructions):
         if i in matched:
             continue
-        if inst.opcodes[0] in ("BRX", "JMX", "JMXU", "BSSY", "SSY", "PRET"):
+        if _unknown_control_target(inst) or inst.opcodes[0] in ("BSSY", "SSY", "PRET"):
             return False
         if inst.is_branch() or inst.is_call():
             target = inst.operands[-1].immediate_value
