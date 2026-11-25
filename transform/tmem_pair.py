@@ -16,7 +16,7 @@ from sir.operand import Operand
 
 
 _REGISTER = re.compile(r"(U?[RP])\d+")
-_TOKEN = re.compile(r"@[a-z_]+|\w+|[^\w\s]")
+_TOKEN = re.compile(r"@[a-z_][a-z_0-9]*|\w+|[^\w\s]")
 
 
 def _tokens(line):
@@ -46,12 +46,26 @@ def _patterns():
             parity, election = lines[middle:middle + 2]
             observed[middle:middle + 2] = [election, parity, "KEEP LDCU.64 UR99, c[0x0][0x358]"]
             patterns.append(observed)
+    for form in ("single", "multi", "dynamic", "static_single", "static_multi", "static_dynamic"):
+        lines = _read_lines("129_" + form)
+        patterns.append(lines)
+        if form in ("single", "multi"):
+            # The compiler may schedule a consumer's descriptor load before
+            # the guardrail test. Keep the value live across the collective.
+            observed = lines.copy()
+            observed.insert(3, "KEEP LDCU.64 UR99, c[0x0][0x358]")
+            patterns.append(observed)
     return [_compile(lines) for lines in patterns]
 
 
 @lru_cache(maxsize=2)
 def _release_pattern(single):
     return _compile(_read_lines("free_single" if single else "free_multi"))
+
+
+@lru_cache(maxsize=2)
+def _release_129(single):
+    return _compile(_read_lines("129_free_single" if single else "129_free_multi"))
 
 
 def _source(inst):
@@ -95,14 +109,15 @@ def _match(pattern, instructions, start, by_pc):
     index = start
     for line, tokens in pattern:
         if line.endswith(":"):
-            label = "@" + line[:-1]
+            seek = line.startswith("seek ")
+            label = "@" + line.removeprefix("seek ")[:-1]
             if label == "@odd_elect":
                 # The odd CTA reloads its own destination after reconvergence.
                 # The even CTA's uniform allocation temporaries are now dead.
                 for reg in list(bindings):
                     if reg.startswith("UR"):
                         reverse.pop(bindings.pop(reg), None)
-            if label in ("@even_slow", "@odd_slow", "@trap_start", "@trap_mask"):
+            if seek or label in ("@even_slow", "@odd_slow", "@trap_start", "@trap_mask"):
                 index = by_pc.get(bindings[label], -1)
             if not 0 <= index < len(instructions) or not _bind(bindings, label, int(instructions[index].id, 16)):
                 return
@@ -207,10 +222,13 @@ def _paired_release(insts, join, by_pc, bindings, dst, columns):
     # back this unmodified allocation and ptxas checks both ownership masks.
     if not columns.is_immediate or not dst.is_const_mem:
         return
+    guardrail = "@alloc_trap" in bindings
     writers = {}
     for i in range(join + 1, len(insts)):
         inst = insts[i]
-        if inst.opcodes == ["LDS"] and inst.get_uses() and inst.get_uses()[0].offset == 0x14:
+        if guardrail and inst.opcodes == ["UMOV"] and inst.get_uses()[0].immediate_value == 0x50:
+            break
+        if not guardrail and inst.opcodes == ["LDS"] and inst.get_uses() and inst.get_uses()[0].offset == 0x14:
             break
         if inst.pflag or inst.opcodes[0] not in _CONSUMER_OPS - {"STS"}:
             return
@@ -220,13 +238,24 @@ def _paired_release(insts, join, by_pc, bindings, dst, columns):
         return
 
     ncols = columns.immediate_value
-    result = _match(_release_pattern(ncols == 32), insts, i, by_pc)
+    pattern = (_release_129(ncols == 32) if guardrail else _release_pattern(ncols == 32))
+    result = _match(pattern, insts, i, by_pc)
     if result is None:
         return
     sites, keep, regs = result
-    if regs["R0"] != bindings["R0"] or regs["R0"] in writers:
+    if guardrail:
+        if ncols != 32:
+            marker = writers.get(regs["R11"])
+            if marker is None or _tokens(_source(insts[marker])) != _tokens(
+                    f"IMAD.MOV.U32 {regs['R11']}, RZ, RZ, 0x1"):
+                return
+        rank_writer = writers.get(regs["UR5"])
+        if rank_writer is None or _tokens(_source(insts[rank_writer])) != _tokens("S2UR " + regs["UR5"] + ",SR_CgaCtaId"):
+            return
+    elif regs["R0"] != bindings["R0"] or regs["R0"] in writers:
         return
-    mask_index, address_index = writers.get(regs["R9"]), writers.get(regs["R5"])
+    mask_register = "R7" if guardrail and ncols == 32 else "R9"
+    mask_index, address_index = writers.get(regs[mask_register]), writers.get(regs["R5"])
     if mask_index is None or address_index is None:
         return
     mask, address = insts[mask_index], insts[address_index]

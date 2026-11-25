@@ -350,8 +350,15 @@ def test_pattern_tracks_relocated_edges_registers_and_parameter_slot(toolkit, tm
     sass = disassemble(binary)
     sass = re.sub(r"\bR(\d+)\b", lambda m: "R" + str(32 + int(m[1])), sass)
     sass = re.sub(r"/\*([0-9a-f]{4})\*/", lambda m: f"/*{int(m[1], 16) + 0x100:04x}*/", sass)
-    sass = re.sub(r"(\bBRA(?:\.U)? (?:!?UP\d+, )?)0x([0-9a-f]+)",
+    # 12.9 uses explicit reconvergence and out-of-line guardrail calls.
+    # MOV materializes the return PC for those calls (the other MOV
+    # immediates in this fixture are SMEM offsets and must stay unchanged).
+    returns = {int(pc, 16) + 16 - 0x100 for pc in
+               re.findall(r"/\*([0-9a-f]+)\*/\s+CALL\.REL\.NOINC", sass)}
+    sass = re.sub(r"(\b(?:BRA(?:\.U)? (?:!?UP\d+, )?|BSSY B\d+, |CALL\.REL\.NOINC ))0x([0-9a-f]+)",
                   lambda m: m[1] + hex(int(m[2], 16) + 0x100), sass)
+    sass = re.sub(r"(\bMOV R\d+, )0x([0-9a-f]+)",
+                  lambda m: m[1] + hex(int(m[2], 16) + 0x100) if int(m[2], 16) in returns else m[0], sass)
     sass = sass.replace("c[0x0][0x388]", "c[0x0][0x38c]")
     func, = Module("probe", SaSSParser(sass, Elf(binary))).functions
     recover_tmem_pair(func)
@@ -361,18 +368,28 @@ def test_pattern_tracks_relocated_edges_registers_and_parameter_slot(toolkit, tm
     assert dst.offset == 0x38c and count.immediate_value == 32
 
 
-@pytest.mark.parametrize("old,new", [
-    ("NANOSLEEP 0x64", "NANOSLEEP 0x10"),
-    ("STAS [R6.64], R4", "STAS [R6.64], R5"),
-    ("BRA.U !UP0, 0x110", "BRA.U !UP0, 0x170"),
-    ("EXIT ;", "STG.E [R2.64], R4 ;"),
-    ("BRA 0x4d0", "BRA 0xe0"),
-])
-def test_partial_or_externally_observed_protocol_is_not_folded(toolkit, tmp_path, old, new):
+@pytest.mark.parametrize("mutation", ["sleep", "peer_store", "retry", "live_out", "cold_jump"])
+def test_partial_or_externally_observed_protocol_is_not_folded(toolkit, tmp_path, mutation):
     binary = assemble(tmp_path, "sm_100a", f"{PAIR} [r], 32;")
     original = disassemble(binary)
-    assert old in original
-    sass = original.replace(old, new, 1)
+    retry = re.search(r"/\*([0-9a-f]+)\*/\s+NANOSLEEP 0x64", original)
+    assert retry
+    retry_pc = int(retry[1], 16)
+    if mutation == "sleep":
+        sass = original.replace("NANOSLEEP 0x64", "NANOSLEEP 0x10", 1)
+    elif mutation == "peer_store":
+        sass = re.sub(r"(STAS \[R\d+\.64\], R)(\d+)", lambda m: m[1] + str(int(m[2])+1), original, count=1)
+    elif mutation == "retry":
+        sass = re.sub(r"(\bBRA(?:\.U)? (?:!UP\d+, )?)" + hex(retry_pc) + r"\b",
+                      lambda m: m[1] + hex(retry_pc + 16), original, count=1)
+    elif mutation == "live_out":
+        sass = original.replace("EXIT ;", "STG.E [R2.64], R4 ;", 1)
+    else:
+        # Redirect the cold wait's return edge into the retry loop.
+        after_exit = original.index("EXIT ;")
+        sass = original[:after_exit] + re.sub(r"(\bBRA )0x[0-9a-f]+", lambda m: m[1] + hex(retry_pc),
+                                              original[after_exit:], count=1)
+    assert sass != original
     func, = Module("probe", SaSSParser(sass, Elf(binary))).functions
     recover_tmem_pair(func)
     assert sum(i.opcodes[0] == "UTCATOMSWS" for i in func.instructions) == 2

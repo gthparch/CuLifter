@@ -42,7 +42,7 @@ class SaSSParser_NVDisasm_SM75(SaSSParserBase):
                         func_label = _LABEL_RE.match(func_line)
                         if func_label:
                             func_label_name = func_label.group("label")
-                            if func_label_name.startswith(".L"):
+                            if func_label_name.startswith((".L", "$")):
                                 pending_labels.append(func_label_name)
                             continue
 
@@ -76,8 +76,7 @@ class SaSSParser_NVDisasm_SM75(SaSSParserBase):
                         if body.endswith(";"):
                             body = body[:-1].strip()
 
-                        body = body.replace("`", "").replace("(", "").replace(")", "")
-                        body = self._replace_label_refs(body, label_map)
+                        body = self._resolve_label_refs(body, label_map, curr_name)
 
                         opcode, pflag, rest = self.get_inst_opcode(body)
                         rest = rest.replace(" ", "")
@@ -162,8 +161,7 @@ class SaSSParser_NVDisasm_SM75(SaSSParserBase):
                             if body.endswith(";"):
                                 body = body[:-1].strip()
 
-                            body = body.replace("`", "").replace("(", "").replace(")", "")
-                            body = self._replace_label_refs(body, label_map)
+                            body = self._resolve_label_refs(body, label_map, curr_name)
 
                             opcode, pflag, rest = self.get_inst_opcode(body)
                             rest = rest.replace(" ", "")
@@ -234,8 +232,7 @@ class SaSSParser_NVDisasm_SM75(SaSSParserBase):
                 if body.endswith(";"):
                     body = body[:-1].strip()
 
-                body = body.replace("`", "").replace("(", "").replace(")", "")
-                body = self._replace_label_refs(body, label_map)
+                body = self._resolve_label_refs(body, label_map, curr_name)
 
                 opcode, pflag, rest = self.get_inst_opcode(body)
                 rest = rest.replace(" ", "")
@@ -254,10 +251,15 @@ class SaSSParser_NVDisasm_SM75(SaSSParserBase):
 
         return funcs
 
-    def _replace_label_refs(self, body, label_map):
+    def _resolve_label_refs(self, body, label_map, function_name):
+        # nvdisasm's RET.REL.NODEC prints the function base as `(name);
+        # cuobjdump prints the equivalent function-relative offset, zero.
+        body = body.replace(f"`({function_name})", "0x0")
+        body = body.replace("`", "").replace("(", "").replace(")", "")
+
         for label, addr in label_map.items():
             pattern = rf"(?<![\w.$]){re.escape(label)}(?![\w.$])"
-            body = re.sub(pattern, f"0x{addr}", body)
+            body = re.sub(pattern, hex(int(addr, 16)), body)
         return body
 
     def _normalize_const_mem_operands(self, operand_str):
